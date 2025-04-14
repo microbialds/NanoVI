@@ -1,0 +1,25 @@
+# .gitignore — Ignorar archivos locales y generados por Nextflow
+
+# Carpetas de trabajo y resultados
+work/
+results/
+.nextflow*
+.cache/
+trace.txt
+timeline.html
+dag.png
+
+# Archivos locales privados
+config/params_private.config
+
+# Archivos grandes o generados
+*.mmi
+*.log
+*.tar.gz
+*.zip
+
+# Archivos temporales
+*.tmp
+*.bak
+*.swp
+
