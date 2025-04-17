@@ -1,6 +1,6 @@
 # **NanoVI**
 
-Nextflow DSL2 implementation for variational inference of metagenomic abundances
+Calculate relative abundances for Oxford Nanopore Technologies single-end 16S reads via variational inference algorithm
 
 This pipeline provides four main subcommands:
 
@@ -11,3 +11,13 @@ This pipeline provides four main subcommands:
 **Collapse-taxonomy:** Collapse a single-sample abundance table to a specified taxonomic rank.
 
 **Combine-outputs:** Merge multiple relative-abundance tables into one multi-sample table at a given rank.
+
+***Requirements***
+
+- Nextflow >= 24.x
+
+- Docker 
+
+
+
+
