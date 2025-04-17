@@ -1,5 +1,3 @@
-// modules/abundance/filter_reads.nf
-
 process FILTER_READS {
 
     label 'filter_reads'
@@ -8,16 +6,21 @@ process FILTER_READS {
     path fastq_file
 
     output:
+    // Emitimos tupla (sample_id, archivo_filtrado)
     tuple val("${fastq_file.simpleName}"), path("*.fastq.gz"), emit: filtered
+
+    // Otros outputs que quieras publicar
     path "fastplong/*.json.gz"
     path "fastplong/*.html.gz"
-    publishDir "${params.output_dir}", mode: 'copy'
+
+    publishDir "${params.output_dir}/filtered", mode: 'copy'
+
     script:
     """
     sample_name=\$(basename ${fastq_file} | sed 's/.fastq.gz//; s/.fq.gz//; s/.fastq//; s/.fq//')
 
     mkdir -p fastplong
-
+    
     fastplong \\
         -i ${fastq_file} \\
         -o \${sample_name}_filtered.fastq \\
@@ -31,3 +34,4 @@ process FILTER_READS {
     gzip -f fastplong/\${sample_name}_report.json
     """
 }
+

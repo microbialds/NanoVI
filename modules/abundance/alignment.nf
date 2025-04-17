@@ -1,5 +1,3 @@
-// modules/abundance/alignment.nf
-
 process ALIGN_READS {
 
     label 'alignment'
@@ -9,8 +7,9 @@ process ALIGN_READS {
     path species_fasta
 
     output:
-    path "${sample_id}_vi_alignments.sam", emit: sam
-    publishDir "${params.output_dir}", mode: 'copy'
+    tuple val(sample_id), path("${sample_id}_vi_alignments.sam"), emit: sam
+
+    publishDir "${params.output_dir}/sam", mode: 'copy', enabled: params.keep_files
 
     script:
     """
@@ -33,4 +32,6 @@ process ALIGN_READS {
              -o ${sample_id}_vi_alignments.sam
     """
 }
+
+
 

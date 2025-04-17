@@ -3,6 +3,7 @@
 import os
 import math
 import pandas as pd
+import pathlib 
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 

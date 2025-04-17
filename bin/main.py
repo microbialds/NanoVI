@@ -238,7 +238,7 @@ def run_build_database(args):
     custom_db_path = os.path.join(os.getcwd(), args.db_name)
     if not os.path.exists(custom_db_path):
         os.makedirs(custom_db_path)
-    print(f"GTDB custom database generating at path: {custom_db_path} ...")
+    print(f"custom database generating at path: {custom_db_path} ...")
 
     if args.ncbi_taxonomy:
         dict_names = create_names_dict(os.path.join(args.ncbi_taxonomy, 'names.dmp'))
