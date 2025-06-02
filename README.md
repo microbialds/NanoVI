@@ -1,6 +1,8 @@
 # **NanoVI**
 
-Calculate relative abundances for Oxford Nanopore Technologies single-end 16S reads via variational inference algorithm
+Pipeline for estimating relative abundances of Oxford Nanopore 16S reads using a variational inference approach. The workflow is written in Nextflow and relies on
+Python helper scripts found in the `bin/` directory.
+
 
 This pipeline provides four main subcommands:
 
@@ -14,9 +16,10 @@ This pipeline provides four main subcommands:
 
 ***Requirements***
 
-- Nextflow >= 24.x
-
-- Docker 
+- **Nextflow** 24.x or later
+- **Docker**
+- Optional environment variable `GTDB_DATABASE_DIR` pointing to a GTDB database
+  (used as default for the `--db` parameter)
 
 
 
