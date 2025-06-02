@@ -17,7 +17,7 @@ This pipeline provides four main subcommands:
 ***Requirements***
 
 - **Nextflow** 24.x or later
-- **Docker**
+- [**Docker**](https://docs.docker.com/engine/install/)
 - Optional environment variable `GTDB_DATABASE_DIR` pointing to a GTDB database
   (used as default for the `--db` parameter)
 
