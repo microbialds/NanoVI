@@ -14,14 +14,6 @@ This pipeline provides four main subcommands:
 
 **Combine-outputs:** Merge multiple relative-abundance tables into one multi-sample table at a given rank.
 
-***Requirements***
-
-- [**Nextflow**](https://www.nextflow.io/docs/latest/install.html) v24.x or later
-- [**Docker**](https://docs.docker.com/engine/install/)
-- Optional environment variable `GTDB_DATABASE_DIR` pointing to a GTDB database
-  (used as default for the `--db` parameter)
-
-
 **1. Installation**
 
 Clone this repository, and install:
@@ -29,11 +21,14 @@ Clone this repository, and install:
 ```
 git clone https://github.com/microbialds/NanoVI
 cd NanoVI
-Install Nextflow (24.x version or later)
-Install [Docker](https://docs.docker.com/engine/install/) plain=1
 
+- [**Nextflow**](https://www.nextflow.io/docs/latest/install.html) v24.x or later
+- [**Docker**](https://docs.docker.com/engine/install/)
+- Optional environment variable `GTDB_DATABASE_DIR` pointing to a GTDB database
+  (used as default for the `--db` parameter)
 
 ```
+
 **2. Input file**
 
 NanoVI accepts input files with the extensions .fastq or .fastq.gz. If you need to process multiple samples simultaneously, you should provide the path to the input folder.
