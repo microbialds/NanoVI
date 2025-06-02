@@ -22,12 +22,14 @@ Clone this repository, and install:
 git clone https://github.com/microbialds/NanoVI
 cd NanoVI
 
+```
+
 - [**Nextflow**](https://www.nextflow.io/docs/latest/install.html) v24.x or later
 - [**Docker**](https://docs.docker.com/engine/install/)
 - Optional environment variable `GTDB_DATABASE_DIR` pointing to a GTDB database
   (used as default for the `--db` parameter)
 
-```
+
 
 **2. Input file**
 
