@@ -45,7 +45,8 @@ def process_alignment_chunk(alignment_chunk):
     pass
 
 def get_cigar_op_log_probabilities(sam_path, threads):
-    cigar_stats_primary = [0] * len(CIGAR_OPS) 
+    threads = max(1, threads)
+    cigar_stats_primary = [0] * len(CIGAR_OPS)
     dict_longest_align = {}
 
     sam_pysam = pysam.AlignmentFile(sam_path)

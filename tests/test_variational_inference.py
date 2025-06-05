@@ -89,3 +89,13 @@ def test_few_alignments():
         log_p, zeros, longest = vi.get_cigar_op_log_probabilities('dummy', threads=4)
         assert len(log_p) == len(vi.CIGAR_OPS) - len(zeros)
         assert 'q1' in longest and 'q2' in longest
+
+def test_threads_zero_equivalent_to_one():
+    alignments = [
+        FakeAlignment('q1', '1:ref', [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1])
+    ]
+    with patched_env(alignments):
+        vi = load_vi()
+        result_zero = vi.get_cigar_op_log_probabilities('dummy', threads=0)
+        result_one = vi.get_cigar_op_log_probabilities('dummy', threads=1)
+        assert result_zero == result_one
