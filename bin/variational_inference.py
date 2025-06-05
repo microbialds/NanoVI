@@ -54,8 +54,12 @@ def get_cigar_op_log_probabilities(sam_path, threads):
     alignment_info = [extract_alignment_info(alignment) for alignment in sam_pysam.fetch()]
 
     # Split alignment info into chunks for parallel processing
-    chunk_size = len(alignment_info) // threads
-    alignment_chunks = [alignment_info[i:i + chunk_size] for i in range(0, len(alignment_info), chunk_size)]
+    if alignment_info:
+        threads = min(threads, len(alignment_info))
+        chunk_size = max(1, len(alignment_info) // threads)
+        alignment_chunks = [alignment_info[i:i + chunk_size] for i in range(0, len(alignment_info), chunk_size)]
+    else:
+        alignment_chunks = []
     
     with Pool(threads) as pool:
         results = pool.map(process_alignment_chunk, alignment_chunks)
