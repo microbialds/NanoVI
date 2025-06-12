@@ -74,13 +74,13 @@ NanoVI accepts input files with the extensions .fastq or .fastq.gz. If you need 
 
 This pipeline provides four main subcommands:
 
-**Abundance:** Full workflow for read filtering, alignment, probability calculation, and abundance estimation.
+ - Abundance: Full workflow for read filtering, alignment, probability calculation, and abundance estimation.
 
-**Build-database:** Build a custom GTDB-based database from input sequences and taxonomic mappings.
+- Build-database: Build a custom GTDB-based database from input sequences and taxonomic mappings.
 
-**Collapse-taxonomy:** Collapse a single-sample abundance table to a specified taxonomic rank.
+- Collapse-taxonomy: Collapse a single-sample abundance table to a specified taxonomic rank.
 
-**Combine-outputs:** Merge multiple relative-abundance tables into one multi-sample table at a given rank.
+- Combine-outputs: Merge multiple relative-abundance tables into one multi-sample table at a given rank.
 
 
 ```
@@ -88,7 +88,7 @@ nextflow run main.nf --cmd <subcommand> [parameters...]
 
 ```
 
-Example commands:
+**Example commands:**
 
 Abundance estimation
 
