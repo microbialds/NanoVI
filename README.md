@@ -70,7 +70,7 @@ cd NanoVI
 NanoVI accepts input files with the extensions .fastq or .fastq.gz. If you need to process multiple samples simultaneously, you should provide the path to the input folder.
 
 
-**4. Pipeline usage**
+### 4. Pipeline usage
 
 This pipeline provides four main subcommands:
 
@@ -87,6 +87,7 @@ This pipeline provides four main subcommands:
 nextflow run main.nf --cmd <subcommand> [parameters...]
 
 ```
+
 
 **Example commands:**
 
@@ -133,7 +134,10 @@ nextflow run main.nf \
 
 ```
 
-**5. Pipeline parameters**
+
+### 5. Pipeline parameters
+
+**Abundance parameters**
 
 | Parameter                      | Default                     | Description                                                                                                                                                   |
 |-------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -179,6 +183,7 @@ nextflow run main.nf \
           
 
 ### 4. Testing
+
 
 
 
