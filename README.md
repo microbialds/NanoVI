@@ -14,7 +14,53 @@ This pipeline provides four main subcommands:
 
 **Combine-outputs:** Merge multiple relative-abundance tables into one multi-sample table at a given rank.
 
-**1. Installation**
+
+**1. Pipeline structure**
+
+The NanoVI pipeline follows a modular architecture implemented in **Nextflow**.
+
+- The main script `main.nf` acts as an entry point and dispatches the execution based on the `--cmd` parameter.
+- Each subcommand (`abundance`, `build-database`, `collapse-taxonomy`, `combine-outputs`) is implemented as an independent workflow in the `modules/` directory.
+- The `abundance` workflow is further divided into modular Nextflow processes (`filter_reads`, `alignment`, `inference`, etc.), allowing clear separation of steps and easier maintenance.
+- Helper Python scripts used during processing are located in the `bin/` directory.
+- A `testing/` directory is provided with example data to test the pipeline.
+
+This structure ensures that the pipeline is:
+
+- Easy to extend with new subcommands or modules.
+- Highly reproducible and portable through the use of **Nextflow** and **Docker**.
+- User-friendly: each subcommand can be run independently by specifying the appropriate parameters.
+
+Below is the current directory structure:
+
+```
+NanoVI/
+├── main.nf                       # Main Nextflow script: dispatches to subcommand workflows
+├── config/
+│   ├── containers.config         # Docker container configuration
+├── modules/                      # Modular Nextflow workflows by subcommand
+│   ├── abundance/
+│   │   ├── filter_reads.nf
+│   │   ├── alignment.nf
+│   │   ├── cigar_probs.nf
+│   │   ├── log_prob_rgs.nf
+│   │   ├── inference.nf
+│   │   └── write_output.nf
+│   ├── build_database/
+│   │   └── main.nf
+│   ├── collapse_taxonomy/
+│   │   └── main.nf
+│   └── combine_outputs/
+│       └── main.nf
+├── bin/                          # Python helper scripts
+├── testing/                      # Example FASTQ data for testing the pipeline
+├── README.md                     # Project documentation
+└── nextflow.config               # Pipeline configuration and default parameters
+
+```
+
+
+**2. Installation**
 
 Clone this repository, and install:
 
@@ -30,12 +76,12 @@ cd NanoVI
 
 
 
-**2. Input file**
+**3. Input file**
 
 NanoVI accepts input files with the extensions .fastq or .fastq.gz. If you need to process multiple samples simultaneously, you should provide the path to the input folder.
 
 
-**3. Pipeline usage**
+**4. Pipeline usage**
 ```
 nextflow run main.nf --cmd <subcommand> [parameters...]
 
@@ -86,7 +132,7 @@ nextflow run main.nf \
 
 ```
 
-**4. Pipeline parameters (detailed)**
+**5. Pipeline parameters**
 
 | Parameter                      | Default                     | Description                                                                                                                                                   |
 |-------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -131,49 +177,8 @@ nextflow run main.nf \
 | `--rank`                       | `null`                      | Taxonomic rank to combine tables                                                                                                                           |
           
 
-**4. Pipeline structure**
+**4. Testing**
 
-The NanoVI pipeline follows a modular architecture implemented in **Nextflow**.
-
-- The main script `main.nf` acts as an entry point and dispatches the execution based on the `--cmd` parameter.
-- Each subcommand (`abundance`, `build-database`, `collapse-taxonomy`, `combine-outputs`) is implemented as an independent workflow in the `modules/` directory.
-- The `abundance` workflow is further divided into modular Nextflow processes (`filter_reads`, `alignment`, `inference`, etc.), allowing clear separation of steps and easier maintenance.
-- Helper Python scripts used during processing are located in the `bin/` directory.
-- A `testing/` directory is provided with example data to test the pipeline.
-
-This structure ensures that the pipeline is:
-
-- Easy to extend with new subcommands or modules.
-- Highly reproducible and portable through the use of **Nextflow** and **Docker**.
-- User-friendly: each subcommand can be run independently by specifying the appropriate parameters.
-
-Below is the current directory structure:
-
-```
-NanoVI/
-├── main.nf                       # Main Nextflow script: dispatches to subcommand workflows
-├── config/
-│   ├── containers.config         # Docker container configuration
-├── modules/                      # Modular Nextflow workflows by subcommand
-│   ├── abundance/
-│   │   ├── filter_reads.nf
-│   │   ├── alignment.nf
-│   │   ├── cigar_probs.nf
-│   │   ├── log_prob_rgs.nf
-│   │   ├── inference.nf
-│   │   └── write_output.nf
-│   ├── build_database/
-│   │   └── main.nf
-│   ├── collapse_taxonomy/
-│   │   └── main.nf
-│   └── combine_outputs/
-│       └── main.nf
-├── bin/                          # Python helper scripts
-├── testing/                      # Example FASTQ data for testing the pipeline
-├── README.md                     # Project documentation
-└── nextflow.config               # Pipeline configuration and default parameters
-
-```
 
 
 
