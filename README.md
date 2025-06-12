@@ -42,7 +42,7 @@ NanoVI/
 │   └── combine_outputs/
 │       └── main.nf
 ├── bin/                          # Python helper scripts
-├── testing/                      # Example FASTQ data for testing the pipeline
+├── test/                      # Example FASTQ data for testing the pipeline
 ├── README.md                     # Project documentation
 └── nextflow.config               # Pipeline configuration and default parameters
 
@@ -197,9 +197,9 @@ https://drive.google.com/drive/folders/1VurYfWfksEuokUCQCCSEbqJ8jBAEUXAw?usp=sha
 
 You can also create your own database or use the EMU database provided by the EMU authors
 
-### 5. Testing
+### 5. Pipeline testing with example dataset
 
-We include a dataset corresponding to a mock community for running the pipeline. This dataset is located in the testing/ directory and serves as a benchmark for validating the pipeline's performance.
+We include a dataset corresponding to a mock community for running the pipeline. This dataset is located in the test/ directory and serves as a benchmark for validating the pipeline's performance.
 
 
 
