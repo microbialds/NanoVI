@@ -39,8 +39,13 @@ NanoVI accepts input files with the extensions .fastq or .fastq.gz. If you need 
 ```
 nextflow run main.nf --cmd <subcommand> [parameters...]
 
+```
+
 Example commands:
 
+Abundance estimation
+
+```
 nextflow run main.nf \
   --cmd abundance \
   --input /path/to/fastq \
@@ -50,6 +55,20 @@ nextflow run main.nf \
   --threads <number of threads>
 
 ```
+Build database
+
+```
+nextflow run main.nf \
+  --cmd build-database \
+  --sequences /path/to/sequences.fasta \
+  --seq2tax /path/to/seq2tax.tsv \
+  --db_name custom_gtdb_database \
+  --output_dir /path/to/output_db
+
+```
+
+
+
 
 **4. Command example for Abundance Estimation**
 
