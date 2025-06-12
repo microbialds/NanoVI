@@ -201,7 +201,17 @@ You can also create your own database or use the EMU database provided by the EM
 
 We include a dataset corresponding to a mock community for running the pipeline. This dataset is located in the test/ directory and serves as a benchmark for validating the pipeline's performance.
 
+### Troubleshooting
 
+- **FastpLong** uses a default quality filter threshold of **Q15**.  
+  If your samples have lower quality, you can adjust this threshold by adding the parameter:
+
+```
+in the `fastplong` command inside `filter_reads.nf`.
+
+Example: if your reads have Q10:
+
+```
 
 
 
