@@ -189,7 +189,7 @@ nextflow run main.nf \
 | `--rank`                       | `null`                      | Taxonomic rank to combine tables                                                                                                                           |
 
 
-### 4. GTDB datababe
+### 4. GTDB database
 
 GTDB database version 220 available, in the following link:
 
