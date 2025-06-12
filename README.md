@@ -131,7 +131,31 @@ nextflow run main.nf \
 | `--rank`                       | `null`                      | Taxonomic rank to combine tables                                                                                                                           |
           
 
-**4. Command example for Abundance Estimation**
+**4. Pipeline structure**
+
+VI-pipeline/
+├── main.nf                       # Main Nextflow script: dispatches to subcommand workflows
+├── config/
+│   ├── containers.config         # Docker container configuration
+├── modules/                      # Modular Nextflow workflows by subcommand
+│   ├── abundance/
+│   │   ├── filter_reads.nf
+│   │   ├── alignment.nf
+│   │   ├── cigar_probs.nf
+│   │   ├── log_prob_rgs.nf
+│   │   ├── inference.nf
+│   │   └── write_output.nf
+│   ├── build_database/
+│   │   └── main.nf
+│   ├── collapse_taxonomy/
+│   │   └── main.nf
+│   └── combine_outputs/
+│       └── main.nf
+├── bin/                          # Python helper scripts
+├── testing/                      # Example FASTQ data for testing the pipeline
+├── README.md                     # Project documentation
+└── nextflow.config               # Pipeline configuration and default parameters
+
 
 
 
