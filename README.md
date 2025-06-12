@@ -66,8 +66,43 @@ nextflow run main.nf \
   --output_dir /path/to/output_db
 
 ```
+Collapse taxonomy
 
+```
+nextflow run main.nf \
+  --cmd collapse-taxonomy \
+  --input_tsv /path/to/abundance_table.tsv \
+  --rank genus
 
+```
+Combine outputs
+
+```
+nextflow run main.nf \
+  --cmd combine-outputs \
+  --input_dir /path/to/folder_with_abundance_tables \
+  --rank species \
+  --output_dir /path/to/combined_output
+
+```
+
+**4. Pipeline parameters (detailed)**
+Parameter	Description	Default value
+--cmd	Subcommand to run: abundance, build-database, collapse-taxonomy, or combine-outputs	'abundance'
+--input	Path to input FASTQ file or directory	'data/'
+--output_dir	Path to output directory	'results/'
+--db	Path to GTDB database folder	'db/'
+--taxonomy_tsv	Path to taxonomy TSV file	'db/taxonomy.tsv'
+--threads	Number of CPU threads to use	8
+--kmer_size	K-mer size for analysis	27
+--N	Number of reads to sample	20
+--K	Max number of kmers	1_000_000_000
+--type	Sequencing type (e.g. 'map-ont' for Nanopore reads)	'map-ont'
+--split_prefix	Prefix for temporary split files	'temp'
+--min_length	Minimum read length to consider	500
+--max_length	Maximum read length to consider	2000
+--keep_counts	Whether to keep raw read counts (true or false)	false
+--keep_files	Whether to keep intermediate files (true or false)
 
 
 **4. Command example for Abundance Estimation**
