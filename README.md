@@ -87,23 +87,49 @@ nextflow run main.nf \
 ```
 
 **4. Pipeline parameters (detailed)**
-Parameter	Description	Default value
---cmd	Subcommand to run: abundance, build-database, collapse-taxonomy, or combine-outputs	'abundance'
---input	Path to input FASTQ file or directory	'data/'
---output_dir	Path to output directory	'results/'
---db	Path to GTDB database folder	'db/'
---taxonomy_tsv	Path to taxonomy TSV file	'db/taxonomy.tsv'
---threads	Number of CPU threads to use	8
---kmer_size	K-mer size for analysis	27
---N	Number of reads to sample	20
---K	Max number of kmers	1_000_000_000
---type	Sequencing type (e.g. 'map-ont' for Nanopore reads)	'map-ont'
---split_prefix	Prefix for temporary split files	'temp'
---min_length	Minimum read length to consider	500
---max_length	Maximum read length to consider	2000
---keep_counts	Whether to keep raw read counts (true or false)	false
---keep_files	Whether to keep intermediate files (true or false)
 
+| Parameter                      | Default                     | Description                                                                                                                                                   |
+|-------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--cmd`                        | `abundance`                 | Subcommand to run: `abundance`, `build-database`, `collapse-taxonomy`, or `combine-outputs`                                                                     |
+| `--input`                      | `data/`                     | Path to input FASTQ file or directory                                                                                                                          |
+| `--output_dir`                  | `results/`                  | Directory for output results                                                                                                                                  |
+| `--db`                         | `db/`                       | Path to GTDB database folder                                                                                                                                  |
+| `--taxonomy_tsv`               | `db/taxonomy.tsv`           | Path to taxonomy TSV file corresponding to database                                                                                                           |
+| `--threads`                    | `8`                         | Number of CPU threads to use                                                                                                                                  |
+| `--kmer_size`                  | `27`                        | K-mer size for minimap2                                                                                                                                       |
+| `--N`                          | `20`                        | max number of alignments utilized for each read in minimap2                                                                                                                                 |
+| `--K`                          | `1000000000`                | minibatch size for mapping in minimap2                                                                                                                                   |
+| `--type`                       | `map-ont`                   | Sequencing type (e.g. `'map-ont'` for Nanopore reads)                                                                                                          |
+| `--split_prefix`               | `temp`                      | Prefix for temporary split files                                                                                                                              |
+| `--min_length`                 | `500`                       | Minimum read length to fastplong filter                                                                                                                              |
+| `--max_length`                 | `2000`                      | Maximum read length to fastplong filter                                                                                                                               |
+| `--keep_counts`                | `FALSE`                     | Include estimated read counts for each species in output                                                                                                      |
+| `--keep_files`                 | `FALSE`                     | Keep intermediate files in output directory (alignments [.sam], reads of specified length [.fa])                                                               |                                                            |
+
+### Build database parameters
+
+| Parameter                      | Default                     | Description                                                                                                                                                   |
+|-------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--db_name`                    | `db_custom`                 | Name of the custom database to build                                                                                                                           |
+| `--sequences`                  | `null`                      | Input FASTA sequences in fasta format                                                                                                                                        |
+| `--seq2tax`                    | `null`                      | Sequence-to-taxonomy mapping file in tsv format (seq2tax.map.tsv)                                                                                                                            |
+| `--ncbi_taxonomy`              | `null`                      | NCBI taxonomy dump directory (names.dmp & nodes.dmp files)                                                                                                                                  |
+| `--taxonomy_list`              | `null`                      | List of taxonomy terms to include in tsv format                                                                                                                            |
+
+### Collapse taxonomy parameters
+
+| Parameter                      | Default                     | Description                                                                                                                                                   |
+|-------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--input_tsv`                  | `null`                      | Input abundance table TSV from output directory                                                                                                                                     |
+| `--rank`                       | `null`                      | Taxonomic rank to collapse to (e.g., `phylum`, `genus`, `species`)                                                                                              |
+
+### Combine outputs parameters
+
+| Parameter                      | Default                     | Description                                                                                                                                                   |
+|-------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `--input_dir`                  | `null`                      | Directory containing abundance tables from output directory                                                                                                                        |
+| `--rank`                       | `null`                      | Taxonomic rank to combine tables                                                                                                                           |
+          
 
 **4. Command example for Abundance Estimation**
 
