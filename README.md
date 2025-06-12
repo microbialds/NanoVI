@@ -12,7 +12,7 @@ The NanoVI pipeline follows a modular architecture implemented in **Nextflow**.
 - Each subcommand (`abundance`, `build-database`, `collapse-taxonomy`, `combine-outputs`) is implemented as an independent workflow in the `modules/` directory.
 - The `abundance` workflow is further divided into modular Nextflow processes (`filter_reads`, `alignment`, `inference`, etc.), allowing clear separation of steps and easier maintenance.
 - Helper Python scripts used during processing are located in the `bin/` directory.
-- A `testing/` directory is provided with example data to test the pipeline.
+- A `test/` directory is provided with example data to test the pipeline.
 
 This structure ensures that the pipeline is:
 
