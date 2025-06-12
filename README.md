@@ -137,7 +137,8 @@ nextflow run main.nf \
 
 ### 5. Pipeline parameters
 
-**Abundance parameters**
+
+- **Abundance parameters**
 
 | Parameter                      | Default                     | Description                                                                                                                                                   |
 |-------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -157,7 +158,9 @@ nextflow run main.nf \
 | `--keep_counts`                | `FALSE`                     | Include estimated read counts for each species in output                                                                                                      |
 | `--keep_files`                 | `FALSE`                     | Keep intermediate files in output directory (alignments [.sam], reads of specified length [.fa])                                                               |
 
-**Build database parameters**
+
+
+- **Build database parameters**
 
 | Parameter                      | Default                     | Description                                                                                                                                                   |
 |-------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -167,19 +170,24 @@ nextflow run main.nf \
 | `--ncbi_taxonomy`              | `null`                      | NCBI taxonomy dump directory (names.dmp & nodes.dmp files)                                                                                                                                  |
 | `--taxonomy_list`              | `null`                      | List of taxonomy terms to include in tsv format                                                                                                                            |
 
-**Collapse taxonomy parameters**
+
+
+- **Collapse taxonomy parameters**
 
 | Parameter                      | Default                     | Description                                                                                                                                                   |
 |-------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `--input_tsv`                  | `null`                      | Input abundance table TSV from output directory                                                                                                                                     |
 | `--rank`                       | `null`                      | Taxonomic rank to collapse to (e.g., `phylum`, `genus`, `species`)                                                                                              |
 
-**Combine outputs parameters**
+
+
+- **Combine outputs parameters**
 
 | Parameter                      | Default                     | Description                                                                                                                                                   |
 |-------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `--input_dir`                  | `null`                      | Directory containing abundance tables from output directory                                                                                                                        |
 | `--rank`                       | `null`                      | Taxonomic rank to combine tables                                                                                                                           |
+
           
 
 ### 4. Testing
