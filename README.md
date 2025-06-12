@@ -191,7 +191,11 @@ nextflow run main.nf \
 
 ### 4. GTDB datababe
 
-We provided GTDB database 220v for used, 
+GTDB database version 220 available, in the following link:
+
+https://drive.google.com/drive/folders/1VurYfWfksEuokUCQCCSEbqJ8jBAEUXAw?usp=sharing
+
+You can also create your own database or use the EMU database provided by the EMU authors
 
 ### 5. Testing
 
