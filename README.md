@@ -4,7 +4,7 @@ Pipeline for estimating relative abundances of Oxford Nanopore 16S reads using a
 Python helper scripts found in the `bin/` directory.
 
 
-**1. Pipeline structure**
+### 1. Pipeline structure
 
 The NanoVI pipeline follows a modular architecture implemented in **Nextflow**.
 
@@ -49,7 +49,7 @@ NanoVI/
 ```
 
 
-**2. Installation**
+### 2. Installation
 
 Clone this repository, and install:
 
@@ -65,7 +65,7 @@ cd NanoVI
 
 
 
-**3. Input file**
+### 3. Input file
 
 NanoVI accepts input files with the extensions .fastq or .fastq.gz. If you need to process multiple samples simultaneously, you should provide the path to the input folder.
 
@@ -153,7 +153,7 @@ nextflow run main.nf \
 | `--keep_counts`                | `FALSE`                     | Include estimated read counts for each species in output                                                                                                      |
 | `--keep_files`                 | `FALSE`                     | Keep intermediate files in output directory (alignments [.sam], reads of specified length [.fa])                                                               |
 
-### Build database parameters
+**Build database parameters**
 
 | Parameter                      | Default                     | Description                                                                                                                                                   |
 |-------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -163,14 +163,14 @@ nextflow run main.nf \
 | `--ncbi_taxonomy`              | `null`                      | NCBI taxonomy dump directory (names.dmp & nodes.dmp files)                                                                                                                                  |
 | `--taxonomy_list`              | `null`                      | List of taxonomy terms to include in tsv format                                                                                                                            |
 
-### Collapse taxonomy parameters
+**Collapse taxonomy parameters**
 
 | Parameter                      | Default                     | Description                                                                                                                                                   |
 |-------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `--input_tsv`                  | `null`                      | Input abundance table TSV from output directory                                                                                                                                     |
 | `--rank`                       | `null`                      | Taxonomic rank to collapse to (e.g., `phylum`, `genus`, `species`)                                                                                              |
 
-### Combine outputs parameters
+**Combine outputs parameters**
 
 | Parameter                      | Default                     | Description                                                                                                                                                   |
 |-------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -178,7 +178,7 @@ nextflow run main.nf \
 | `--rank`                       | `null`                      | Taxonomic rank to combine tables                                                                                                                           |
           
 
-**4. Testing**
+### 4. Testing
 
 
 
