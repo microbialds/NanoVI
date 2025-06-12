@@ -204,12 +204,11 @@ We include a dataset corresponding to a mock community for running the pipeline.
 ### Troubleshooting
 
 - **FastpLong** uses a default quality filter threshold of **Q15**.  
-  If your samples have lower quality and you want to keep reads with **Q ≥ 13**, you can adjust this threshold by adding the following parameter to the `fastplong` command inside `filter_reads.nf`:
+  For example, if your samples have lower quality and you want to keep reads with **Q ≥ 13**, you can adjust this threshold by adding the following parameter to the `fastplong` command inside `filter_reads.nf`:
 
 
 ```
 --qualified_quality_phred 13
-
 
 ```
 
