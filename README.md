@@ -188,9 +188,15 @@ nextflow run main.nf \
 | `--input_dir`                  | `null`                      | Directory containing abundance tables from output directory                                                                                                                        |
 | `--rank`                       | `null`                      | Taxonomic rank to combine tables                                                                                                                           |
 
-          
 
-### 4. Testing
+### 4. GTDB datababe
+
+We provided GTDB database 220v for used, 
+
+### 5. Testing
+
+We include a dataset corresponding to a mock community for running the pipeline. This dataset is located in the testing/ directory and serves as a benchmark for validating the pipeline's performance.
+
 
 
 
