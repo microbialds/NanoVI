@@ -132,7 +132,7 @@ nextflow run main.nf \
           
 
 **4. Pipeline structure**
-
+```
 VI-pipeline/
 ├── main.nf                       # Main Nextflow script: dispatches to subcommand workflows
 ├── config/
@@ -156,6 +156,7 @@ VI-pipeline/
 ├── README.md                     # Project documentation
 └── nextflow.config               # Pipeline configuration and default parameters
 
+```
 
 
 
