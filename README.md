@@ -90,21 +90,21 @@ nextflow run main.nf \
 
 | Parameter                      | Default                     | Description                                                                                                                                                   |
 |-------------------------------|-----------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `--cmd`                        | `abundance`                 | Subcommand to run: `abundance`, `build-database`, `collapse-taxonomy`, or `combine-outputs`                                                                     |
-| `--input`                      | `data/`                     | Path to input FASTQ file or directory                                                                                                                          |
-| `--output_dir`                  | `results/`                  | Directory for output results                                                                                                                                  |
-| `--db`                         | `db/`                       | Path to GTDB database folder                                                                                                                                  |
+| `--cmd`                        | `user must provide`        | Subcommand to run: `abundance`, `build-database`, `collapse-taxonomy`, or `combine-outputs`                                                                     |
+| `--input`                      | `user must provide`        | Path to input FASTQ file or directory                                                                                                                          |
+| `--output_dir`                  | `user must provide`       | Directory for output results                                                                                                                                  |
+| `--db`                         | `$GTDB_DATABASE_DIR`        | Path to GTDB database folder                                                                                                                                  |
 | `--taxonomy_tsv`               | `db/taxonomy.tsv`           | Path to taxonomy TSV file corresponding to database                                                                                                           |
 | `--threads`                    | `8`                         | Number of CPU threads to use                                                                                                                                  |
 | `--kmer_size`                  | `27`                        | K-mer size for minimap2                                                                                                                                       |
 | `--N`                          | `20`                        | max number of alignments utilized for each read in minimap2                                                                                                                                 |
-| `--K`                          | `1000000000`                | minibatch size for mapping in minimap2                                                                                                                                   |
+| `--K`                          | `1000000000`                | minibatch size for mapping in minimap2                                                                                                                         |
 | `--type`                       | `map-ont`                   | Sequencing type (e.g. `'map-ont'` for Nanopore reads)                                                                                                          |
 | `--split_prefix`               | `temp`                      | Prefix for temporary split files                                                                                                                              |
-| `--min_length`                 | `500`                       | Minimum read length to fastplong filter                                                                                                                              |
-| `--max_length`                 | `2000`                      | Maximum read length to fastplong filter                                                                                                                               |
+| `--min_length`                 | `500`                       | Minimum read length to fastplong filter                                                                                                                       |
+| `--max_length`                 | `2000`                      | Maximum read length to fastplong filter                                                                                                                       |
 | `--keep_counts`                | `FALSE`                     | Include estimated read counts for each species in output                                                                                                      |
-| `--keep_files`                 | `FALSE`                     | Keep intermediate files in output directory (alignments [.sam], reads of specified length [.fa])                                                               |                                                            |
+| `--keep_files`                 | `FALSE`                     | Keep intermediate files in output directory (alignments [.sam], reads of specified length [.fa])                                                               |
 
 ### Build database parameters
 
