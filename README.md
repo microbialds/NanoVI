@@ -21,7 +21,6 @@ Clone this repository, and install:
 ```
 git clone https://github.com/microbialds/NanoVI
 cd NanoVI
-
 ```
 
 - [**Nextflow**](https://www.nextflow.io/docs/latest/install.html) v24.x or later
@@ -36,16 +35,22 @@ cd NanoVI
 NanoVI accepts input files with the extensions .fastq or .fastq.gz. If you need to process multiple samples simultaneously, you should provide the path to the input folder.
 
 
-**3. Test dependencies**
+**3. Pipeline usage**
+```
+nextflow run main.nf --cmd <subcommand> [parameters...]
 
-It looks like you want to test the dependencies of your project using pytest and expect the output to confirm that 9 dependencies have passed.
-Navigate to: 
+Example commands:
+
+nextflow run main.nf \
+  --cmd abundance \
+  --input /path/to/fastq \
+  --output_dir /path/to/output_folder \
+  --db /path/to/db \
+  --taxonomy_tsv /path/to/db/taxonomy.tsv \
+  --threads <number of threads>
 
 ```
-cd VI-pipeline 
-pytest tests/
 
-```
 **4. Command example for Abundance Estimation**
 
 
