@@ -4,7 +4,6 @@ process GET_CIGAR {
 
     input:
     tuple val(sample_id), path(sam_file)
-    val threads
 
     output:
   
@@ -17,7 +16,7 @@ import sys, json
 sys.path.insert(0, "./bin")
 from variational_inference import get_cigar_op_log_probabilities
 
-log_probs, zero_locs, longest_align = get_cigar_op_log_probabilities("${sam_file}", ${threads})
+log_probs, zero_locs, longest_align = get_cigar_op_log_probabilities("${sam_file}", ${task.cpus})
 
 with open("${sample_id}_cigar_info.json", "w") as f:
     json.dump({

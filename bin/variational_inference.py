@@ -35,7 +35,7 @@ def process_alignment_chunk(alignment_chunk):
     
     for alignment_info in alignment_chunk:
         query_name, align_len, cigar_stats = alignment_info
-        if align_len not in dict_longest_align:
+        if query_name not in dict_longest_align:
             dict_longest_align[query_name] = align_len
         cigar_stats_primary = list(map(add, cigar_stats_primary, cigar_stats))
         if dict_longest_align[query_name] < align_len:

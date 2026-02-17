@@ -100,7 +100,7 @@ nextflow run main.nf \
   --output_dir /path/to/output_folder \
   --db /path/to/db \
   --taxonomy_tsv /path/to/db/taxonomy.tsv \
-  --threads <number of threads>
+  --cpus <number of cpus>
 
 ```
 Build database
@@ -147,7 +147,7 @@ nextflow run main.nf \
 | `--output_dir`                  | `user must provide`       | Directory for output results                                                                                                                                  |
 | `--db`                         | `$GTDB_DATABASE_DIR`        | Path to GTDB database folder                                                                                                                                  |
 | `--taxonomy_tsv`               | `db/taxonomy.tsv`           | Path to taxonomy TSV file corresponding to database                                                                                                           |
-| `--threads`                    | `8`                         | Number of CPU threads to use                                                                                                                                  |
+| `--cpus`                       | `8`                         | Number of CPUs to allocate per process                                                                                                                        |
 | `--kmer_size`                  | `27`                        | K-mer size for minimap2                                                                                                                                       |
 | `--N`                          | `20`                        | max number of alignments utilized for each read in minimap2                                                                                                                                 |
 | `--K`                          | `1000000000`                | minibatch size for mapping in minimap2                                                                                                                         |

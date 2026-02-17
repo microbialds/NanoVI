@@ -10,7 +10,10 @@ timeline.html
 dag.png
 
 # Archivos locales privados
-config/params_private.config
+conf/params_private.config
+
+# Test results
+test_results/
 
 # Archivos grandes o generados
 *.mmi

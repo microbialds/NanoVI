@@ -4,7 +4,7 @@ process ALIGN_READS {
 
     input:
     tuple val(sample_id), path(filtered_fastq)
-    path species_fasta
+    path db_index
 
     output:
     tuple val(sample_id), path("${sample_id}_vi_alignments.sam"), emit: sam
@@ -13,25 +13,17 @@ process ALIGN_READS {
 
     script:
     """
-    if [ ! -f "gtdb_index.mmi" ]; then
-        echo "🔄 Indexando base de datos con minimap2..."
-        minimap2 -k ${params.kmer_size} -d gtdb_index.mmi ${species_fasta}
-    fi
-
     echo "🧬 Alineando ${sample_id} con minimap2..."
 
     minimap2 -ax ${params.type} \\
-             -t ${params.threads} \\
+             -t ${task.cpus} \\
              -N ${params.N} \\
              -p 0.9 \\
              -K ${params.K} \\
              -k ${params.kmer_size} \\
              --split-prefix ${params.split_prefix} \\
-             gtdb_index.mmi \\
+             ${db_index} \\
              ${filtered_fastq} \\
              -o ${sample_id}_vi_alignments.sam
     """
 }
-
-
-

@@ -2,16 +2,17 @@
 nextflow.enable.dsl = 2
 
 // ─── INCLUDES (DSL2) ────────────────────────────────────────────────────────
-include { FILTER_READS }  from './modules/abundance/filter_reads.nf'
-include { ALIGN_READS }   from './modules/abundance/alignment.nf'
-include { GET_CIGAR }     from './modules/abundance/cigar_probs.nf'
-include { COMPUTE_LOGP }  from './modules/abundance/log_prob_rgs.nf'
-include { RUN_VI }        from './modules/abundance/inference.nf'
-include { WRITE_OUTPUT }  from './modules/abundance/write_output.nf'
+include { FILTER_READS }  from './modules/local/filter_reads'
+include { INDEX_DB }      from './modules/local/index_db'
+include { ALIGN_READS }   from './modules/local/align_reads'
+include { GET_CIGAR }     from './modules/local/cigar_probs'
+include { COMPUTE_LOGP }  from './modules/local/log_prob_rgs'
+include { RUN_VI }        from './modules/local/inference'
+include { WRITE_OUTPUT }  from './modules/local/write_output'
 
-include { BUILD_DB }      from './modules/build_database/main.nf'
-include { COLLAPSE }      from './modules/collapse_taxonomy/main.nf'
-include { COMBINE }       from './modules/combine_outputs/main.nf'
+include { BUILD_DB }      from './modules/local/build_database'
+include { COLLAPSE }      from './modules/local/collapse_taxonomy'
+include { COMBINE }       from './modules/local/combine_outputs'
 
 workflow {
 
@@ -27,15 +28,18 @@ workflow {
     // Step 1: Filter reads (tuple: sample_id, fastq)
     named_reads = FILTER_READS(input_reads).filtered
 
-    // Step 2: Alignment
+    // Step 2a: Build minimap2 index (once)
     fasta_file = file("${params.db}/species_taxid.fasta")
+    db_index = INDEX_DB(fasta_file)
+
+    // Step 2b: Alignment (uses pre-built index)
     sam_file = ALIGN_READS(
       named_reads,    // Tuple (sample_id, fastq.gz)
-      fasta_file      // Input 
+      db_index        // Pre-built minimap2 index
     )
 
     // Step 3: Get CIGAR probabilities
-    cigar_info = GET_CIGAR(sam_file, params.threads)
+    cigar_info = GET_CIGAR(sam_file)
 
     // ✅ Join SAM and CIGAR for sample_id
     sam_and_cigar = sam_file.join(cigar_info)
@@ -47,23 +51,13 @@ workflow {
     // Step 5: Variational inference algorithm
     freq_output = RUN_VI(logp_data)
 
-    // Step 6: Get assigned/unassigned counts from JSON
-    counts = logp_data.map { sample_id, file ->
-      def json = file.text
-      def parsed = new groovy.json.JsonSlurper().parseText(json)
-      tuple(sample_id, parsed.assigned_count, parsed.unassigned_count)
-    }
+    // Step 6+7: Join abundance with logp data and write output
+    vi_with_counts = freq_output.join(logp_data)
+    // vi_with_counts is: tuple(sample_id, abundance.json, logp_data.json)
 
-    assigned   = counts.map { it[1] }
-    unassigned = counts.map { it[2] }
-
-
-    // Step 7: Get final output
     WRITE_OUTPUT(
-    freq_output,                    
-    file(params.taxonomy_tsv),      
-    assigned,                        
-    unassigned                       
+      vi_with_counts,
+      file(params.taxonomy_tsv)
     )
 
    }
