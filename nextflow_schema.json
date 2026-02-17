@@ -1,7 +1,147 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema",
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "$id": "https://github.com/microbialds/NanoVI/nextflow_schema.json",
   "title": "NanoVI pipeline parameters",
-  "description": "Parameter validation schema for NanoVI pipeline",
+  "description": "Taxonomic classification of full-length 16S rRNA Nanopore reads using variational inference",
   "type": "object",
-  "properties": {}
+  "definitions": {
+    "general_options": {
+      "title": "General options",
+      "type": "object",
+      "properties": {
+        "cmd": {
+          "type": "string",
+          "default": "abundance",
+          "description": "Pipeline subcommand to run",
+          "enum": ["abundance", "build-database", "collapse-taxonomy", "combine-outputs"]
+        },
+        "output_dir": {
+          "type": "string",
+          "default": "results/",
+          "description": "Directory for pipeline output files"
+        }
+      }
+    },
+    "abundance_options": {
+      "title": "Abundance estimation options",
+      "type": "object",
+      "properties": {
+        "input": {
+          "type": "string",
+          "description": "Path to input samplesheet CSV or FASTQ directory"
+        },
+        "db": {
+          "type": "string",
+          "description": "Path to NanoVI/GTDB reference database directory"
+        },
+        "taxonomy_tsv": {
+          "type": "string",
+          "description": "Path to taxonomy TSV file matching the reference database"
+        },
+        "kmer_size": {
+          "type": "integer",
+          "default": 27,
+          "minimum": 1,
+          "maximum": 28,
+          "description": "K-mer size for minimap2 alignment indexing and mapping"
+        },
+        "N": {
+          "type": "integer",
+          "default": 3,
+          "minimum": 1,
+          "description": "Maximum number of secondary alignments reported by minimap2 per read"
+        },
+        "K": {
+          "type": "integer",
+          "default": 4000000000,
+          "description": "Minibatch size for minimap2 mapping (bytes)"
+        },
+        "type": {
+          "type": "string",
+          "default": "map-ont",
+          "description": "Minimap2 sequencing type preset",
+          "enum": ["map-ont", "map-pb", "sr"]
+        },
+        "split_prefix": {
+          "type": "string",
+          "default": "temp",
+          "description": "Prefix for minimap2 temporary split index files"
+        },
+        "min_length": {
+          "type": "integer",
+          "default": 500,
+          "minimum": 0,
+          "description": "Minimum read length for FastpLong quality filter (bp)"
+        },
+        "max_length": {
+          "type": "integer",
+          "default": 2000,
+          "minimum": 1,
+          "description": "Maximum read length for FastpLong quality filter (bp)"
+        },
+        "keep_counts": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include estimated read counts column in output abundance tables"
+        },
+        "keep_files": {
+          "type": "boolean",
+          "default": false,
+          "description": "Retain intermediate files (SAM alignments, filtered FASTQs) in output directory"
+        }
+      }
+    },
+    "database_options": {
+      "title": "Database build options",
+      "type": "object",
+      "properties": {
+        "db_name": {
+          "type": "string",
+          "default": "db_custom",
+          "description": "Name for the custom database to build"
+        },
+        "sequences": {
+          "type": "string",
+          "description": "Path to input FASTA file with reference sequences"
+        },
+        "seq2tax": {
+          "type": "string",
+          "description": "Path to sequence-to-taxonomy mapping TSV file"
+        },
+        "ncbi_taxonomy": {
+          "type": "string",
+          "description": "Path to NCBI taxonomy dump directory (containing names.dmp and nodes.dmp)"
+        },
+        "taxonomy_list": {
+          "type": "string",
+          "description": "Path to taxonomy terms list TSV file"
+        }
+      }
+    },
+    "postprocessing_options": {
+      "title": "Post-processing options",
+      "type": "object",
+      "properties": {
+        "input_tsv": {
+          "type": "string",
+          "description": "Path to abundance table TSV for taxonomy collapse"
+        },
+        "input_dir": {
+          "type": "string",
+          "description": "Path to directory containing per-sample abundance tables for combining"
+        },
+        "rank": {
+          "type": "string",
+          "description": "Taxonomic rank for collapse or combine operations",
+          "enum": ["species", "genus", "family", "order", "class", "phylum", "superkingdom"]
+        }
+      }
+    }
+  },
+  "allOf": [
+    { "$ref": "#/definitions/general_options" },
+    { "$ref": "#/definitions/abundance_options" },
+    { "$ref": "#/definitions/database_options" },
+    { "$ref": "#/definitions/postprocessing_options" }
+  ]
 }

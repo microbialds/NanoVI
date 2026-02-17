@@ -12,7 +12,7 @@ process RUN_VI {
     """
     python3 -c '
 import sys, json
-sys.path.insert(0, "./bin")
+sys.path.insert(0, "${projectDir}/bin")
 from variational_inference import variational_inference_iterations
 
 with open("${logp_json}") as f:

@@ -1,0 +1,8 @@
+*.md
+*.nf
+*.config
+.git
+.nextflow*
+work/
+results/
+test_results/

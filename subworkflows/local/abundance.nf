@@ -1,2 +1,44 @@
 // subworkflows/local/abundance.nf — Abundance subworkflow
-// This file will be populated in subsequent prompts.
+
+include { FILTER_READS }  from '../../modules/local/filter_reads'
+include { INDEX_DB }      from '../../modules/local/index_db'
+include { ALIGN_READS }   from '../../modules/local/align_reads'
+include { GET_CIGAR }     from '../../modules/local/cigar_probs'
+include { COMPUTE_LOGP }  from '../../modules/local/log_prob_rgs'
+include { RUN_VI }        from '../../modules/local/inference'
+include { WRITE_OUTPUT }  from '../../modules/local/write_output'
+
+workflow ABUNDANCE {
+
+    take:
+    input_reads     // channel: tuple(sample_id, fastq)
+    fasta_file      // path: reference FASTA
+    taxonomy_tsv    // path: taxonomy TSV
+
+    main:
+    // Step 1: Filter reads by length
+    named_reads = FILTER_READS(input_reads).filtered
+
+    // Step 2: Build minimap2 index (once)
+    db_index = INDEX_DB(fasta_file)
+
+    // Step 3: Align reads against reference
+    sam_file = ALIGN_READS(named_reads, db_index)
+
+    // Step 4: Compute CIGAR operation log-probabilities
+    cigar_info = GET_CIGAR(sam_file)
+
+    // Step 5: Join SAM and CIGAR by sample_id, compute log-probabilities
+    sam_and_cigar = sam_file.join(cigar_info)
+    logp_data = COMPUTE_LOGP(sam_and_cigar)
+
+    // Step 6: Run variational inference
+    freq_output = RUN_VI(logp_data)
+
+    // Step 7: Join abundance with logp data and write final output
+    vi_with_counts = freq_output.join(logp_data)
+    WRITE_OUTPUT(vi_with_counts, taxonomy_tsv)
+
+    emit:
+    results = WRITE_OUTPUT.out.result_tsv
+}

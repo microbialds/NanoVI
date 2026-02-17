@@ -1,2 +1,4 @@
 sample,fastq
 sample1,/path/to/sample1.fastq.gz
+sample2,/path/to/sample2.fastq.gz
+sample3,/path/to/barcode03/reads.fastq

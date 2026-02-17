@@ -9,13 +9,11 @@ process WRITE_OUTPUT {
     output:
     path "*.tsv", emit: result_tsv
 
-    publishDir "${params.output_dir}", mode: 'copy'
-
     script:
     """
     python3 -c '
 import sys, json, pandas as pd
-sys.path.insert(0, "./bin")
+sys.path.insert(0, "${projectDir}/bin")
 from taxonomy import freq_to_lineage_df
 
 with open("${abundance_json}") as f:

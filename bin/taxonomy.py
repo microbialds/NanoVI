@@ -1,3 +1,11 @@
+"""
+Taxonomy utilities for NanoVI output generation.
+
+Provides functions for converting species frequency vectors into
+lineage-annotated abundance tables, collapsing tables to higher
+taxonomic ranks, and combining per-sample results into matrices.
+"""
+
 # taxonomy.py
 
 import os
@@ -237,7 +245,7 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     # Write the .tsv
     out_file = f"{tsv_output_path}.tsv"
     results_df.to_csv(out_file, sep="\t", index=False)
-    print(f"✅ Final taxonomy report saved as {out_file}")
+    print(f"Final taxonomy report saved as {out_file}")
 
     return results_df
 

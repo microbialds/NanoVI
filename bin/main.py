@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""
+NanoVI standalone CLI entry point.
+
+Provides a command-line interface for running NanoVI subcommands
+outside of the Nextflow pipeline. This is primarily used for
+development and testing; production use should go through Nextflow.
+"""
 import sys
 import argparse
 import os
@@ -51,7 +58,7 @@ def main():
     abundance_parser.add_argument('--min-abundance','-a', type=float, default=0.0000001)
     # Adjust to your actual environment variable or default:
     abundance_parser.add_argument('--db', type=str, default=os.environ.get("GTDB_DATABASE_DIR"))
-    abundance_parser.add_argument('--kmer-size', '-k', type=int, default=28)
+    abundance_parser.add_argument('--kmer-size', '-k', type=int, default=27)
     abundance_parser.add_argument('--N', '-N', type=int, default=3)
     abundance_parser.add_argument('--K', '-K', type=int, default=4000000000)
     abundance_parser.add_argument('--output-dir', type=str, default="./results")
@@ -182,7 +189,7 @@ def run_abundance(args):
             variational_inference_iterations,
             log_prob_rgs,
             db_species_tids,
-            0.01,
+            0.0001,
             args.min_abundance
         )
 
@@ -198,9 +205,10 @@ def run_abundance(args):
             args.keep_counts
         )
 
-        # If user wants read-level distributions
-        if args.keep_read_assignments and read_dist:
-            output_read_assignments(read_dist, f"{out_file}_read-assignment-distributions")
+        # Note: keep-read-assignments is not currently functional
+        # (variational_inference_iterations returns None for read_dist)
+        # if args.keep_read_assignments and read_dist:
+        #     output_read_assignments(read_dist, f"{out_file}_read-assignment-distributions")
 
         # If a thresholded freq was computed
         if freq_set_thresh:

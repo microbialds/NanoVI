@@ -12,7 +12,7 @@ process COMPUTE_LOGP {
     """
     python3 -c '
 import sys, json
-sys.path.insert(0, "./bin")
+sys.path.insert(0, "${projectDir}/bin")
 from variational_inference import log_prob_rgs_dict
 
 with open("${cigar_json}") as f:

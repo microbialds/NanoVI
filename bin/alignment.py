@@ -1,3 +1,10 @@
+"""
+Alignment utilities for NanoVI.
+
+Handles minimap2 index building and read alignment, including
+split-index support for large reference databases.
+"""
+
 # alignment.py
 
 import os
@@ -26,12 +33,12 @@ def generate_alignments(in_file_list, out_basename, database, args):
 
     # If index doesn’t exist, build it with the correct k-mer size
     if not os.path.exists(db_index_file):
-        print("🔄 Indexing database... (This happens only once)")
+        print("Indexing database... (This happens only once)")
         index_cmd = (
             f"minimap2 -k {args.kmer_size} -d {db_index_file} {db_sequence_file}"
         )
         subprocess.run(index_cmd, shell=True, check=True)
-        print(f"✅ Pre-indexed database saved as {db_index_file}")
+        print(f"Pre-indexed database saved as {db_index_file}")
 
     # Construct minimap2 command
     minimap_cmd = (
@@ -55,6 +62,6 @@ def generate_alignments(in_file_list, out_basename, database, args):
     end_time = time.time()
 
     elapsed = end_time - start_time
-    print(f"✅ Minimap2 alignment finished. Time used: {elapsed:.2f} seconds\n")
+    print(f"Minimap2 alignment finished. Time used: {elapsed:.2f} seconds\n")
 
     return sam_align_file

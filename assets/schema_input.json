@@ -1,20 +1,22 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema",
+  "$schema": "https://json-schema.org/draft-07/schema",
   "title": "NanoVI samplesheet schema",
-  "description": "Schema for validating NanoVI input samplesheets",
+  "description": "Schema for the input samplesheet CSV",
   "type": "array",
   "items": {
     "type": "object",
+    "required": ["sample", "fastq"],
     "properties": {
       "sample": {
         "type": "string",
-        "description": "Sample identifier"
+        "pattern": "^[a-zA-Z0-9_\\-]+$",
+        "description": "Sample identifier (alphanumeric, underscores, hyphens only)"
       },
       "fastq": {
         "type": "string",
-        "description": "Path to FASTQ file"
+        "pattern": "^/.*\\.(fastq|fq)(\\.gz)?$",
+        "description": "Absolute path to FASTQ file (.fastq, .fq, .fastq.gz, .fq.gz)"
       }
-    },
-    "required": ["sample", "fastq"]
+    }
   }
 }
