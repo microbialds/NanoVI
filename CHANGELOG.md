@@ -4,6 +4,33 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **Phyloseq-compatible consolidated output**: The `abundance` command now automatically generates consolidated tables suitable for direct import into R phyloseq or Python analysis
+  - New `bin/generate_phyloseq_tables.py` script that reads per-sample `*_rel-abundance.tsv` files and produces:
+    - `otu_table_abundance.tsv` — species × samples relative abundance matrix
+    - `otu_table_counts.tsv` — species × samples estimated counts matrix
+    - `tax_table.tsv` — species × taxonomic ranks (genus, family, order, class, phylum, superkingdom)
+    - `sample_metadata.tsv` — per-sample summary (total abundance, taxa detected, assigned/unassigned counts)
+  - New Nextflow module `GENERATE_PHYLOSEQ_TABLES` in `modules/local/generate_phyloseq_tables.nf`
+  - Wired into the `ABUNDANCE` subworkflow as Step 8, collecting all per-sample outputs before consolidation
+  - Includes "Unassigned" row in OTU tables; uses unified 2-word species names
+  - Inspired by BugBuster's `TAXONOMY_PHYLOSEQ` module pattern
+
+### Changed
+
+- **Restructured output directory layout**: Per-sample and consolidated results are now organized into separate folders
+  - `WRITE_OUTPUT` publishDir moved from `${params.output_dir}/` to `${params.output_dir}/sample_outputs/`
+  - New `GENERATE_PHYLOSEQ_TABLES` publishDir at `${params.output_dir}/consolidated_output/`
+  - QC, filtered, SAM, and pipeline_info directories remain unchanged
+
+### Changed
+
+- **`estimated_counts` column rename, fix, and default enablement**: Corrected the output abundance table column for estimated read counts
+  - Renamed column `"estimated counts"` → `"estimated_counts"` in `bin/taxonomy.py` (`freq_to_lineage_df`, `collapse_rank`, `combine_outputs`) for consistency with snake_case naming conventions
+  - Fixed empty-column bug in `freq_to_lineage_df`: the column was unconditionally added to `column_order` as an empty string `""` even when `counts=False`; it is now only included when `counts=True`
+  - Changed `keep_counts` default from `false` to `true` in `nextflow.config` so estimated counts are included in every pipeline run by default
+
 ### Fixed
 
 - **Removed `flatten_dict` dependency from `bin/variational_inference.py`**: The container `ccuriqueo/vi-python:3.8` did not have `flatten-dict` installed, causing `GET_CIGAR` to fail silently with exit status 1

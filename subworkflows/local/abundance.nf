@@ -6,7 +6,8 @@ include { ALIGN_READS }   from '../../modules/local/align_reads'
 include { GET_CIGAR }     from '../../modules/local/cigar_probs'
 include { COMPUTE_LOGP }  from '../../modules/local/log_prob_rgs'
 include { RUN_VI }        from '../../modules/local/inference'
-include { WRITE_OUTPUT }  from '../../modules/local/write_output'
+include { WRITE_OUTPUT }              from '../../modules/local/write_output'
+include { GENERATE_PHYLOSEQ_TABLES }  from '../../modules/local/generate_phyloseq_tables'
 
 workflow ABUNDANCE {
 
@@ -39,6 +40,14 @@ workflow ABUNDANCE {
     vi_with_counts = freq_output.join(logp_data)
     WRITE_OUTPUT(vi_with_counts, taxonomy_tsv)
 
+    // Step 8: Consolidate per-sample outputs into phyloseq-compatible tables
+    collected_tsvs = WRITE_OUTPUT.out.result_tsv.collect()
+    GENERATE_PHYLOSEQ_TABLES(collected_tsvs)
+
     emit:
-    results = WRITE_OUTPUT.out.result_tsv
+    results        = WRITE_OUTPUT.out.result_tsv
+    otu_abundance  = GENERATE_PHYLOSEQ_TABLES.out.otu_abundance
+    otu_counts     = GENERATE_PHYLOSEQ_TABLES.out.otu_counts
+    tax_table      = GENERATE_PHYLOSEQ_TABLES.out.tax_table
+    sample_metadata = GENERATE_PHYLOSEQ_TABLES.out.sample_metadata
 }
