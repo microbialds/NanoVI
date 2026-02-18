@@ -4,6 +4,7 @@ process RUN_VI {
 
     input:
     tuple val(sample_id), path(logp_json)
+    path bin_dir
 
     output:
     tuple val(sample_id), path("${sample_id}_abundance.json"), emit: abundance
@@ -12,7 +13,7 @@ process RUN_VI {
     """
     python3 -c '
 import sys, json
-sys.path.insert(0, "${projectDir}/bin")
+sys.path.insert(0, "${bin_dir}")
 from variational_inference import variational_inference_iterations
 
 with open("${logp_json}") as f:

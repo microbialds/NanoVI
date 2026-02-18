@@ -17,6 +17,8 @@ workflow ABUNDANCE {
     taxonomy_tsv    // path: taxonomy TSV
 
     main:
+    bin_dir = file("${projectDir}/bin")
+
     // Step 1: Filter reads by length
     named_reads = FILTER_READS(input_reads).filtered
 
@@ -27,22 +29,22 @@ workflow ABUNDANCE {
     sam_file = ALIGN_READS(named_reads, db_index)
 
     // Step 4: Compute CIGAR operation log-probabilities
-    cigar_info = GET_CIGAR(sam_file)
+    cigar_info = GET_CIGAR(sam_file, bin_dir)
 
     // Step 5: Join SAM and CIGAR by sample_id, compute log-probabilities
     sam_and_cigar = sam_file.join(cigar_info)
-    logp_data = COMPUTE_LOGP(sam_and_cigar)
+    logp_data = COMPUTE_LOGP(sam_and_cigar, bin_dir)
 
     // Step 6: Run variational inference
-    freq_output = RUN_VI(logp_data)
+    freq_output = RUN_VI(logp_data, bin_dir)
 
     // Step 7: Join abundance with logp data and write final output
     vi_with_counts = freq_output.join(logp_data)
-    WRITE_OUTPUT(vi_with_counts, taxonomy_tsv)
+    WRITE_OUTPUT(vi_with_counts, taxonomy_tsv, bin_dir)
 
     // Step 8: Consolidate per-sample outputs into phyloseq-compatible tables
     collected_tsvs = WRITE_OUTPUT.out.result_tsv.collect()
-    GENERATE_PHYLOSEQ_TABLES(collected_tsvs)
+    GENERATE_PHYLOSEQ_TABLES(collected_tsvs, bin_dir)
 
     emit:
     results        = WRITE_OUTPUT.out.result_tsv

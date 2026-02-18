@@ -63,7 +63,7 @@ workflow {
             log.info "Discovering FASTQs from directory: ${params.input}"
             input_reads = channel
                 .fromPath("${params.input}/**", checkIfExists: true)
-                .filter { it.name =~ /\.(fastq|fq)(\.gz)?$/ }
+                .filter { f -> f.name =~ /\.(fastq|fq)(\.gz)?$/ }
                 .ifEmpty { error "No FASTQ files found in ${params.input}" }
                 .map { fastq -> tuple(fastq.simpleName.replaceAll(/\.(fastq|fq)$/, ''), fastq) }
         }

@@ -5,6 +5,7 @@ process WRITE_OUTPUT {
     input:
     tuple val(sample_id), path(abundance_json), path(logp_json)
     path taxonomy_tsv
+    path bin_dir
 
     output:
     path "*.tsv", emit: result_tsv
@@ -13,7 +14,7 @@ process WRITE_OUTPUT {
     """
     python3 -c '
 import sys, json, pandas as pd
-sys.path.insert(0, "${projectDir}/bin")
+sys.path.insert(0, "${bin_dir}")
 from taxonomy import freq_to_lineage_df
 
 with open("${abundance_json}") as f:
