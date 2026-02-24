@@ -11,10 +11,12 @@ process RUN_VI {
 
     script:
     """
+    pip install --quiet --target="\$PWD/.pylocal" scipy
     python3 -c '
 import sys, json
 sys.path.insert(0, "${bin_dir}")
-from variational_inference import variational_inference_iterations
+sys.path.insert(0, ".pylocal")
+from variational_inference_bayesian import variational_inference_iterations
 
 with open("${logp_json}") as f:
     data = json.load(f)

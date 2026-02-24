@@ -222,13 +222,11 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
 
     # Optionally add estimated counts
     if counts:
-        # Multiply abundance by assigned_count for all but the last row, then add unassigned_count
-        # (the last row is 'unassigned')
-        assigned_vals = (results_df["abundance"] * assigned_count)[:-1]
-        assigned_vals = assigned_vals.astype(int)  # or float if you prefer
-        unassigned_series = pd.Series([unassigned_count], index=[len(results_df) - 1])
-        counts_series = pd.concat([assigned_vals, unassigned_series], ignore_index=True)
-        results_df["estimated_counts"] = counts_series
+        # Identify the unassigned row by label, not by position, since groupby in
+        # unify_species_abundance may reorder rows and break positional [:-1] slicing.
+        is_unassigned = results_df["species"].str.lower().str.strip() == "unassigned"
+        results_df["estimated_counts"] = (results_df["abundance"] * assigned_count).astype(int)
+        results_df.loc[is_unassigned, "estimated_counts"] = unassigned_count
 
     # Reorder columns
     column_order = [
