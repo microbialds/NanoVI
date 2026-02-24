@@ -4,6 +4,7 @@ process COMPUTE_LOGP {
 
     input:
     tuple val(sample_id), path(sam_file), path(cigar_json)
+    path bin_dir
 
     output:
     tuple val(sample_id), path("${sample_id}_logp_data.json"), emit: logp
@@ -12,7 +13,7 @@ process COMPUTE_LOGP {
     """
     python3 -c '
 import sys, json
-sys.path.insert(0, "./bin")
+sys.path.insert(0, "${bin_dir}")
 from variational_inference import log_prob_rgs_dict
 
 with open("${cigar_json}") as f:

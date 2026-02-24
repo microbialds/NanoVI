@@ -1,3 +1,9 @@
+"""
+General utility functions for NanoVI.
+
+Provides timing decorators and helper functions used across modules.
+"""
+
 # utils.py
 
 import time
@@ -15,7 +21,7 @@ def timed_function(name, func, *args, **kwargs):
     start_time = time.time()
     result = func(*args, **kwargs)
     elapsed_time = time.time() - start_time
-    print(f"✅ {name} finished. Time used: {elapsed_time:.2f} seconds\n")
+    print(f"{name} finished. Time used: {elapsed_time:.2f} seconds\n")
     return result
 
 def filter_reads(input_fastq, output_fastq, min_length, max_length, output_dir):

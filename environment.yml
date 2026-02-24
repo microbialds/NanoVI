@@ -1,0 +1,12 @@
+name: nanovi
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - minimap2=2.24
+  - numpy
+  - pandas
+  - pysam
+  - biopython

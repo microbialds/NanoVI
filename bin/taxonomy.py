@@ -1,3 +1,11 @@
+"""
+Taxonomy utilities for NanoVI output generation.
+
+Provides functions for converting species frequency vectors into
+lineage-annotated abundance tables, collapsing tables to higher
+taxonomic ranks, and combining per-sample results into matrices.
+"""
+
 # taxonomy.py
 
 import os
@@ -220,16 +228,17 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
         assigned_vals = assigned_vals.astype(int)  # or float if you prefer
         unassigned_series = pd.Series([unassigned_count], index=[len(results_df) - 1])
         counts_series = pd.concat([assigned_vals, unassigned_series], ignore_index=True)
-        results_df["estimated counts"] = counts_series
+        results_df["estimated_counts"] = counts_series
 
     # Reorder columns
     column_order = [
         "species", "abundance", "genus", "family", "order", "class", "phylum",
-        "superkingdom", "estimated counts"
+        "superkingdom"
     ]
+    if counts:
+        column_order.append("estimated_counts")
     for col in column_order:
         if col not in results_df.columns:
-            # add it (some might be missing if not "counts")
             results_df[col] = ""
 
     results_df = results_df[column_order]
@@ -237,7 +246,7 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     # Write the .tsv
     out_file = f"{tsv_output_path}.tsv"
     results_df.to_csv(out_file, sep="\t", index=False)
-    print(f"✅ Final taxonomy report saved as {out_file}")
+    print(f"Final taxonomy report saved as {out_file}")
 
     return results_df
 
@@ -254,13 +263,13 @@ def collapse_rank(path, rank):
     keep_ranks = TAXONOMY_RANKS[TAXONOMY_RANKS.index(rank):]
 
     # We handle "estimated counts" if present
-    has_counts = "estimated counts" in df_emu.columns
+    has_counts = "estimated_counts" in df_emu.columns
 
     if has_counts:
-        # e.g., keep abundance + estimated counts
-        df_cols = ["abundance", "estimated counts"] + keep_ranks
+        # e.g., keep abundance + estimated_counts
+        df_cols = ["abundance", "estimated_counts"] + keep_ranks
         df_emu_copy = df_emu[df_cols].replace({'-': 0})
-        df_emu_copy = df_emu_copy.astype({'abundance': float, 'estimated counts': float})
+        df_emu_copy = df_emu_copy.astype({'abundance': float, 'estimated_counts': float})
     else:
         # just keep abundance
         df_cols = ["abundance"] + keep_ranks
@@ -288,7 +297,7 @@ def combine_outputs(dir_path, rank, split_files=False, count_table=False):
 
     metric = 'abundance'
     if count_table:
-        metric = 'estimated counts'
+        metric = 'estimated_counts'
 
     for file in os.listdir(dir_path):
         file_path = os.path.join(dir_path, file)

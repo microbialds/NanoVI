@@ -1,6 +1,6 @@
 # .gitignore — Ignorar archivos locales y generados por Nextflow
 
-# Carpetas de trabajo y resultados
+# Work folders
 work/
 results/
 .nextflow*
@@ -9,17 +9,24 @@ trace.txt
 timeline.html
 dag.png
 
-# Archivos locales privados
-config/params_private.config
+# Local files
+conf/params_private.config
 
-# Archivos grandes o generados
+# Test 
+test_results/
+
+# large files
 *.mmi
 *.log
 *.tar.gz
 *.zip
 
-# Archivos temporales
+# temporals
 *.tmp
 *.bak
 *.swp
 
+# Python
+
+__pycache__*
+*.pyc

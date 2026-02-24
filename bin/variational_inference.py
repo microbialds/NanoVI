@@ -1,3 +1,15 @@
+"""
+Variational inference engine for NanoVI taxonomic classification.
+
+This module implements the core statistical inference algorithm:
+1. CIGAR operation log-probability estimation from alignment statistics
+2. Per-read log-likelihood computation for each candidate species
+3. Iterative EM/VI optimization of species frequency estimates
+4. Frequency thresholding and convergence monitoring via ELBO
+
+Functions are called by Nextflow processes via inline Python scripts.
+"""
+
 # inference.py
 
 import math
@@ -6,8 +18,6 @@ import pysam
 from operator import add, mul
 from multiprocessing import Pool
 from sys import stdout
-from flatten_dict import unflatten
-from Bio.Seq import Seq
 
 CIGAR_OPS = [1, 2, 4, 10]
 CIGAR_OPS_ALL = [0, 1, 2, 4]
@@ -16,18 +26,15 @@ def get_align_stats(alignment):
     cigar_stats = alignment.get_cigar_stats()[0]
     n_mismatch = cigar_stats[10] - cigar_stats[1] - cigar_stats[2]
     return [cigar_stats[1], cigar_stats[2], cigar_stats[4], n_mismatch]
-    pass
 
 def get_align_len(alignment):
     return sum(alignment.get_cigar_stats()[0][cigar_op] for cigar_op in CIGAR_OPS_ALL)
-    pass
 
 def extract_alignment_info(alignment):
     cigar_stats = get_align_stats(alignment)
     align_len = get_align_len(alignment)
     query_name = alignment.query_name
     return query_name, align_len, cigar_stats
-    pass
 
 def process_alignment_chunk(alignment_chunk):
     cigar_stats_primary = [0] * len(CIGAR_OPS)
@@ -35,16 +42,16 @@ def process_alignment_chunk(alignment_chunk):
     
     for alignment_info in alignment_chunk:
         query_name, align_len, cigar_stats = alignment_info
-        if align_len not in dict_longest_align:
+        if query_name not in dict_longest_align:
             dict_longest_align[query_name] = align_len
         cigar_stats_primary = list(map(add, cigar_stats_primary, cigar_stats))
         if dict_longest_align[query_name] < align_len:
             dict_longest_align[query_name] = align_len
     
     return cigar_stats_primary, dict_longest_align
-    pass
 
 def get_cigar_op_log_probabilities(sam_path, threads):
+    """Compute global log-probabilities for each CIGAR operation from all alignments."""
     cigar_stats_primary = [0] * len(CIGAR_OPS) 
     dict_longest_align = {}
 
@@ -73,16 +80,15 @@ def get_cigar_op_log_probabilities(sam_path, threads):
     
     n_char = sum(cigar_stats_primary)
     return [math.log(x) for x in np.array(cigar_stats_primary) / n_char], zero_locs, dict_longest_align
-    pass
 
 def compute_log_prob_rgs(alignment, cigar_stats, log_p_cigar_op, dict_longest_align, align_len):
     ref_name, query_name = alignment.reference_name, alignment.query_name
     log_score = sum(list(map(mul, log_p_cigar_op, cigar_stats))) * (dict_longest_align[query_name] / align_len)
     species_tid = int(ref_name.split(":")[0])
     return log_score, query_name, species_tid
-    pass
 
 def log_prob_rgs_dict(sam_path, log_p_cigar_op, dict_longest_align, p_cigar_op_zero_locs=None):
+    """Build dict mapping read_name -> (species_ids, log_scores) from SAM alignments."""
     log_p_rgs, unassigned_set = {}, set()
     sam_filename = pysam.AlignmentFile(sam_path, 'rb')
 
@@ -129,9 +135,9 @@ def log_prob_rgs_dict(sam_path, log_p_cigar_op, dict_longest_align, p_cigar_op_z
     stdout.write(f"Unassigned read count: {unassigned_count}\n")
 
     return log_p_rgs, unassigned_count, len(assigned_reads)
-    pass
 
 def variational_inference(log_p_rgs, freq, max_iterations=20, tolerance=5e-4):
+    """Run inner VI/EM loop: update q(s|r) and frequencies until convergence."""
     for iteration in range(max_iterations):
         q_dist, elbo = update_q_distribution(log_p_rgs, freq)
         new_freq = maximize_elbo(q_dist)
@@ -145,7 +151,6 @@ def variational_inference(log_p_rgs, freq, max_iterations=20, tolerance=5e-4):
         freq = new_freq
         print(f"Iteration {iteration + 1}: ELBO = {elbo}")
     return freq, elbo
-    pass
 
 def update_q_distribution(log_p_rgs, freq):
     q_dist = {}
@@ -164,11 +169,14 @@ def update_q_distribution(log_p_rgs, freq):
             prc = np.sum(prnsc)
             elbo += (np.log(prc) - logc)
             for seq in enumerate(valid_seqs):
-                q_dist[(seq[1], read)] = prnsc[seq[0]] / prc
-    return unflatten(q_dist), elbo
-    pass
+                tax_id, prob = seq[1], prnsc[seq[0]] / prc
+                if tax_id not in q_dist:
+                    q_dist[tax_id] = {}
+                q_dist[tax_id][read] = prob
+    return q_dist, elbo
 
 def maximize_elbo(q_dist):
+    """M-step: re-estimate species frequencies from q(s|r) assignments."""
     freq = {}
     for tax_id, read_id in q_dist.items():
         freq[tax_id] = sum(read_id.values())
@@ -176,14 +184,17 @@ def maximize_elbo(q_dist):
     for tax_id in freq:
         freq[tax_id] /= total
     return freq
-    pass
 
 def variational_inference_iterations(log_p_rgs, db_ids, lli_thresh, input_threshold):
     n_db = len(db_ids)
     n_reads = len(log_p_rgs)
     stdout.write(f"Assigned read count: {n_reads}\n")
     if n_reads == 0:
-        raise ValueError("0 reads assigned")
+        raise ValueError(
+            "0 reads were assigned to any reference taxon. "
+            "Check that input reads overlap with the reference database "
+            "and that filtering parameters (--min_length, --max_length) are appropriate."
+        )
     freq, counter = dict.fromkeys(db_ids, 1 / n_db), 1
     freq_thresh = 1 / n_reads
     if n_reads > 1000:
@@ -195,7 +206,10 @@ def variational_inference_iterations(log_p_rgs, db_ids, lli_thresh, input_thresh
         elbo_diff = new_elbo - total_elbo
         total_elbo = new_elbo
         if elbo_diff < 0:
-            raise ValueError("ELBO decreased from prior iteration")
+            raise ValueError(
+                f"ELBO decreased by {elbo_diff:.6f} from prior iteration, "
+                "indicating numerical instability. Check input data quality."
+            )
         if elbo_diff < lli_thresh:
             stdout.write(f"Number of VI iterations: {counter}\n")
             freq = {k: v for k, v in freq.items() if v >= freq_thresh}
@@ -207,10 +221,7 @@ def variational_inference_iterations(log_p_rgs, db_ids, lli_thresh, input_thresh
             return freq_full, freq_set_thresh, None
         counter += 1
 
-    pass
-
 def output_read_assignments(p_sgr, tsv_output_path):
     dist_df = pd.DataFrame(p_sgr)
     dist_df.to_csv("{}.tsv".format(tsv_output_path), sep='\t')
     return dist_df
-    pass
