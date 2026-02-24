@@ -81,7 +81,7 @@
         },
         "keep_counts": {
           "type": "boolean",
-          "default": false,
+          "default": true,
           "description": "Include estimated read counts column in output abundance tables"
         },
         "keep_files": {
