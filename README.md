@@ -87,7 +87,7 @@ A path to a directory containing FASTQ files. Sample IDs are inferred from filen
 | `--input` | required | Path to samplesheet CSV or FASTQ directory |
 | `--db` | required | Path to NanoVI/GTDB reference database |
 | `--taxonomy_tsv` | `<db>/taxonomy.tsv` | Path to taxonomy TSV |
-| `--kmer_size` | `27` | K-mer size for minimap2 indexing |
+| `--kmer_size` | `21` | K-mer size for minimap2 indexing |
 | `--N` | `3` | Maximum secondary alignments per read |
 | `--K` | `4000000000` | Minibatch size for minimap2 mapping (bytes) |
 | `--type` | `map-ont` | Minimap2 preset (`map-ont`, `map-pb`, `sr`) |
@@ -149,6 +149,65 @@ docker build -t nanovi-python:1.0.0 -f containers/Dockerfile containers/
 **Singularity:**
 ```bash
 singularity build nanovi-python.sif containers/Singularity.def
+```
+
+## Building a GTDB Reference Database
+
+NanoVI includes a helper script to build a reference database directly from the
+[GTDB](https://gtdb.ecogenomic.org/) SSU FASTA file. The script assigns **one taxid
+per species**, deduplicates identical 16S sequences, and outputs the files required
+by the pipeline.
+
+### 1. Download the GTDB SSU file
+
+Go to the [GTDB data repository](https://data.gtdb.ecogenomic.org/releases/latest/)
+and download the combined bacteria + archaea SSU file:
+
+```
+ssu_all_rXXX.fna.gz
+```
+
+> Replace `XXX` with the release number (e.g. `r226`). The file is typically ~400 MB compressed.
+
+### 2. Build the database
+
+```bash
+python3 bin/build_gtdb_db.py \
+    --ssu ssu_all_r226.fna.gz \
+    --db-name db_gtdb_r226 \
+    --output-dir /path/to/db_gtdb_r226
+```
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--ssu` | required | Path to the GTDB SSU FASTA (`.fna` or `.fna.gz`) |
+| `--db-name` | `db_gtdb` | Label embedded in FASTA headers (e.g. `db_gtdb_r226`) |
+| `--output-dir` | `./db` | Directory where output files are written |
+| `--min-length` | `900` | Minimum 16S sequence length in bp to include |
+
+**Output files:**
+
+| File | Description |
+|------|-------------|
+| `species_taxid.fasta` | Reference FASTA — one entry per unique 16S sequence, header: `taxid:db_name:n` |
+| `taxonomy.tsv` | Taxonomy table — one row per species with full lineage |
+
+### 3. Index with minimap2
+
+```bash
+minimap2 -k 21 -d /path/to/db_gtdb_r226/gtdb_index.mmi \
+    /path/to/db_gtdb_r226/species_taxid.fasta
+```
+
+### 4. Run NanoVI with the GTDB database
+
+```bash
+nextflow run microbialds/NanoVI \
+    --cmd abundance \
+    --input samplesheet.csv \
+    --db /path/to/db_gtdb_r226/gtdb_index.mmi \
+    --taxonomy_tsv /path/to/db_gtdb_r226/taxonomy.tsv \
+    --output_dir results/
 ```
 
 ## Citation
