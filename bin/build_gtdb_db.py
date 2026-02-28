@@ -6,33 +6,6 @@ Works with any GTDB release that provides the SSU FASTA file (r214, r220, r226..
 The script reads the taxonomy directly from GTDB's FASTA headers, so no separate
 taxonomy file is required.
 
-KEY DESIGN: One taxid per species.
-  All genomes belonging to the same species receive the same integer taxid.
-  This ensures that reads from, e.g., Pseudomonas aeruginosa are aggregated
-  correctly during inference instead of being split across thousands of
-  genome-level identifiers.
-
-GTDB name normalisation:
-  GTDB uses underscore + uppercase suffixes (e.g. _A, _B, _E) to resolve
-  polyphyletic groups. These are stripped so that 'Listeria monocytogenes'
-  and 'Listeria monocytogenes_B' collapse into the same species taxid.
-
-USAGE:
-  # Download GTDB SSU file from:
-  #   https://data.gtdb.ecogenomic.org/releases/latest/
-  #   File: ssu_all_rXXX.fna.gz  (bacteria + archaea combined)
-
-  python3 build_gtdb_db.py \\
-      --ssu ssu_all_r226.fna.gz \\
-      --db-name db_gtdb_r226 \\
-      --output-dir /path/to/output/db
-
-OUTPUT:
-  <output-dir>/species_taxid.fasta   — FASTA with header: taxid:db_name:count
-  <output-dir>/taxonomy.tsv          — one row per species
-
-After building, index with minimap2:
-  minimap2 -k 27 -d gtdb_index.mmi <output-dir>/species_taxid.fasta
 """
 
 import os
