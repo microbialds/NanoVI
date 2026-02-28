@@ -40,7 +40,7 @@
         },
         "kmer_size": {
           "type": "integer",
-          "default": 27,
+          "default": 21,
           "minimum": 1,
           "maximum": 28,
           "description": "K-mer size for minimap2 alignment indexing and mapping"
