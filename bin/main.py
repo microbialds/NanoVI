@@ -17,9 +17,9 @@ from alignment import generate_alignments
 from variational_inference import (
     get_cigar_op_log_probabilities,
     log_prob_rgs_dict,
-    variational_inference_iterations,
     output_read_assignments
 )
+from variational_inference_bayesian import variational_inference_iterations
 from taxonomy import (
     freq_to_lineage_df,
     collapse_rank,
