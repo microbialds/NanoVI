@@ -52,6 +52,7 @@ nextflow run microbialds/NanoVI \
     --db /path/to/database \
     -profile slurm
 ```
+Note for SLURM users: Before running on a cluster, review and adjust the resource allocations (CPUs, memory, and time limits) defined in conf/base.config to match your cluster's available resources and partition settings.
 
 ## Input Format
 
