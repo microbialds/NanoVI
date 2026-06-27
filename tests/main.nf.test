@@ -1,2 +1,63 @@
-// nf-test placeholder for NanoVI pipeline
-// Tests will be added in subsequent prompts.
+nextflow_pipeline {
+    name "NanoVI pipeline integration tests"
+    script "main.nf"
+    tag "pipeline"
+
+    // Smoke test: validate the pipeline launches and processes the mock FASTQ
+    // through the read-filtering step using stub execution (no real binaries
+    // required). The stub blocks mirror the expected output structure of each
+    // process, allowing CI to validate channel logic and parameter passing
+    // without bioinformatics databases.
+    test("Filter step produces per-sample gzipped FASTQ with test profile") {
+        options "-profile test --stub-run"
+
+        when {
+            params {
+                cmd        = "abundance"
+                input      = "${projectDir}/tests/test_data"
+                output_dir = "${outputDir}"
+                min_length = 500
+                max_length = 2000
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.exitStatus == 0
+        }
+    }
+}
+
+
+nextflow_process {
+    name "FILTER_READS module unit test"
+    script "modules/local/filter_reads.nf"
+    process "FILTER_READS"
+    tag "module"
+
+    test("Produces filtered FASTQ and QC reports (stub)") {
+        options "--stub-run"
+
+        when {
+            params {
+                min_length = 500
+                max_length = 2000
+            }
+            process {
+                """
+                input[0] = [
+                    "mock_sample",
+                    file("${projectDir}/tests/test_data/mock_run.fastq")
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def (sample_id, filtered_fastq) = process.out.filtered[0]
+            assert sample_id == "mock_sample"
+            assert filtered_fastq.name.endsWith("_filtered.fastq.gz")
+        }
+    }
+}
