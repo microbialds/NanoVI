@@ -53,6 +53,7 @@ nextflow run microbialds/NanoVI \
     --db /path/to/database \
     -profile slurm
 ```
+Note for SLURM users: Before running on a cluster, review and adjust the resource allocations (CPUs, memory, and time limits) defined in conf/base.config to match your cluster's available resources and partition settings.
 
 ## Input Format
 
@@ -199,6 +200,7 @@ python3 bin/build_gtdb_db.py \
 minimap2 -k 21 -d /path/to/db_gtdb_r226/gtdb_index.mmi \
     /path/to/db_gtdb_r226/species_taxid.fasta
 ```
+Note: The minimap2 index (.mmi) is version-specific and may not be compatible across different minimap2 versions. To avoid conflicts, either build the index using the pipeline's container, or pass the FASTA file directly as --db and let the pipeline index it at runtime.
 
 ### 4. Run NanoVI with the GTDB database
 
