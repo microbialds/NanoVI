@@ -4,6 +4,7 @@ Taxonomic classification of full-length 16S rRNA Oxford Nanopore reads using var
 
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A524.0.0-brightgreen.svg)](https://www.nextflow.io/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/microbialds/NanoVI/actions/workflows/ci.yml/badge.svg)](https://github.com/microbialds/NanoVI/actions/workflows/ci.yml)
 
 ## Overview
 
@@ -211,6 +212,23 @@ nextflow run microbialds/NanoVI \
     --taxonomy_tsv /path/to/db_gtdb_r226/taxonomy.tsv \
     --output_dir results/
 ```
+
+## Testing
+
+NanoVI includes a test suite covering the core algorithmic components and pipeline integration.
+
+**Unit tests** (no database required):
+```bash
+pip install pytest
+pytest tests/unit/ -v
+```
+
+**Pipeline integration test** (nf-test, stub mode — no database required):
+```bash
+nf-test test tests/main.nf.test
+```
+
+Continuous integration runs both test suites automatically on every pull request via GitHub Actions. The Docker image is built and published to `ghcr.io/microbialds/nanovi-python` on every merge to `main`.
 
 ## Citation
 

@@ -38,5 +38,10 @@ freq_to_lineage_df(
 )
     '
     """
+
+    stub:
+    """
+    touch ${sample_id}_rel-abundance.tsv
+    """
 }
 

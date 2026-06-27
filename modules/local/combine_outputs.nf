@@ -20,6 +20,11 @@ process COMBINE {
         ${rank}
     mv input_data/vi-combined-${rank}*.tsv ./
     """
+
+    stub:
+    """
+    touch vi-combined-${rank}.tsv
+    """
 }
 
 

@@ -21,6 +21,12 @@ test_results/
 *.tar.gz
 *.zip
 
+# Local databases (too large for git)
+db_gtdb_r226/
+
+# Local analysis outputs and figures
+figures/
+
 # temporals
 *.tmp
 *.bak

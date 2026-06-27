@@ -22,11 +22,20 @@ process FILTER_READS {
         --html fastplong/${sample_id}_report.html \\
         --json fastplong/${sample_id}_report.json \\
         --length_required ${params.min_length} \\
-        --length_limit ${params.max_length}
+        --length_limit ${params.max_length} \\
+        --disable_quality_filtering
 
     gzip -f ${sample_id}_filtered.fastq
     gzip -f fastplong/${sample_id}_report.html
     gzip -f fastplong/${sample_id}_report.json
+    """
+
+    stub:
+    """
+    mkdir -p fastplong
+    touch ${sample_id}_filtered.fastq.gz
+    touch fastplong/${sample_id}_report.html.gz
+    touch fastplong/${sample_id}_report.json.gz
     """
 }
 

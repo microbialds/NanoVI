@@ -12,4 +12,9 @@ process INDEX_DB {
     """
     minimap2 -k ${params.kmer_size} -d gtdb_index.mmi ${species_fasta}
     """
+
+    stub:
+    """
+    touch gtdb_index.mmi
+    """
 }

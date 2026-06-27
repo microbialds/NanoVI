@@ -27,6 +27,11 @@ with open("${sample_id}_cigar_info.json", "w") as f:
     }, f)
 '
     """
+
+    stub:
+    """
+    echo '{"log_probs": [], "zero_locs": [], "longest_align": {}}' > ${sample_id}_cigar_info.json
+    """
 }
 
 

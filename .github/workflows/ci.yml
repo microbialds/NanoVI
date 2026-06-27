@@ -1,0 +1,111 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "feat/**", "fix/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── 1. Python unit tests ────────────────────────────────────────────────────
+  unit-tests:
+    name: Python unit tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.10"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install Python dependencies
+        run: pip install -r containers/requirements.txt pytest pytest-cov
+
+      - name: Run unit tests with coverage
+        run: |
+          pytest tests/unit/ \
+            -v \
+            --tb=short \
+            --cov=bin \
+            --cov-report=term-missing \
+            --cov-report=xml
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-py${{ matrix.python-version }}
+          path: coverage.xml
+
+  # ── 2. Nextflow integration tests ──────────────────────────────────────────
+  integration-tests:
+    name: Nextflow integration tests (nf-test)
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nextflow
+        uses: nf-core/setup-nextflow@v2
+        with:
+          version: ">=24.0.0"
+
+      - name: Install nf-test
+        uses: nf-core/setup-nf-test@v1
+
+      - name: Run nf-test (stub mode)
+        run: nf-test test tests/main.nf.test --verbose
+
+  # ── 3. Docker container build & versioned push to GHCR ─────────────────────
+  container-build:
+    name: Build & push Docker image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract semantic version from CHANGELOG.md
+        id: version
+        run: |
+          # Reads the first "## [X.Y.Z]" line; falls back to "1.0.0"
+          VERSION=$(grep -m1 '^## \[' CHANGELOG.md \
+            | sed 's/## \[//;s/\].*//' \
+            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' \
+            || echo "1.0.0")
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Building image tag: ${VERSION}"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: containers/
+          file: containers/Dockerfile
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/nanovi-python:${{ steps.version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/nanovi-python:latest
+          labels: |
+            org.opencontainers.image.version=${{ steps.version.outputs.version }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
