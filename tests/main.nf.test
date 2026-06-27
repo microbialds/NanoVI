@@ -6,7 +6,7 @@ nextflow_pipeline {
     // Smoke test: validates that the pipeline launches and all channels connect
     // correctly using stub execution (no real binaries or database required).
     test("Pipeline completes successfully in stub mode with test profile") {
-        options "-profile test --stub-run"
+        options "-profile test -stub-run"
 
         when {
             params {
