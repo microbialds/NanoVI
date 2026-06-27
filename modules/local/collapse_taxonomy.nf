@@ -13,5 +13,10 @@ process COLLAPSE {
     """
     python3 ${bin_dir}/main.py collapse-taxonomy ${input_path} ${rank}
     """
+
+    stub:
+    """
+    touch stub-${rank}.tsv
+    """
 }
 

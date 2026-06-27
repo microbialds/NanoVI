@@ -20,6 +20,12 @@ process BUILD_DB {
         --taxonomy-list  ${taxonomy_list} \\
         ${params.db_name}
     """
+
+    stub:
+    """
+    mkdir -p ${params.db_name}
+    touch ${params.db_name}/species_taxid.fasta ${params.db_name}/taxonomy.tsv
+    """
 }
 
 

@@ -35,5 +35,10 @@ with open("${sample_id}_abundance.json", "w") as f:
     json.dump(freq_thresh if freq_thresh else freq_full, f)
 '
     """
+
+    stub:
+    """
+    echo '{}' > ${sample_id}_abundance.json
+    """
 }
 

@@ -20,4 +20,9 @@ process GENERATE_PHYLOSEQ_TABLES {
         ${sample_tsvs} \
         --output-dir .
     """
+
+    stub:
+    """
+    touch otu_table_abundance.tsv otu_table_counts.tsv tax_table.tsv sample_metadata.tsv
+    """
 }

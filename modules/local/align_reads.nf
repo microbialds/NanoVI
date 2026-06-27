@@ -24,4 +24,9 @@ process ALIGN_READS {
              ${filtered_fastq} \\
              -o ${sample_id}_vi_alignments.sam
     """
+
+    stub:
+    """
+    touch ${sample_id}_vi_alignments.sam
+    """
 }

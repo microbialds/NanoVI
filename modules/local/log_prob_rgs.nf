@@ -35,5 +35,10 @@ with open("${sample_id}_logp_data.json", "w") as f:
     }, f)
 '
     """
+
+    stub:
+    """
+    echo '{"log_p_rgs": {}, "assigned_count": 0, "unassigned_count": 0}' > ${sample_id}_logp_data.json
+    """
 }
 
