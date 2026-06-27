@@ -210,6 +210,23 @@ nextflow run microbialds/NanoVI \
     --output_dir results/
 ```
 
+## Testing
+
+NanoVI includes a test suite covering the core algorithmic components and pipeline integration.
+
+**Unit tests** (no database required):
+```bash
+pip install pytest
+pytest tests/unit/ -v
+```
+
+**Pipeline integration test** (nf-test, stub mode — no database required):
+```bash
+nf-test test tests/main.nf.test
+```
+
+Continuous integration runs both test suites automatically on every pull request via GitHub Actions. The Docker image is built and published to `ghcr.io/microbialds/nanovi-python` on every merge to `main`.
+
 ## Citation
 
 If you use NanoVI in your research, please cite:
