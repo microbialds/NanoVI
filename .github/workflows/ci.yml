@@ -76,10 +76,9 @@ jobs:
       - name: Extract semantic version from CHANGELOG.md
         id: version
         run: |
-          # Reads the first "## [X.Y.Z]" line; falls back to "1.0.0"
-          VERSION=$(grep -m1 '^## \[' CHANGELOG.md \
+          # Reads the first versioned "## [X.Y.Z]" line (skips [Unreleased]); falls back to "1.0.0"
+          VERSION=$(grep -m1 '^## \[[0-9]' CHANGELOG.md \
             | sed 's/## \[//;s/\].*//' \
-            | grep -E '^[0-9]+\.[0-9]+\.[0-9]+' \
             || echo "1.0.0")
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "Building image tag: ${VERSION}"

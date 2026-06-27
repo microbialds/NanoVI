@@ -4,6 +4,8 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-06-27
+
 ### Added
 
 - **Phyloseq-compatible consolidated output**: The `abundance` command now automatically generates consolidated tables suitable for direct import into R phyloseq or Python analysis
