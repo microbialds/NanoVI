@@ -10,11 +10,13 @@ nextflow_pipeline {
 
         when {
             params {
-                cmd        = "abundance"
-                input      = "${projectDir}/tests/test_data"
-                output_dir = "${outputDir}"
-                min_length = 500
-                max_length = 2000
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                min_length   = 500
+                max_length   = 2000
             }
         }
 
