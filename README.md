@@ -4,6 +4,7 @@ Taxonomic classification of full-length 16S rRNA Oxford Nanopore reads using var
 
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A524.0.0-brightgreen.svg)](https://www.nextflow.io/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![CI](https://github.com/microbialds/NanoVI/actions/workflows/ci.yml/badge.svg)](https://github.com/microbialds/NanoVI/actions/workflows/ci.yml)
 
 ## Overview
 
