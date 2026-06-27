@@ -2,8 +2,6 @@
 
 All notable changes to the NanoVI pipeline will be documented in this file.
 
-## [Unreleased]
-
 ## [1.0.0] - 2026-06-27
 
 ### Added
