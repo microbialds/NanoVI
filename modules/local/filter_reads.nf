@@ -11,6 +11,7 @@ process FILTER_READS {
     // Additional outputs to publish
     path "fastplong/*.json.gz"
     path "fastplong/*.html.gz"
+    path "versions.yml", emit: versions
 
     script:
     """
@@ -28,6 +29,10 @@ process FILTER_READS {
     gzip -f ${sample_id}_filtered.fastq
     gzip -f fastplong/${sample_id}_report.html
     gzip -f fastplong/${sample_id}_report.json
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        fastplong: "\$(fastplong --version 2>&1 | sed 's/^fastplong //')"
+    END_VERSIONS
     """
 
     stub:
@@ -36,6 +41,10 @@ process FILTER_READS {
     touch ${sample_id}_filtered.fastq.gz
     touch fastplong/${sample_id}_report.html.gz
     touch fastplong/${sample_id}_report.json.gz
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        fastplong: stub
+    END_VERSIONS
     """
 }
 

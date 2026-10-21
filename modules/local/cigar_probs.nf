@@ -9,6 +9,7 @@ process GET_CIGAR {
     output:
   
     tuple val(sample_id), path("${sample_id}_cigar_info.json"), emit: cigar_json
+    path "versions.yml", emit: versions
 
     script:
     """
@@ -26,11 +27,16 @@ with open("${sample_id}_cigar_info.json", "w") as f:
         "longest_align": longest_align
     }, f)
 '
+    python3 ${bin_dir}/python_versions.py "${task.process}" > versions.yml
     """
 
     stub:
     """
     echo '{"log_probs": [], "zero_locs": [], "longest_align": {}}' > ${sample_id}_cigar_info.json
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        python: stub
+    END_VERSIONS
     """
 }
 

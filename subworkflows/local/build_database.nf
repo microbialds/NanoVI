@@ -13,4 +13,7 @@ workflow BUILD_DATABASE {
 
     main:
     BUILD_DB(sequences, seq2tax, taxonomy, taxonomy_flag, bin_dir)
+
+    emit:
+    versions = BUILD_DB.out.versions
 }

@@ -12,6 +12,7 @@ process BUILD_DB {
 
     output:
     path "${params.db_name}/**"
+    path "versions.yml", emit: versions
 
     script:
     """
@@ -20,12 +21,17 @@ process BUILD_DB {
         --seq2tax        ${seq2tax} \\
         ${taxonomy_flag} ${taxonomy} \\
         ${params.db_name}
+    python3 ${bin_dir}/python_versions.py "${task.process}" > versions.yml
     """
 
     stub:
     """
     mkdir -p ${params.db_name}
     touch ${params.db_name}/species_taxid.fasta ${params.db_name}/taxonomy.tsv
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        python: stub
+    END_VERSIONS
     """
 }
 

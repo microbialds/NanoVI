@@ -8,14 +8,13 @@ process RUN_VI {
 
     output:
     tuple val(sample_id), path("${sample_id}_abundance.json"), emit: abundance
+    path "versions.yml", emit: versions
 
     script:
     """
-    pip install --quiet --target="\$PWD/.pylocal" scipy
     python3 -c '
 import sys, json
 sys.path.insert(0, "${bin_dir}")
-sys.path.insert(0, ".pylocal")
 from variational_inference_bayesian import variational_inference_iterations
 
 with open("${logp_json}") as f:
@@ -37,11 +36,16 @@ with open("${sample_id}_abundance.json", "w") as f:
         "below_detection_count": below_detection_count
     }, f)
 '
+    python3 ${bin_dir}/python_versions.py "${task.process}" > versions.yml
     """
 
     stub:
     """
     echo '{"abundance": {}, "below_detection_count": 0}' > ${sample_id}_abundance.json
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        python: stub
+    END_VERSIONS
     """
 }
 

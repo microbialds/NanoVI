@@ -23,20 +23,20 @@ workflow ABUNDANCE {
     named_reads = FILTER_READS(input_reads).filtered
 
     // Step 2: Build minimap2 index (once)
-    db_index = INDEX_DB(fasta_file)
+    db_index = INDEX_DB(fasta_file).index
 
     // Step 3: Align reads against reference
-    sam_file = ALIGN_READS(named_reads, db_index)
+    sam_file = ALIGN_READS(named_reads, db_index).sam
 
     // Step 4: Compute CIGAR operation log-probabilities
-    cigar_info = GET_CIGAR(sam_file, bin_dir)
+    cigar_info = GET_CIGAR(sam_file, bin_dir).cigar_json
 
     // Step 5: Join SAM and CIGAR by sample_id, compute log-probabilities
     sam_and_cigar = sam_file.join(cigar_info)
-    logp_data = COMPUTE_LOGP(sam_and_cigar, bin_dir)
+    logp_data = COMPUTE_LOGP(sam_and_cigar, bin_dir).logp
 
     // Step 6: Run variational inference
-    freq_output = RUN_VI(logp_data, bin_dir)
+    freq_output = RUN_VI(logp_data, bin_dir).abundance
 
     // Step 7: Join abundance with logp data and write final output
     vi_with_counts = freq_output.join(logp_data)
@@ -46,10 +46,17 @@ workflow ABUNDANCE {
     collected_tsvs = WRITE_OUTPUT.out.result_tsv.collect()
     GENERATE_PHYLOSEQ_TABLES(collected_tsvs, bin_dir)
 
+    // Software versions reported by every step (deduplicated in main.nf)
+    versions = FILTER_READS.out.versions
+        .mix(INDEX_DB.out.versions, ALIGN_READS.out.versions, GET_CIGAR.out.versions,
+             COMPUTE_LOGP.out.versions, RUN_VI.out.versions, WRITE_OUTPUT.out.versions,
+             GENERATE_PHYLOSEQ_TABLES.out.versions)
+
     emit:
     results        = WRITE_OUTPUT.out.result_tsv
     otu_abundance  = GENERATE_PHYLOSEQ_TABLES.out.otu_abundance
     otu_counts     = GENERATE_PHYLOSEQ_TABLES.out.otu_counts
     tax_table      = GENERATE_PHYLOSEQ_TABLES.out.tax_table
     sample_metadata = GENERATE_PHYLOSEQ_TABLES.out.sample_metadata
+    versions       = versions
 }

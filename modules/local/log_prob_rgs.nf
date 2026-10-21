@@ -8,6 +8,7 @@ process COMPUTE_LOGP {
 
     output:
     tuple val(sample_id), path("${sample_id}_logp_data.json"), emit: logp
+    path "versions.yml", emit: versions
 
     script:
     """
@@ -34,11 +35,16 @@ with open("${sample_id}_logp_data.json", "w") as f:
         "unassigned_count": unassigned_count
     }, f)
 '
+    python3 ${bin_dir}/python_versions.py "${task.process}" > versions.yml
     """
 
     stub:
     """
     echo '{"log_p_rgs": {}, "assigned_count": 0, "unassigned_count": 0}' > ${sample_id}_logp_data.json
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        python: stub
+    END_VERSIONS
     """
 }
 
