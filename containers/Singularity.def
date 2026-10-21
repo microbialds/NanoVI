@@ -10,7 +10,7 @@ From: python:3.11.17-slim-trixie
     Version 1.0.0
 
 %files
-    requirements.txt /tmp/requirements.txt
+    requirements.txt /opt/requirements.txt
 
 %post
     # procps provides the ps that Nextflow uses to collect task metrics
@@ -19,8 +19,8 @@ From: python:3.11.17-slim-trixie
         && rm -rf /var/lib/apt/lists/*
 
     # Same exact pins as the Docker image
-    pip install --no-cache-dir -r /tmp/requirements.txt && \
-        rm /tmp/requirements.txt
+    pip install --no-cache-dir -r /opt/requirements.txt && \
+        rm /opt/requirements.txt
 
 %environment
     export LC_ALL=C
