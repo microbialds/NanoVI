@@ -206,6 +206,26 @@ nextflow_pipeline {
         }
     }
 
+    test("Directory mode fails on sample IDs with unsafe characters") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                input        = "${projectDir}/tests/test_data/bad_id_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("Sample IDs from FASTQ file names may only use letters, digits, '.', '_' and '-'; rename these files or use a samplesheet:") }
+            assert workflow.stdout.any { it.contains("${projectDir}/tests/test_data/bad_id_reads/S1+run.fastq") }
+        }
+    }
+
     // End-to-end test: runs fastplong, minimap2 and every Python step on the
     // e2e fixture (11 real 16S sequences, 600 simulated ONT-like reads in known
     // proportions plus 30 non-16S reads). See tests/test_data/e2e/README.md.

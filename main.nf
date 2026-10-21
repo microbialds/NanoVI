@@ -74,6 +74,10 @@ workflow {
                 }.sort().join('\n')
                 error "Several FASTQ files in ${params.input} give the same sample ID; rename them or use a samplesheet:\n${listing}"
             }
+            def bad_ids = by_sample.keySet().findAll { id -> !(id ==~ /[A-Za-z0-9._-]+/) }.sort()
+            if (bad_ids)
+                error "Sample IDs from FASTQ file names may only use letters, digits, '.', '_' and '-'; rename these files or use a samplesheet:\n" +
+                    bad_ids.collect { id -> "  ${by_sample[id][0]}" }.join('\n')
             input_reads = channel.fromList(
                 by_sample.collect { id, fs -> tuple(id, fs[0]) }.sort { it[0] }
             )

@@ -71,7 +71,7 @@ sample2,/path/to/sample2.fastq.gz
 
 ### Directory
 
-A path to a directory containing FASTQ files (`.fastq`, `.fq`, optionally gzipped), searched recursively. The sample ID is the file name without that extension, so `S1.run1.fastq.gz` becomes `S1.run1`. If two files give the same ID (for example `S1.fastq` and `S1.fq`, or the same name in two subdirectories), the pipeline stops and lists them; rename the files or use a samplesheet.
+A path to a directory containing FASTQ files (`.fastq`, `.fq`, optionally gzipped), searched recursively. The sample ID is the file name without that extension, so `S1.run1.fastq.gz` becomes `S1.run1`. If two files give the same ID (for example `S1.fastq` and `S1.fq`, or the same name in two subdirectories), the pipeline stops and lists them; rename the files or use a samplesheet. IDs may use letters, digits, `.`, `_` and `-`.
 
 ## Parameters
 
