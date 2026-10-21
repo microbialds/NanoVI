@@ -66,7 +66,7 @@ def get_cigar_op_log_probabilities(sam_path, threads=None):
             if dict_longest_align.get(query_name, -1) < align_len:
                 dict_longest_align[query_name] = align_len
             # The error profile comes from primary mapped alignments only, as in Emu (F03, D3)
-            if alignment.reference_name and not alignment.is_secondary and not alignment.is_supplementary:
+            if not alignment.is_unmapped and not alignment.is_secondary and not alignment.is_supplementary:
                 n_mapped += 1
                 cigar_stats_primary = list(map(add, cigar_stats_primary, get_align_stats(alignment)))
 
