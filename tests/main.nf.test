@@ -44,7 +44,7 @@ nextflow_pipeline {
 
         then {
             assert workflow.failed
-            assert workflow.stdout.any { it.contains("For build-database you must provide --sequences and --seq2tax") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("For build-database you must provide --sequences and --seq2tax") }
         }
     }
 
@@ -63,7 +63,7 @@ nextflow_pipeline {
 
         then {
             assert workflow.failed
-            assert workflow.stdout.any { it.contains("For build-database provide exactly one of --taxonomy_list or --ncbi_taxonomy") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("For build-database provide exactly one of --taxonomy_list or --ncbi_taxonomy") }
         }
     }
 
@@ -84,7 +84,7 @@ nextflow_pipeline {
 
         then {
             assert workflow.failed
-            assert workflow.stdout.any { it.contains("For build-database provide exactly one of --taxonomy_list or --ncbi_taxonomy") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("For build-database provide exactly one of --taxonomy_list or --ncbi_taxonomy") }
         }
     }
 
@@ -122,7 +122,7 @@ nextflow_pipeline {
 
         then {
             assert workflow.failed
-            assert workflow.stdout.any { it.contains("For collapse-taxonomy you must provide --rank (one of: species, genus, family, order, class, phylum, superkingdom)") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("For collapse-taxonomy you must provide --rank (one of: species, genus, family, order, class, phylum, superkingdom)") }
         }
     }
 
@@ -141,7 +141,7 @@ nextflow_pipeline {
 
         then {
             assert workflow.failed
-            assert workflow.stdout.any { it.contains("Invalid --rank 'strain' for collapse-taxonomy. Use one of: species, genus, family, order, class, phylum, superkingdom") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Invalid --rank 'strain' for collapse-taxonomy. Use one of: species, genus, family, order, class, phylum, superkingdom") }
         }
     }
 
@@ -160,7 +160,7 @@ nextflow_pipeline {
 
         then {
             assert workflow.failed
-            assert workflow.stdout.any { it.contains("Invalid --rank 'Genus' for combine-outputs. Use one of: species, genus, family, order, class, phylum, superkingdom") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Invalid --rank 'Genus' for combine-outputs. Use one of: species, genus, family, order, class, phylum, superkingdom") }
         }
     }
 
@@ -200,9 +200,9 @@ nextflow_pipeline {
         then {
             def reads = "${projectDir}/tests/test_data/clash_reads"
             assert workflow.failed
-            assert workflow.stdout.any { it.contains("Several FASTQ files in ${reads} give the same sample ID; rename them or use a samplesheet:") }
-            assert workflow.stdout.any { it.contains("S1: ${reads}/S1.fastq, ${reads}/S1.fq") }
-            assert workflow.stdout.any { it.contains("S2: ${reads}/S2.fastq, ${reads}/run2/S2.fastq") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Several FASTQ files in ${reads} give the same sample ID; rename them or use a samplesheet:") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("S1: ${reads}/S1.fastq, ${reads}/S1.fq") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("S2: ${reads}/S2.fastq, ${reads}/run2/S2.fastq") }
         }
     }
 
@@ -221,8 +221,8 @@ nextflow_pipeline {
 
         then {
             assert workflow.failed
-            assert workflow.stdout.any { it.contains("Sample IDs from FASTQ file names may only use letters, digits, '.', '_' and '-'; rename these files or use a samplesheet:") }
-            assert workflow.stdout.any { it.contains("${projectDir}/tests/test_data/bad_id_reads/S1+run.fastq") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Sample IDs from FASTQ file names may only use letters, digits, '.', '_' and '-'; rename these files or use a samplesheet:") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("${projectDir}/tests/test_data/bad_id_reads/S1+run.fastq") }
         }
     }
 
