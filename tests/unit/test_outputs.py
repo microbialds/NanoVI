@@ -3,7 +3,7 @@
 Covers freq_to_lineage_df and combine_outputs (bin/taxonomy.py),
 build_consolidated_tables (bin/generate_phyloseq_tables.py) and the parsers
 and builder in bin/build_gtdb_db.py. Tests marked xfail describe known bugs
-(F01, F11, F12) and are expected to pass once those are fixed.
+(F11, F12) and are expected to pass once those are fixed.
 """
 import gzip
 import os
@@ -82,23 +82,41 @@ class TestFreqToLineageDf:
         df = freq_to_lineage_df({'1': 0.25, '2': 0.25, '3': 0.5}, str(tmp_path / 's'), taxonomy_df, 100, 0)
         assert df['abundance'].sum() == pytest.approx(1.0)
 
-    @pytest.mark.xfail(strict=True, reason='F01: the unassigned row is dropped by groupby(dropna=True)')
     def test_unassigned_row_kept_with_count(self, tmp_path, taxonomy_df):
         df = freq_to_lineage_df({'1': 0.6, '3': 0.4}, str(tmp_path / 's'), taxonomy_df, 100, 7, counts=True)
-        unassigned = df[df['species'].astype(str).str.lower() == 'unassigned']
+        unassigned = df[df['species'] == 'Unassigned']
         assert len(unassigned) == 1
         assert unassigned['estimated_counts'].iloc[0] == 7
+        assert unassigned['abundance'].iloc[0] == 0
+        assert df['species'].iloc[-1] == 'Unassigned'
+        on_disk = pd.read_csv(tmp_path / 's.tsv', sep='\t')
+        assert on_disk['species'].iloc[-1] == 'Unassigned'
 
-    @pytest.mark.xfail(strict=True, reason='F01: tax_ids missing from taxonomy.tsv are dropped silently')
-    def test_taxid_missing_from_taxonomy_kept(self, tmp_path, taxonomy_df):
+    def test_unassigned_row_without_counts(self, tmp_path, taxonomy_df):
+        df = freq_to_lineage_df({'1': 1.0}, str(tmp_path / 's'), taxonomy_df, 100, 7, counts=False)
+        assert list(df['species']) == ['Escherichia coli', 'Unassigned']
+
+    def test_taxid_missing_from_taxonomy_kept(self, tmp_path, taxonomy_df, capsys):
         df = freq_to_lineage_df({'1': 0.6, '99': 0.4}, str(tmp_path / 's'), taxonomy_df, 100, 0)
         assert df['abundance'].sum() == pytest.approx(1.0)
+        unknown = df[df['species'] == 'Unknown taxid 99']
+        assert len(unknown) == 1
+        assert unknown['abundance'].iloc[0] == pytest.approx(0.4)
+        assert 'tax_id 99 is missing from taxonomy.tsv' in capsys.readouterr().err
 
-    @pytest.mark.xfail(strict=True, reason='F01: rows with an empty rank are dropped by groupby(dropna=True)')
+    def test_taxid_without_species_name_kept(self, tmp_path, taxonomy_df, capsys):
+        taxonomy_df.loc['3', 'species'] = np.nan
+        df = freq_to_lineage_df({'1': 0.6, '3': 0.4}, str(tmp_path / 's'), taxonomy_df, 100, 0)
+        row = df[df['species'] == 'Unknown taxid 3']
+        assert row['genus'].iloc[0] == 'Staphylococcus'
+        assert 'tax_id 3 has no species name' in capsys.readouterr().err
+
     def test_row_with_empty_rank_kept(self, tmp_path, taxonomy_df):
         taxonomy_df.loc['3', 'family'] = np.nan
         df = freq_to_lineage_df({'1': 0.6, '3': 0.4}, str(tmp_path / 's'), taxonomy_df, 100, 0)
         assert 'Staphylococcus aureus' in set(df['species'])
+        assert df.loc[df['species'] == 'Staphylococcus aureus', 'family'].iloc[0] == ''
+        assert df['abundance'].sum() == pytest.approx(1.0)
 
 
 # ─── build_consolidated_tables ───────────────────────────────────────────────
@@ -126,6 +144,18 @@ class TestBuildConsolidatedTables:
         otu_abund, otu_counts, _, meta = build_consolidated_tables([('S1', s1)])
         assert otu_counts.loc['Unassigned', 'S1'] == 10
         assert meta.loc['S1', 'unassigned_counts'] == 10
+
+    def test_unassigned_counts_from_unassigned_row(self, tmp_path, taxonomy_df):
+        freq_to_lineage_df({'1': 0.6, '3': 0.4}, str(tmp_path / 'S1_rel-abundance'),
+                           taxonomy_df, 100, 30, counts=True)
+        _, otu_counts, tax, meta = build_consolidated_tables(
+            [parse_sample_file(tmp_path / 'S1_rel-abundance.tsv')])
+        assert otu_counts.loc['Unassigned', 'S1'] == 30
+        assert meta.loc['S1', 'unassigned_counts'] == 30
+        assert meta.loc['S1', 'assigned_counts'] == 100
+        assert meta.loc['S1', 'n_taxa_detected'] == 2
+        assert list(otu_counts.index)[-1] == 'Unassigned'
+        assert (tax.loc['Unassigned'] == '').all()
 
     def test_parse_sample_file(self, tmp_path):
         path = tmp_path / 'S9_rel-abundance.tsv'

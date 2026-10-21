@@ -14,6 +14,10 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 - CI runs on pushes to `dev` and `roadmap/**` and on pull requests into `dev`.
 - README credits Emu (Curry et al., Nature Methods 2022) for the CIGAR-based read score, the EM loop and the database layout; Emu's MIT license is in `THIRD_PARTY_LICENSES`, and the adapted files name their origin.
 
+### Fixed
+
+- Per-sample tables now keep an `Unassigned` row (abundance 0, `estimated_counts` = reads with no alignment), so `otu_table_counts.tsv` and `sample_metadata.tsv` report unassigned reads instead of 0. Tax IDs missing from `taxonomy.tsv` are reported as `Unknown taxid <id>` with a warning, and species with an empty rank are no longer dropped (F01).
+
 ## [1.0.0] - 2026-06-27
 
 ### Added

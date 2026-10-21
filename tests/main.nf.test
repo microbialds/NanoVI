@@ -79,11 +79,12 @@ nextflow_pipeline {
                 assert (observed[exp.species] ?: 0.0) < 0.01
             }
 
-            // TODO(F01): the Unassigned row is dropped by freq_to_lineage_df; enable in Phase 2.
-            // def nonRrna = expected.find { it.species == 'non-16S' }.simulated_reads as int
-            // def unassignedRow = rows.find { it.species == 'Unassigned' }
-            // assert unassignedRow != null
-            // assert (unassignedRow.estimated_counts as int) >= nonRrna
+            // The Unassigned row holds at least the non-16S reads
+            def nonRrna = expected.find { it.species == 'non-16S' }.simulated_reads as int
+            def unassignedRow = rows.find { it.species == 'Unassigned' }
+            assert unassignedRow != null
+            assert (unassignedRow.abundance as double) == 0.0
+            assert (unassignedRow.estimated_counts as int) >= nonRrna
 
             // Consolidated phyloseq tables
             ['otu_table_abundance.tsv', 'otu_table_counts.tsv', 'tax_table.tsv', 'sample_metadata.tsv'].each { t ->

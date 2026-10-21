@@ -65,8 +65,10 @@ def build_consolidated_tables(sample_data):
         has_counts = "estimated_counts" in df.columns
 
         for _, row in df.iterrows():
+            # WRITE_OUTPUT writes unassigned reads as a row named 'Unassigned' (F01);
+            # older tables without a species name map to the same row
             species = str(row.get("species", "")).strip()
-            if not species or species == "nan":
+            if not species or species == "nan" or species.lower() == "unassigned":
                 species = "Unassigned"
 
             # Collect abundance
