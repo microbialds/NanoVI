@@ -339,7 +339,7 @@ def bayesian_vi_iterations(
     max_outer_iterations: int = 10,
     max_inner_iterations: int = 1000,
     inner_tolerance: float = 1e-7,
-) -> Tuple[Dict[int, float], Optional[Dict[int, float]], Dict[int, Tuple[float, float]]]:
+) -> Tuple[Dict[int, float], Optional[Dict[int, float]], Dict[int, Tuple[float, float]], int]:
     """
     Outer optimization loop with iterative species pruning.
 
@@ -388,6 +388,10 @@ def bayesian_vi_iterations(
         None if no thresholding needed.
     credible_intervals : dict
         Species ID → (lower_95, upper_95) credible intervals on abundance.
+    below_detection_count : int
+        Number of reads whose responsibilities are all zero at the end: every
+        species they align to was pruned (F06). They are not part of the
+        abundances and should not be counted as assigned to the reported species.
 
     Raises
     ------
@@ -440,6 +444,9 @@ def bayesian_vi_iterations(
             f"(remaining: {len(current_species)})\n"
         )
 
+    # Reads with at least one finite score; only these start the uniform α (F06)
+    n_scored = int(np.sum(np.any(np.isfinite(L), axis=1)))
+
     # --- Outer loop: CAVI + prune ---
     # The loop stops only when no species is below the pruning threshold. ELBOs
     # of successive iterations are not compared: each belongs to a different
@@ -457,7 +464,7 @@ def bayesian_vi_iterations(
 
         if expected_counts is None:
             # Initialize α uniformly (prior + uniform pseudo-counts)
-            alpha_init = alpha_0 + (n_reads / S)
+            alpha_init = alpha_0 + (n_scored / S)
         else:
             # Warm start: the surviving species keep their expected read counts
             alpha_init = alpha_0 + expected_counts
@@ -518,6 +525,9 @@ def bayesian_vi_iterations(
         final_fit = outer_iter == max_outer_iterations
 
     # --- Final results ---
+    # Reads left with no surviving species (F06)
+    below_detection_count = int(np.sum(phi.sum(axis=1) == 0))
+
     # Posterior mean and credible intervals from the Dirichlet
     alpha_sum = np.sum(alpha)
     posterior_mean = alpha / alpha_sum
@@ -555,11 +565,12 @@ def bayesian_vi_iterations(
 
     stdout.write(
         f"\nFinal species count: {len(freq_full)}\n"
+        f"Reads below detection (all their species pruned): {below_detection_count}\n"
         f"Number of VI outer iterations: {outer_iter} "
         f"(CAVI iterations: {', '.join(map(str, inner_iterations))})\n"
     )
 
-    return freq_full, freq_thresholded, credible_intervals
+    return freq_full, freq_thresholded, credible_intervals, below_detection_count
 
 
 # ============================================================================
@@ -661,13 +672,13 @@ def variational_inference_iterations(
     db_ids: List[int],
     lli_thresh: float = 1e-4,
     input_threshold: float = 1e-3,
-) -> Tuple[Dict[int, float], Optional[Dict[int, float]], None]:
+) -> Tuple[Dict[int, float], Optional[Dict[int, float]], int]:
     """
     Drop-in replacement for the original variational_inference_iterations().
 
-    This function maintains the same signature and return type as the original
-    EM-based implementation, ensuring backward compatibility with the
-    Nextflow pipeline while using true Bayesian variational inference.
+    This function keeps the signature of the original EM-based implementation
+    and returns a 3-tuple like it, but the third value is the number of reads
+    below detection (F06) instead of the EM version's unused None.
 
     Parameters
     ----------
@@ -687,10 +698,11 @@ def variational_inference_iterations(
         Species ID → posterior mean abundance.
     freq_thresholded : dict or None
         Abundance estimates after thresholding, or None.
-    read_dist : None
-        Placeholder for backward compatibility.
+    below_detection_count : int
+        Reads whose species were all pruned (F06). This position held an
+        unused read_dist placeholder (None).
     """
-    freq_full, freq_thresholded, _ = bayesian_vi_iterations(
+    freq_full, freq_thresholded, _, below_detection_count = bayesian_vi_iterations(
         log_p_rgs=log_p_rgs,
         db_species_ids=db_ids,
         elbo_threshold=lli_thresh,
@@ -700,4 +712,4 @@ def variational_inference_iterations(
         max_inner_iterations=1000,
         inner_tolerance=1e-7,
     )
-    return freq_full, freq_thresholded, None
+    return freq_full, freq_thresholded, below_detection_count

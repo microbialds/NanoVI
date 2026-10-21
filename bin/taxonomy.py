@@ -35,6 +35,9 @@ RANKS_ORDER = RANKS_PRINTOUT[:]  # copy
 UNASSIGNED_ID = "unassigned"
 UNASSIGNED_LABEL = "Unassigned"
 UNKNOWN_TAXID_LABEL = "Unknown taxid"
+# Species label for reads whose species were all pruned by the VI (F06)
+BELOW_DETECTION_ID = "below_detection"
+BELOW_DETECTION_LABEL = "Below detection"
 
 def lineage_dict_from_tid(taxid, nodes_dict, names_dict):
     """
@@ -197,8 +200,8 @@ def unify_species_abundance(df):
     Merges strain-level or subspecies-level entries so that 'species' is only 2 words.
     E.g., 'Escherichia coli O157' -> 'Escherichia coli'.
     Summarizes total 'abundance' by species, then retains genus, family, order, etc.
-    The placeholder labels 'Unassigned' and 'Unknown taxid <id>' are kept as they
-    are. Empty ranks are kept as '' (F01).
+    The placeholder labels 'Unassigned', 'Below detection' and 'Unknown taxid <id>'
+    are kept as they are. Empty ranks are kept as '' (F01).
     """
     if 'species' not in df.columns:
         raise ValueError("Column 'species' not found in DataFrame. Check input format.")
@@ -211,7 +214,7 @@ def unify_species_abundance(df):
     group_columns = ['species'] + taxonomic_levels
     df[group_columns] = df[group_columns].fillna('')
 
-    is_placeholder = ((df['species'] == UNASSIGNED_LABEL)
+    is_placeholder = (df['species'].isin([UNASSIGNED_LABEL, BELOW_DETECTION_LABEL])
                       | df['species'].str.startswith(UNKNOWN_TAXID_LABEL + " "))
     truncated = df['species'].str.split(' ').str[:2].str.join(' ')
     df['species'] = df['species'].where(is_placeholder, truncated)
@@ -236,7 +239,8 @@ def largest_remainder(weights, total):
     floors[order[:left]] += 1
     return floors
 
-def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unassigned_count, counts=False):
+def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unassigned_count, counts=False,
+                       below_detection_count=0):
     """
     Convert frequency dict (taxid -> freq) to a DataFrame, unify taxonomy, and write to .tsv.
     freq: dict { tax_id: freq_val }
@@ -244,11 +248,16 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     taxonomy_df: DataFrame with columns matching RANKS_PRINTOUT (index=tax_id).
     assigned_count / unassigned_count: number of reads assigned/unassigned
     counts: if True, add 'estimated counts' column
+    below_detection_count: assigned reads whose species were all pruned (F06);
+        they get their own 'Below detection' row and are not spread over the
+        reported species
+    The 'Below detection' and 'Unassigned' rows (abundance 0) are always written,
+    in that order, as the last two rows.
     """
-    # Build a DataFrame from freq plus an 'unassigned' row
+    # Build a DataFrame from freq plus 'below detection' and 'unassigned' rows
     results_df = pd.DataFrame(
-        zip(list(freq.keys()) + [UNASSIGNED_ID],
-            list(freq.values()) + [0]),
+        zip(list(freq.keys()) + [BELOW_DETECTION_ID, UNASSIGNED_ID],
+            list(freq.values()) + [0, 0]),
         columns=["tax_id", "abundance"]
     )
     results_df["tax_id"] = results_df["tax_id"].astype(str)
@@ -261,36 +270,44 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
 
     # Label rows that have no species name instead of letting groupby drop them (F01)
     is_unassigned = results_df["tax_id"] == UNASSIGNED_ID
+    is_below = results_df["tax_id"] == BELOW_DETECTION_ID
+    is_unknown = (results_df["species"].isna() | (results_df["species"].astype(str).str.strip() == "")) \
+        & ~is_unassigned & ~is_below
     known_ids = set(taxonomy_df.index.astype(str))
-    no_name = results_df["species"].isna() | (results_df["species"].astype(str).str.strip() == "")
-    for tid in results_df.loc[no_name & ~is_unassigned, "tax_id"]:
+    for tid in results_df.loc[is_unknown, "tax_id"]:
         reason = "is missing from taxonomy.tsv" if tid not in known_ids else "has no species name in taxonomy.tsv"
         print(f"Warning: tax_id {tid} {reason}; reported as '{UNKNOWN_TAXID_LABEL} {tid}'", file=sys.stderr)
-    results_df.loc[no_name & ~is_unassigned, "species"] = (
-        UNKNOWN_TAXID_LABEL + " " + results_df.loc[no_name & ~is_unassigned, "tax_id"])
+    results_df.loc[is_unknown, "species"] = UNKNOWN_TAXID_LABEL + " " + results_df.loc[is_unknown, "tax_id"]
+    results_df.loc[is_below, "species"] = BELOW_DETECTION_LABEL
     results_df.loc[is_unassigned, "species"] = UNASSIGNED_LABEL
 
     # Blank ranks of these rows take the row's label, so that collapsing or combining
     # at a higher rank keeps them apart from each other and from real taxa
-    placeholder = is_unassigned | no_name
+    placeholder = is_unassigned | is_below | is_unknown
     for rank in TAXONOMY_RANKS[1:]:
         if rank in results_df.columns:
             blank = results_df[rank].isna() | (results_df[rank].astype(str).str.strip() == "")
             results_df.loc[placeholder & blank, rank] = results_df.loc[placeholder & blank, "species"]
 
     results_df = unify_species_abundance(results_df)
-    # Unassigned goes last
+    # Below detection, then Unassigned, go last
+    is_below = results_df["species"] == BELOW_DETECTION_LABEL
     is_unassigned = results_df["species"] == UNASSIGNED_LABEL
-    results_df = pd.concat([results_df[~is_unassigned], results_df[is_unassigned]], ignore_index=True)
+    is_taxon = ~is_below & ~is_unassigned
+    results_df = pd.concat([results_df[is_taxon], results_df[is_below], results_df[is_unassigned]],
+                           ignore_index=True)
 
     # Optionally add estimated counts
     if counts:
-        # Identify the unassigned row by label, not by position, since groupby in
-        # unify_species_abundance may reorder rows and break positional [:-1] slicing.
+        # Identify the placeholder rows by label, not by position, since groupby in
+        # unify_species_abundance may reorder rows and break positional slicing.
+        is_below = results_df["species"] == BELOW_DETECTION_LABEL
         is_unassigned = results_df["species"] == UNASSIGNED_LABEL
+        is_taxon = ~is_below & ~is_unassigned
         results_df["estimated_counts"] = 0
-        results_df.loc[~is_unassigned, "estimated_counts"] = largest_remainder(
-            results_df.loc[~is_unassigned, "abundance"].to_numpy(), assigned_count)
+        results_df.loc[is_taxon, "estimated_counts"] = largest_remainder(
+            results_df.loc[is_taxon, "abundance"].to_numpy(), assigned_count - below_detection_count)
+        results_df.loc[is_below, "estimated_counts"] = below_detection_count
         results_df.loc[is_unassigned, "estimated_counts"] = unassigned_count
 
     # Reorder columns

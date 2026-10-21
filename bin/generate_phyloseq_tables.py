@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from taxonomy import TAXONOMY_RANKS as ALL_RANKS, UNASSIGNED_LABEL
+from taxonomy import TAXONOMY_RANKS as ALL_RANKS, UNASSIGNED_LABEL, BELOW_DETECTION_LABEL
 
 TAXONOMY_RANKS = ALL_RANKS[1:]  # ranks above species
 
@@ -90,7 +90,7 @@ def build_consolidated_tables(sample_data):
                 sample_counts[sample_name] = sample_counts.get(sample_name, 0) + count_val
 
             # Tally lineages; the most common one is used for the taxonomy table
-            if species != UNASSIGNED_LABEL:
+            if species not in (UNASSIGNED_LABEL, BELOW_DETECTION_LABEL):
                 lineage = []
                 for rank in TAXONOMY_RANKS:
                     val = str(row.get(rank, "")).strip()
@@ -102,7 +102,7 @@ def build_consolidated_tables(sample_data):
         taxa_detected = sum(
             1
             for sp, vals in abundance_dict.items()
-            if vals.get(sample_name, 0) > 0 and sp != UNASSIGNED_LABEL
+            if vals.get(sample_name, 0) > 0 and sp not in (UNASSIGNED_LABEL, BELOW_DETECTION_LABEL)
         )
         total_abundance = sum(
             vals.get(sample_name, 0)
@@ -111,6 +111,7 @@ def build_consolidated_tables(sample_data):
         )
 
         if has_counts:
+            # Reads with an alignment, including those below detection (F06)
             assigned_counts = sum(
                 vals.get(sample_name, 0)
                 for sp, vals in counts_dict.items()
@@ -134,10 +135,11 @@ def build_consolidated_tables(sample_data):
     # Get ordered list of all samples
     all_samples = [name for name, _ in sample_data]
 
-    # Build OTU abundance table (species × samples)
+    # Build OTU abundance table (species × samples); Below detection and Unassigned go last
+    placeholders = [BELOW_DETECTION_LABEL] if BELOW_DETECTION_LABEL in abundance_dict else []
     all_species = sorted(
-        [sp for sp in abundance_dict if sp != UNASSIGNED_LABEL]
-    ) + [UNASSIGNED_LABEL]
+        [sp for sp in abundance_dict if sp not in (UNASSIGNED_LABEL, BELOW_DETECTION_LABEL)]
+    ) + placeholders + [UNASSIGNED_LABEL]
 
     otu_abundance = pd.DataFrame(
         {
@@ -172,7 +174,8 @@ def build_consolidated_tables(sample_data):
         sp: dict(zip(TAXONOMY_RANKS, max(tally, key=tally.get)))
         for sp, tally in lineage_counts.items()
     }
-    tax_records[UNASSIGNED_LABEL] = {r: "" for r in TAXONOMY_RANKS}
+    for label in placeholders + [UNASSIGNED_LABEL]:
+        tax_records[label] = {r: "" for r in TAXONOMY_RANKS}
     tax_table = pd.DataFrame.from_dict(tax_records, orient="index")
     tax_table = tax_table.reindex(all_species)
     tax_table.index.name = "species"

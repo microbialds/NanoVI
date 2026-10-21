@@ -2,8 +2,8 @@
 
 Covers every public function: the likelihood matrix, the CAVI updates, the
 ELBO (checked against an independent calculation), the inner and outer loops,
-the posterior utilities and the drop-in wrapper. Tests marked xfail describe
-known bugs (F05, F06, F07) and are expected to pass once those are fixed.
+the posterior utilities and the drop-in wrapper. The tests named after F05,
+F06 and F07 were strict xfails until Phase 3 fixed those bugs.
 """
 import io
 import math
@@ -227,7 +227,7 @@ class TestBayesianViIterations:
     def test_recovers_known_proportions(self):
         truth = {1: 0.40, 2: 0.30, 3: 0.15, 4: 0.10, 5: 0.05}
         lp = synthetic_reads({s: int(p * 2000) for s, p in truth.items()}, seed=5)
-        freq_full, _, ci = vb.bayesian_vi_iterations(lp, list(truth))
+        freq_full, _, ci, _ = vb.bayesian_vi_iterations(lp, list(truth))
         assert sum(freq_full.values()) == pytest.approx(1.0)
         for sid, p in truth.items():
             assert freq_full[sid] == pytest.approx(p, abs=0.02)
@@ -237,7 +237,7 @@ class TestBayesianViIterations:
     def test_prunes_species_without_support(self):
         lp = synthetic_reads({1: 1500, 2: 500}, seed=6)
         lp['stray'] = ([3, 1], [-90.0, -40.0])
-        freq_full, _, _ = vb.bayesian_vi_iterations(lp, [1, 2, 3, 4])
+        freq_full, _, _, _ = vb.bayesian_vi_iterations(lp, [1, 2, 3, 4])
         assert set(freq_full) == {1, 2}
 
     def test_empty_input_raises(self):
@@ -246,7 +246,7 @@ class TestBayesianViIterations:
 
     def test_species_below_input_threshold_not_reported(self):
         lp = synthetic_reads({1: 1000, 2: 4}, seed=7, max_decoys=0)
-        freq_full, freq_thresh, _ = vb.bayesian_vi_iterations(lp, [1, 2], abundance_threshold=0.01)
+        freq_full, freq_thresh, _, _ = vb.bayesian_vi_iterations(lp, [1, 2], abundance_threshold=0.01)
         assert set(freq_full) == {1}
         assert freq_thresh is None or set(freq_thresh) == {1}
 
@@ -291,7 +291,7 @@ class TestBayesianViIterations:
 
         monkeypatch.setattr(vb, 'cavi_inner_loop', fake_inner_loop)
         lp = {f'r{i}': ([1, 2, 3], [-1.0, -1.0, -1.0]) for i in range(2000)}
-        freq_full, _, _ = vb.bayesian_vi_iterations(lp, [1, 2, 3])
+        freq_full, _, _, _ = vb.bayesian_vi_iterations(lp, [1, 2, 3])
         assert set(freq_full) == {1}
 
     def test_outer_loop_warm_starts(self, monkeypatch):
@@ -326,7 +326,7 @@ class TestBayesianViIterations:
 
         monkeypatch.setattr(vb, 'cavi_inner_loop', fake_inner_loop)
         lp = {f'r{i}': ([1, 2, 3, 4, 5], [-1.0] * 5) for i in range(2000)}
-        freq_full, _, _ = vb.bayesian_vi_iterations(lp, [1, 2, 3, 4, 5], max_outer_iterations=2)
+        freq_full, _, _, _ = vb.bayesian_vi_iterations(lp, [1, 2, 3, 4, 5], max_outer_iterations=2)
         assert sizes == [5, 4, 3]
         assert set(freq_full) == {1, 2, 3}
         assert '1 species remain below the pruning threshold' in capsys.readouterr().err
@@ -334,27 +334,59 @@ class TestBayesianViIterations:
     def test_all_species_below_threshold_keeps_the_most_abundant(self):
         # One read split evenly over three species: each has 1/3 < 1/n = 1
         lp = {'r1': ([1, 2, 3], [-1.0, -1.0, -1.1])}
-        freq_full, _, _ = vb.bayesian_vi_iterations(lp, [1, 2, 3])
+        freq_full, _, _, _ = vb.bayesian_vi_iterations(lp, [1, 2, 3])
         assert list(freq_full) in ([1], [2])
         assert freq_full[list(freq_full)[0]] == pytest.approx(1.0)
 
-    @pytest.mark.xfail(strict=True, reason='F06: reads whose species were all pruned are spread over the surviving species')
     def test_reads_of_pruned_species_are_not_counted_as_assigned(self, tmp_path):
+        # F06: the wrapper returns the reads whose species were all pruned, and
+        # freq_to_lineage_df reports them in a 'Below detection' row
         lp = synthetic_reads({1: 1500, 2: 495}, seed=10, max_decoys=1)
         for i in range(5):  # five reads that align only to species 3, which is pruned
             lp[f'orphan{i}'] = ([3], [-40.0])
-        freq_full, freq_thresh, _ = vb.variational_inference_iterations(lp, [1, 2, 3])
+        freq_full, freq_thresh, below = vb.variational_inference_iterations(lp, [1, 2, 3])
         assert 3 not in freq_full
+        assert below == 5
         taxonomy = pd.DataFrame(
             {'species': ['Species one', 'Species two', 'Species three'], 'genus': ['G1', 'G2', 'G3']},
             index=pd.Index(['1', '2', '3'], name='tax_id'),
         )
         freq = {str(k): v for k, v in (freq_thresh or freq_full).items()}
         df = freq_to_lineage_df(
-            freq, str(tmp_path / 's'), taxonomy, assigned_count=len(lp), unassigned_count=0, counts=True
+            freq, str(tmp_path / 's'), taxonomy, assigned_count=len(lp), unassigned_count=0, counts=True,
+            below_detection_count=below,
         )
         assigned = df[df['species'].isin(['Species one', 'Species two'])]
-        assert assigned['estimated_counts'].sum() <= len(lp) - 5
+        assert assigned['estimated_counts'].sum() == len(lp) - 5
+        below_row = df[df['species'] == 'Below detection']
+        assert below_row['estimated_counts'].tolist() == [5]
+        assert list(df['species'][-2:]) == ['Below detection', 'Unassigned']
+
+    def test_no_reads_below_detection_when_every_read_keeps_a_species(self):
+        lp = synthetic_reads({1: 1500, 2: 450}, seed=9, max_decoys=1)
+        for i in range(5):  # species 3's reads also align to species 1
+            lp[f'r3_{i}'] = ([3, 1], [-40.0, -45.0])
+        freq_full, _, _, below = vb.bayesian_vi_iterations(lp, [1, 2, 3])
+        assert 3 not in freq_full
+        assert below == 0
+
+    def test_initial_alpha_counts_only_scored_reads(self, monkeypatch):
+        # 'elsewhere' aligns only to a species outside the list, so it has no
+        # finite score; the uniform start spreads 100 reads, not 101
+        calls = []
+        real_inner_loop = vb.cavi_inner_loop
+
+        def spy(L, alpha_0, alpha_init, **kwargs):
+            calls.append((alpha_0.copy(), alpha_init.copy()))
+            return real_inner_loop(L, alpha_0, alpha_init, **kwargs)
+
+        monkeypatch.setattr(vb, 'cavi_inner_loop', spy)
+        lp = synthetic_reads({1: 60, 2: 40}, seed=13, max_decoys=1)
+        lp['elsewhere'] = ([9], [-40.0])
+        *_, below = vb.bayesian_vi_iterations(lp, [1, 2])
+        alpha_0, alpha_init = calls[0]
+        assert (alpha_init - alpha_0).sum() == pytest.approx(100.0)
+        assert below == 1
 
 
 class TestVariationalInferenceIterationsWrapper:
@@ -362,8 +394,8 @@ class TestVariationalInferenceIterationsWrapper:
         lp = synthetic_reads({1: 800, 2: 200}, seed=11)
         result = vb.variational_inference_iterations(lp, [1, 2])
         assert isinstance(result, tuple) and len(result) == 3
-        freq_full, freq_thresh, read_dist = result
-        assert read_dist is None
+        freq_full, freq_thresh, below = result
+        assert below == 0
         assert isinstance(freq_full, dict)
         assert set(freq_full) <= {1, 2}
         assert all(isinstance(v, float) for v in freq_full.values())

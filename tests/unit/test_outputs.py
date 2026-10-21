@@ -82,7 +82,7 @@ class TestFreqToLineageDf:
         freq = {'1': 1 / 3, '2': 1 / 3, '3': 1 / 3}
         taxonomy_df.loc['2', 'species'] = 'Escherichia albertii'
         df = freq_to_lineage_df(freq, str(tmp_path / 's'), taxonomy_df, 100, 4, counts=True)
-        assigned = df[df['species'] != 'Unassigned']
+        assigned = df[~df['species'].isin(['Below detection', 'Unassigned'])]
         assert assigned['estimated_counts'].sum() == 100
         assert sorted(assigned['estimated_counts']) == [33, 33, 34]
         assert df.loc[df['species'] == 'Unassigned', 'estimated_counts'].iloc[0] == 4
@@ -103,7 +103,21 @@ class TestFreqToLineageDf:
 
     def test_unassigned_row_without_counts(self, tmp_path, taxonomy_df):
         df = freq_to_lineage_df({'1': 1.0}, str(tmp_path / 's'), taxonomy_df, 100, 7, counts=False)
-        assert list(df['species']) == ['Escherichia coli', 'Unassigned']
+        assert list(df['species']) == ['Escherichia coli', 'Below detection', 'Unassigned']
+
+    def test_below_detection_row(self, tmp_path, taxonomy_df):
+        # F06: reads whose species were all pruned get their own row, and the
+        # species rows share the remaining assigned reads
+        df = freq_to_lineage_df({'1': 0.6, '3': 0.4}, str(tmp_path / 's'), taxonomy_df, 100, 7,
+                                counts=True, below_detection_count=5)
+        assert list(df['species'][-2:]) == ['Below detection', 'Unassigned']
+        rows = df.set_index('species')
+        assert rows.loc['Below detection', 'abundance'] == 0
+        assert rows.loc['Below detection', 'estimated_counts'] == 5
+        assert (rows.loc['Below detection', RANKS] == 'Below detection').all()
+        assert rows.loc['Escherichia coli', 'estimated_counts'] == 57
+        assert rows.loc['Staphylococcus aureus', 'estimated_counts'] == 38
+        assert rows.loc['Unassigned', 'estimated_counts'] == 7
 
     def test_placeholder_rows_get_their_label_as_ranks(self, tmp_path, taxonomy_df):
         taxonomy_df.loc['3', 'species'] = np.nan
@@ -198,6 +212,19 @@ class TestBuildConsolidatedTables:
         assert meta.loc['S1', 'n_taxa_detected'] == 2
         assert list(otu_counts.index)[-1] == 'Unassigned'
         assert (tax.loc['Unassigned'] == '').all()
+
+    def test_below_detection_row_goes_before_unassigned(self, tmp_path, taxonomy_df):
+        freq_to_lineage_df({'1': 0.6, '3': 0.4}, str(tmp_path / 'S1_rel-abundance'),
+                           taxonomy_df, 100, 30, counts=True, below_detection_count=5)
+        otu_abund, otu_counts, tax, meta = build_consolidated_tables(
+            [parse_sample_file(tmp_path / 'S1_rel-abundance.tsv')])
+        assert list(otu_counts.index)[-2:] == ['Below detection', 'Unassigned']
+        assert otu_counts.loc['Below detection', 'S1'] == 5
+        assert otu_abund.loc['Below detection', 'S1'] == 0
+        assert (tax.loc['Below detection'] == '').all()
+        # assigned_counts is every read with an alignment, below detection included
+        assert meta.loc['S1', 'assigned_counts'] == 100
+        assert meta.loc['S1', 'n_taxa_detected'] == 2
 
     def test_parse_sample_file(self, tmp_path):
         path = tmp_path / 'S9_rel-abundance.tsv'
@@ -347,6 +374,15 @@ class TestCombineOutputs:
         df = combine_outputs(str(tmp_path), 'species', count_table=True).set_index('species')
         assert list(df.loc['Unassigned', ['A', 'B']].astype(float)) == [5, 9]
         assert list(df.loc['Escherichia coli', ['A', 'B']].astype(float)) == [50, 50]
+
+    def test_below_detection_row_stays_apart_at_higher_ranks(self, tmp_path, taxonomy_df):
+        for name, below in [('A', 4), ('B', 0)]:
+            freq_to_lineage_df({'1': 0.5, '3': 0.5}, str(tmp_path / f'{name}_rel-abundance'),
+                               taxonomy_df, 100, 6, counts=True, below_detection_count=below)
+        df = combine_outputs(str(tmp_path), 'phylum', count_table=True).set_index('phylum')
+        assert list(df.loc['Below detection', ['A', 'B']]) == [4, 0]
+        assert list(df.loc['Unassigned', ['A', 'B']]) == [6, 6]
+        assert list(df.loc['Pseudomonadota', ['A', 'B']]) == [48, 50]
 
 
 # ─── build_gtdb_db ───────────────────────────────────────────────────────────
