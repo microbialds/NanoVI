@@ -1,9 +1,13 @@
 import math
+import sys
 import numpy as np
 from scipy.special import digamma, gammaln
 from scipy.stats import beta as beta_dist
 from sys import stdout
 from typing import Dict, Tuple, Optional, List
+
+# Largest ELBO fall between CAVI iterations, relative to |ELBO|, taken as rounding
+ELBO_DECREASE_TOLERANCE = 1e-9
 
 
 # ============================================================================
@@ -223,8 +227,8 @@ def cavi_inner_loop(
     L: np.ndarray,
     alpha_0: np.ndarray,
     alpha_init: np.ndarray,
-    max_iterations: int = 100,
-    tolerance: float = 1e-4,
+    max_iterations: int = 1000,
+    tolerance: float = 1e-7,
     verbose: bool = True,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float, int]:
     """
@@ -234,7 +238,14 @@ def cavi_inner_loop(
       1. Update E[ln π] from current α  (Dirichlet expectation)
       2. Update φ (responsibilities)      (E-step analogue)
       3. Update α from φ                  (M-step analogue)
-      4. Compute ELBO for convergence check
+      4. Compute ELBO for monitoring
+
+    The loop stops when the largest change in posterior mean abundance,
+    max_s |Δ(α_s / Σ_j α_j)|, falls below `tolerance` (F05). A relative ELBO
+    change is not used: the ELBO grows with the number of reads, so a relative
+    rule stops large samples early. CAVI never lowers the ELBO; a fall of more
+    than ELBO_DECREASE_TOLERANCE × |ELBO| is reported on stderr as a sign of
+    numerical trouble.
 
     Parameters
     ----------
@@ -247,7 +258,7 @@ def cavi_inner_loop(
     max_iterations : int
         Maximum number of CAVI iterations.
     tolerance : float
-        Convergence threshold on relative ELBO change.
+        Convergence threshold on the largest change in posterior mean abundance.
     verbose : bool
         If True, print progress.
 
@@ -265,7 +276,8 @@ def cavi_inner_loop(
         Number of iterations until convergence.
     """
     alpha = alpha_init.copy()
-    prev_elbo = -np.inf
+    mean = alpha / np.sum(alpha)
+    prev_elbo = None
 
     for iteration in range(1, max_iterations + 1):
         # Step 1: Compute Dirichlet expectations
@@ -281,33 +293,35 @@ def cavi_inner_loop(
         E_ln_pi = compute_dirichlet_expectation(alpha)  # Recompute with updated α
         elbo = compute_elbo(L, phi, alpha, alpha_0, E_ln_pi)
 
-        # Convergence check
-        if iteration > 1:
-            # Use relative change for scale-invariant convergence
-            rel_change = abs(elbo - prev_elbo) / (abs(prev_elbo) + 1e-10)
+        new_mean = alpha / np.sum(alpha)
+        max_change = float(np.max(np.abs(new_mean - mean)))
+        mean = new_mean
+
+        if prev_elbo is not None and elbo < prev_elbo - ELBO_DECREASE_TOLERANCE * abs(prev_elbo):
+            sys.stderr.write(
+                f"  WARNING: ELBO fell from {prev_elbo:.6f} to {elbo:.6f} "
+                f"at CAVI iteration {iteration}; this may indicate numerical instability.\n"
+            )
+        prev_elbo = elbo
+
+        if verbose and (iteration == 1 or iteration % 100 == 0):
+            stdout.write(
+                f"  CAVI iteration {iteration}: "
+                f"ELBO = {elbo:.4f}, "
+                f"max Δ(mean) = {max_change:.2e}\n"
+            )
+        if max_change < tolerance:
             if verbose:
                 stdout.write(
-                    f"  CAVI iteration {iteration}: "
-                    f"ELBO = {elbo:.4f}, "
-                    f"Δ(rel) = {rel_change:.2e}\n"
+                    f"  Converged at iteration {iteration} "
+                    f"(ELBO = {elbo:.4f}, max Δ(mean) = {max_change:.2e})\n"
                 )
-            if rel_change < tolerance:
-                if verbose:
-                    stdout.write(
-                        f"  Converged at iteration {iteration} "
-                        f"(ELBO = {elbo:.4f})\n"
-                    )
-                return alpha, phi, E_ln_pi, elbo, iteration
-        else:
-            if verbose:
-                stdout.write(f"  CAVI iteration {iteration}: ELBO = {elbo:.4f}\n")
-
-        prev_elbo = elbo
+            return alpha, phi, E_ln_pi, elbo, iteration
 
     if verbose:
         stdout.write(
             f"  Reached max iterations ({max_iterations}). "
-            f"ELBO = {elbo:.4f}\n"
+            f"ELBO = {elbo:.4f}, max Δ(mean) = {max_change:.2e}\n"
         )
     return alpha, phi, E_ln_pi, elbo, max_iterations
 
@@ -323,8 +337,8 @@ def bayesian_vi_iterations(
     abundance_threshold: float = 1e-3,
     alpha_prior: float = 1.0,
     max_outer_iterations: int = 10,
-    max_inner_iterations: int = 100,
-    inner_tolerance: float = 5e-4,
+    max_inner_iterations: int = 1000,
+    inner_tolerance: float = 1e-7,
 ) -> Tuple[Dict[int, float], Optional[Dict[int, float]], Dict[int, Tuple[float, float]]]:
     """
     Outer optimization loop with iterative species pruning.
@@ -359,7 +373,8 @@ def bayesian_vi_iterations(
     max_inner_iterations : int
         Maximum CAVI iterations per inner loop.
     inner_tolerance : float
-        Convergence tolerance for inner CAVI loop.
+        Convergence tolerance for the inner CAVI loop: the largest change in
+        posterior mean abundance between iterations (F05).
 
     Returns
     -------
@@ -669,7 +684,7 @@ def variational_inference_iterations(
         abundance_threshold=input_threshold,
         alpha_prior=1.0,  # Uniform Dirichlet prior
         max_outer_iterations=10,
-        max_inner_iterations=100,
-        inner_tolerance=5e-4,
+        max_inner_iterations=1000,
+        inner_tolerance=1e-7,
     )
     return freq_full, freq_thresholded, None

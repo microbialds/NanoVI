@@ -14,6 +14,7 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 - CI runs on pushes to `dev` and `roadmap/**` and on pull requests into `dev`.
 - README credits Emu (Curry et al., Nature Methods 2022) for the CIGAR-based read score, the EM loop and the database layout; Emu's MIT license is in `THIRD_PARTY_LICENSES`, and the adapted files name their origin.
 - The error profile (the share of insertions, deletions, soft clips and mismatches that weights each read's score) is estimated from primary mapped alignments only, as Emu does; it also counted secondary and supplementary alignments, which go to less similar references and raised the mismatch share. Abundances move slightly (F03).
+- The Bayesian VI's inner loop stops when the largest change in any species' posterior mean abundance is below 1e-7 (at most 1,000 iterations) instead of on a relative ELBO change of 5e-4, which stopped large samples after a couple of iterations, before minor species had settled. The ELBO is still computed and a warning is printed if it falls. Abundances move slightly (F05).
 
 ### Fixed
 
