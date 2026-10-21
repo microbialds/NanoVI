@@ -79,6 +79,14 @@ jobs:
       - name: Install nf-test
         uses: nf-core/setup-nf-test@v1
 
+      # Build the Python image from this commit under the tag conf/base.config uses,
+      # so the test runs the image this branch defines instead of pulling from GHCR
+      - name: Build the Python image
+        run: |
+          IMAGE=$(grep -o "ghcr.io/microbialds/nanovi-python:[A-Za-z0-9._-]*" conf/base.config | sort -u)
+          test "$(echo "$IMAGE" | wc -l)" -eq 1 || { echo "conf/base.config names more than one nanovi-python tag: $IMAGE"; exit 1; }
+          docker build -t "$IMAGE" -f containers/Dockerfile containers/
+
       - name: Run nf-test (e2e, Docker)
         run: nf-test test tests/main.nf.test --tag e2e --verbose
 
