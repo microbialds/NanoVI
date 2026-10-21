@@ -27,7 +27,6 @@ import math
 import numpy as np
 import pysam
 from operator import add, mul
-from multiprocessing import Pool
 from sys import stdout
 
 CIGAR_OPS = [1, 2, 4, 10]
@@ -41,55 +40,50 @@ def get_align_stats(alignment):
 def get_align_len(alignment):
     return sum(alignment.get_cigar_stats()[0][cigar_op] for cigar_op in CIGAR_OPS_ALL)
 
-def extract_alignment_info(alignment):
-    cigar_stats = get_align_stats(alignment)
-    align_len = get_align_len(alignment)
-    query_name = alignment.query_name
-    return query_name, align_len, cigar_stats
+def get_cigar_op_log_probabilities(sam_path, threads=None):
+    """Compute global log-probabilities for each CIGAR operation from the alignments.
 
-def process_alignment_chunk(alignment_chunk):
+    Reads the SAM once, streaming. Returns (log_probs, zero_locs, dict_longest_align):
+    the log share of each error operation (I, D, S, X) with the operations of
+    zero count removed, the indices of those operations in CIGAR_OPS, and each
+    read's longest alignment over all of its alignments (F04).
+
+    threads is ignored: the pass is serial (F25). It is kept so that existing
+    callers keep working.
+
+    Raises ValueError when the SAM holds no mapped alignment or no error operation.
+    """
     cigar_stats_primary = [0] * len(CIGAR_OPS)
     dict_longest_align = {}
-    
-    for alignment_info in alignment_chunk:
-        query_name, align_len, cigar_stats = alignment_info
-        if query_name not in dict_longest_align:
-            dict_longest_align[query_name] = align_len
-        cigar_stats_primary = list(map(add, cigar_stats_primary, cigar_stats))
-        if dict_longest_align[query_name] < align_len:
-            dict_longest_align[query_name] = align_len
-    
-    return cigar_stats_primary, dict_longest_align
+    n_mapped = 0
 
-def get_cigar_op_log_probabilities(sam_path, threads):
-    """Compute global log-probabilities for each CIGAR operation from all alignments."""
-    cigar_stats_primary = [0] * len(CIGAR_OPS) 
-    dict_longest_align = {}
+    with pysam.AlignmentFile(sam_path) as sam_pysam:
+        for alignment in sam_pysam:
+            align_len = get_align_len(alignment)
+            query_name = alignment.query_name
+            if dict_longest_align.get(query_name, -1) < align_len:
+                dict_longest_align[query_name] = align_len
+            if alignment.reference_name:
+                n_mapped += 1
+            cigar_stats_primary = list(map(add, cigar_stats_primary, get_align_stats(alignment)))
 
-    sam_pysam = pysam.AlignmentFile(sam_path)
-    
-    # Extract necessary information from alignments
-    alignment_info = [extract_alignment_info(alignment) for alignment in sam_pysam.fetch()]
-
-    # Split alignment info into chunks for parallel processing
-    chunk_size = len(alignment_info) // threads
-    alignment_chunks = [alignment_info[i:i + chunk_size] for i in range(0, len(alignment_info), chunk_size)]
-    
-    with Pool(threads) as pool:
-        results = pool.map(process_alignment_chunk, alignment_chunks)
-
-    # Combine results from all processes
-    for result in results:
-        stats, longest_align = result
-        cigar_stats_primary = list(map(add, cigar_stats_primary, stats))
-        dict_longest_align.update(longest_align)
+    if n_mapped == 0:
+        raise ValueError(
+            f"No mapped alignments in {sam_path}. Check that the reads overlap with the "
+            "reference database and that filtering (--min_length, --max_length) left reads to align."
+        )
 
     zero_locs = [i for i, e in enumerate(cigar_stats_primary) if e == 0]
     if zero_locs:
         for i in sorted(zero_locs, reverse=True):
             del cigar_stats_primary[i]
-    
+
     n_char = sum(cigar_stats_primary)
+    if n_char == 0:
+        raise ValueError(
+            f"No insertions, deletions, soft clips or mismatches in the alignments of {sam_path}; "
+            "the error profile cannot be estimated."
+        )
     return [math.log(x) for x in np.array(cigar_stats_primary) / n_char], zero_locs, dict_longest_align
 
 def compute_log_prob_rgs(alignment, cigar_stats, log_p_cigar_op, dict_longest_align, align_len):
