@@ -18,7 +18,7 @@ nextflow run main.nf -profile test,docker          # same data, outputs in test_
 | `sources.tsv` | NCBI accession, species and the lineage used for each sequence |
 | `reads/e2e_mock.fastq.gz` | 630 simulated reads: 600 16S reads and 30 non-16S reads |
 | `expected.tsv` | True proportions and read counts per species |
-| `make_reads.py` | The read simulator (fixed seed, reproducible byte for byte) |
+| `make_reads.py` | The read simulator (fixed seed; the same reads on every Python 3) |
 
 ## Database
 
@@ -73,8 +73,10 @@ python3 tests/test_data/e2e/make_reads.py
 ## Expected results
 
 The `e2e` test checks that the assigned abundances sum to 1, that every species
-at 10 % or more is reported within 5 percentage points of `expected.tsv`, and
-that `consolidated_output/` holds the four tables. The Unassigned row (30 non-16S
+at 10 % or more is reported within 5 percentage points of `expected.tsv`, that
+every species in the sample is reported (so a near-neighbour pair is not merged
+into one species), that no absent species reaches 1 %, and that
+`consolidated_output/` holds the four tables. The Unassigned row (30 non-16S
 reads) is not checked until F01 is fixed.
 
 Reference output (`-profile test,docker`, which uses the pipeline defaults k = 21 and N = 3; NanoVI 1.0.0 code, October 2026):

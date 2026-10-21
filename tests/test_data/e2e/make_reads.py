@@ -7,9 +7,10 @@ substitutions, insertions and deletions at a per-read error rate of 5-8 %,
 and appends reads of random sequence that should not align to any 16S
 reference. Writes reads/e2e_mock.fastq.gz and expected.tsv.
 
-Only random.Random(SEED).random() is used, so the output is the same on every
-Python 3 version, and the gzip header carries no timestamp, so the committed
-file is byte-for-byte reproducible:
+Only random.Random(SEED).random() is used, so the reads are the same on every
+Python 3 version. The gzip header carries no timestamp, so the committed file
+is reproduced byte for byte wherever Python uses the same zlib build (another
+zlib can compress the same reads differently):
 
     python3 tests/test_data/e2e/make_reads.py
 """

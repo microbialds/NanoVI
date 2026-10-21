@@ -229,7 +229,7 @@ nf-test test tests/main.nf.test --tag stub   # stub mode: checks the wiring, no 
 nf-test test tests/main.nf.test --tag e2e    # real tools with Docker on the fixture in tests/test_data/e2e
 ```
 
-The e2e fixture is a small real 16S database with simulated reads in known proportions; see [tests/test_data/e2e/README.md](tests/test_data/e2e/README.md). `-profile test` runs the pipeline on the same fixture.
+The e2e fixture is a small real 16S database with simulated reads in known proportions; see [tests/test_data/e2e/README.md](tests/test_data/e2e/README.md). `-profile test,docker` runs the pipeline on the same fixture (`-profile test` on its own sets no container engine).
 
 Continuous integration runs the unit tests and both nf-test tags on every push to `main`, `dev` and `roadmap/**` branches and on every pull request into `main` or `dev`, via GitHub Actions. The Docker image is built and published to `ghcr.io/microbialds/nanovi-python` on every merge to `main`.
 

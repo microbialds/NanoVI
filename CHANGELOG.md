@@ -6,7 +6,7 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 
 ### Added
 
-- End-to-end test fixture in `tests/test_data/e2e/` (11 real 16S sequences, 600 simulated ONT-like reads in known proportions plus 30 non-16S reads) and an `e2e` nf-test that runs the real tools with Docker; CI runs it on every push and pull request.
+- End-to-end test fixture in `tests/test_data/e2e/` (11 real 16S sequences, 600 simulated ONT-like reads in known proportions plus 30 non-16S reads) and an `e2e` nf-test that runs the real tools with Docker; CI runs it on pushes to `main`, `dev` and `roadmap/**` and on pull requests into `main` or `dev`.
 
 ### Changed
 
