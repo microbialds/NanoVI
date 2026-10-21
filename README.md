@@ -235,7 +235,23 @@ nf-test test tests/main.nf.test --tag e2e    # real tools with Docker on the fix
 
 The e2e fixture is a small real 16S database with simulated reads in known proportions; see [tests/test_data/e2e/README.md](tests/test_data/e2e/README.md). `-profile test,docker` runs the pipeline on the same fixture (`-profile test` on its own sets no container engine).
 
-Continuous integration runs the unit tests and both nf-test tags on every push to `main`, `dev` and `roadmap/**` branches and on every pull request into `main` or `dev`, via GitHub Actions. The Docker image is built and published to `ghcr.io/microbialds/nanovi-python` on every merge to `main`.
+Continuous integration runs the unit tests and both nf-test tags on every push to `main`, `dev` and `roadmap/**` branches and on every pull request into `main` or `dev`, via GitHub Actions. The Docker image is built on every run; it is published to `ghcr.io/microbialds/nanovi-python` only from `main` (as `:main` and `:sha-<commit>`) and from release tags (see Releasing).
+
+## Releasing
+
+Image tags of the form `X.Y.Z` come only from `vX.Y.Z` git tags and are never overwritten: to change a released image, release a new version.
+
+1. On `dev`, rename `## [Unreleased]` in `CHANGELOG.md` to `## [X.Y.Z] - YYYY-MM-DD` (and start a new empty `[Unreleased]` section), and set the same version in `nextflow.config` (`manifest.version`), `containers/Dockerfile` (`LABEL version`), `containers/Singularity.def` (`Version`), `bin/_version.py` and the `nanovi-python` image tags in `conf/base.config`. The `Version strings agree` CI job fails if any of them differ.
+2. Merge `dev` into `main` through a pull request. CI publishes `:main` and `:sha-<commit>`.
+3. Tag the merge commit on `main` and push the tag:
+   ```bash
+   git tag -a vX.Y.Z -m "NanoVI X.Y.Z"
+   git push origin vX.Y.Z
+   ```
+   CI runs the tests and publishes `:X.Y.Z` and `:latest`. It stops without publishing if the tag does not match the top release in `CHANGELOG.md` or if `:X.Y.Z` already exists.
+4. Create the GitHub release from the tag, with that version's CHANGELOG section as its notes.
+
+Until step 3 has published `:X.Y.Z`, `-profile docker` and `-profile singularity` cannot pull the image that `conf/base.config` names, so tag soon after merging.
 
 ## Credits
 
