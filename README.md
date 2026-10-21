@@ -219,16 +219,19 @@ NanoVI includes a test suite covering the core algorithmic components and pipeli
 
 **Unit tests** (no database required):
 ```bash
-pip install pytest
+pip install -r containers/requirements.txt pytest
 pytest tests/unit/ -v
 ```
 
-**Pipeline integration test** (nf-test, stub mode — no database required):
+**Pipeline tests** (nf-test):
 ```bash
-nf-test test tests/main.nf.test
+nf-test test tests/main.nf.test --tag stub   # stub mode: checks the wiring, no tools or database needed
+nf-test test tests/main.nf.test --tag e2e    # real tools with Docker on the fixture in tests/test_data/e2e
 ```
 
-Continuous integration runs both test suites automatically on every pull request via GitHub Actions. The Docker image is built and published to `ghcr.io/microbialds/nanovi-python` on every merge to `main`.
+The e2e fixture is a small real 16S database with simulated reads in known proportions; see [tests/test_data/e2e/README.md](tests/test_data/e2e/README.md). `-profile test` runs the pipeline on the same fixture.
+
+Continuous integration runs the unit tests and both nf-test tags on every push to `main`, `dev` and `roadmap/**` branches and on every pull request into `main` or `dev`, via GitHub Actions. The Docker image is built and published to `ghcr.io/microbialds/nanovi-python` on every merge to `main`.
 
 ## Credits
 
