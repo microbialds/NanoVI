@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, "feat/**", "fix/**"]
+    branches: [main, dev, "feat/**", "fix/**", "roadmap/**"]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   # ── 1. Python unit tests ────────────────────────────────────────────────────
