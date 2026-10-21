@@ -19,6 +19,7 @@ taxonomic ranks, and combining per-sample results into matrices.
 import os
 import sys
 import math
+import numpy as np
 import pandas as pd
 import pathlib 
 from Bio import SeqIO
@@ -217,6 +218,23 @@ def unify_species_abundance(df):
     df_grouped = df.groupby(group_columns, as_index=False, sort=True).agg({'abundance': 'sum'})
     return df_grouped
 
+def largest_remainder(weights, total):
+    """
+    Round weights * total to integers that sum exactly to total (F08).
+    Each value is floored, then the reads left over go one each to the
+    largest fractional parts (ties to the earlier row). weights are
+    abundances that sum to about 1; total is a read count.
+    """
+    total = int(total)
+    raw = np.asarray(weights, dtype=float) * total
+    if raw.size == 0:
+        return np.zeros(0, dtype=int)
+    floors = np.floor(raw).astype(int)
+    left = min(max(total - int(floors.sum()), 0), raw.size)
+    order = np.argsort(-(raw - floors), kind='stable')
+    floors[order[:left]] += 1
+    return floors
+
 def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unassigned_count, counts=False):
     """
     Convert frequency dict (taxid -> freq) to a DataFrame, unify taxonomy, and write to .tsv.
@@ -262,7 +280,9 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
         # Identify the unassigned row by label, not by position, since groupby in
         # unify_species_abundance may reorder rows and break positional [:-1] slicing.
         is_unassigned = results_df["species"] == UNASSIGNED_LABEL
-        results_df["estimated_counts"] = (results_df["abundance"] * assigned_count).astype(int)
+        results_df["estimated_counts"] = 0
+        results_df.loc[~is_unassigned, "estimated_counts"] = largest_remainder(
+            results_df.loc[~is_unassigned, "abundance"].to_numpy(), assigned_count)
         results_df.loc[is_unassigned, "estimated_counts"] = unassigned_count
 
     # Reorder columns

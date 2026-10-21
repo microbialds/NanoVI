@@ -78,6 +78,15 @@ class TestFreqToLineageDf:
         assert counts['Escherichia coli'] == 120
         assert counts['Staphylococcus aureus'] == 80
 
+    def test_estimated_counts_sum_to_assigned_count(self, tmp_path, taxonomy_df):
+        freq = {'1': 1 / 3, '2': 1 / 3, '3': 1 / 3}
+        taxonomy_df.loc['2', 'species'] = 'Escherichia albertii'
+        df = freq_to_lineage_df(freq, str(tmp_path / 's'), taxonomy_df, 100, 4, counts=True)
+        assigned = df[df['species'] != 'Unassigned']
+        assert assigned['estimated_counts'].sum() == 100
+        assert sorted(assigned['estimated_counts']) == [33, 33, 34]
+        assert df.loc[df['species'] == 'Unassigned', 'estimated_counts'].iloc[0] == 4
+
     def test_assigned_abundances_sum_to_one(self, tmp_path, taxonomy_df):
         df = freq_to_lineage_df({'1': 0.25, '2': 0.25, '3': 0.5}, str(tmp_path / 's'), taxonomy_df, 100, 0)
         assert df['abundance'].sum() == pytest.approx(1.0)
@@ -117,6 +126,30 @@ class TestFreqToLineageDf:
         assert 'Staphylococcus aureus' in set(df['species'])
         assert df.loc[df['species'] == 'Staphylococcus aureus', 'family'].iloc[0] == ''
         assert df['abundance'].sum() == pytest.approx(1.0)
+
+
+class TestLargestRemainder:
+    @pytest.mark.parametrize('weights,total,expected', [
+        ([0.5, 0.5], 10, [5, 5]),
+        ([0.245, 0.155, 0.6], 597, [146, 93, 358]),
+        ([0.3996117581808098, 0.24657449242304955, 0.14990611578963237,
+          0.10011092623405436, 0.05348097069397765, 0.05031573667847634], 600,
+         [240, 148, 90, 60, 32, 30]),
+        ([1.0], 0, [0]),
+        ([], 5, []),
+    ])
+    def test_rounds_to_exact_total(self, weights, total, expected):
+        result = taxonomy.largest_remainder(weights, total)
+        assert list(result) == expected
+        if weights:
+            assert result.sum() == total
+
+    def test_ties_go_to_earlier_rows(self):
+        assert list(taxonomy.largest_remainder([0.25, 0.25, 0.25, 0.25], 2)) == [1, 1, 0, 0]
+
+    def test_weights_slightly_below_one(self):
+        result = taxonomy.largest_remainder([0.5 - 1e-12, 0.5 - 1e-12], 1000)
+        assert result.sum() == 1000
 
 
 # ─── build_consolidated_tables ───────────────────────────────────────────────

@@ -17,6 +17,7 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 ### Fixed
 
 - Per-sample tables now keep an `Unassigned` row (abundance 0, `estimated_counts` = reads with no alignment), so `otu_table_counts.tsv` and `sample_metadata.tsv` report unassigned reads instead of 0. Tax IDs missing from `taxonomy.tsv` are reported as `Unknown taxid <id>` with a warning, and species with an empty rank are no longer dropped (F01).
+- `estimated_counts` uses largest-remainder rounding instead of truncation, so the assigned rows sum exactly to the number of assigned reads (F08).
 
 ## [1.0.0] - 2026-06-27
 
