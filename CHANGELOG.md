@@ -2,6 +2,17 @@
 
 All notable changes to the NanoVI pipeline will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- End-to-end test fixture in `tests/test_data/e2e/` (11 real 16S sequences, 600 simulated ONT-like reads in known proportions plus 30 non-16S reads) and an `e2e` nf-test that runs the real tools with Docker; CI runs it on every push and pull request.
+
+### Changed
+
+- `-profile test` now runs on the bundled e2e fixture instead of a `db/` directory that was not in the repository.
+- CI runs on pushes to `dev` and `roadmap/**` and on pull requests into `dev`.
+
 ## [1.0.0] - 2026-06-27
 
 ### Added

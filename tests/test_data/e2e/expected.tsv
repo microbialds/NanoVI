@@ -1,0 +1,13 @@
+tax_id	species	expected_abundance	simulated_reads
+1	Bacillus subtilis	0.0000	0
+2	Enterococcus faecalis	0.0000	0
+3	Escherichia coli	0.2500	150
+4	Limosilactobacillus fermentum	0.0000	0
+5	Listeria monocytogenes	0.0000	0
+6	Pseudomonas aeruginosa	0.1000	60
+7	Salmonella enterica	0.0000	0
+8	Shigella flexneri	0.0500	30
+9	Staphylococcus aureus	0.4000	240
+10	Streptococcus mitis	0.0500	30
+11	Streptococcus pneumoniae	0.1500	90
+NA	non-16S	NA	30

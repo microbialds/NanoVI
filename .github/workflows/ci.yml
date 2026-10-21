@@ -60,9 +60,29 @@ jobs:
         uses: nf-core/setup-nf-test@v1
 
       - name: Run nf-test (stub mode)
-        run: nf-test test tests/main.nf.test --verbose
+        run: nf-test test tests/main.nf.test --tag stub --verbose
 
-  # ── 3. Docker container build & versioned push to GHCR ─────────────────────
+  # ── 3. End-to-end test on the e2e fixture (real tools, Docker) ─────────────
+  e2e-tests:
+    name: End-to-end test (nf-test, Docker)
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nextflow
+        uses: nf-core/setup-nextflow@v2
+        with:
+          version: ">=24.0.0"
+
+      - name: Install nf-test
+        uses: nf-core/setup-nf-test@v1
+
+      - name: Run nf-test (e2e, Docker)
+        run: nf-test test tests/main.nf.test --tag e2e --verbose
+
+  # ── 4. Docker container build & versioned push to GHCR ─────────────────────
   container-build:
     name: Build & push Docker image
     runs-on: ubuntu-latest
