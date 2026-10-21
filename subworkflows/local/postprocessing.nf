@@ -15,6 +15,7 @@ workflow COLLAPSE_TAXONOMY {
 
     emit:
     collapsed = COLLAPSE.out.collapsed
+    versions  = COLLAPSE.out.versions
 }
 
 workflow COMBINE_OUTPUTS {
@@ -29,4 +30,5 @@ workflow COMBINE_OUTPUTS {
 
     emit:
     combined = COMBINE.out.combined
+    versions = COMBINE.out.versions
 }

@@ -16,7 +16,7 @@ workflow {
     // ─── VERSION LOGGING ────────────────────────────────────────────────────
     log.info """
     ================================================
-      NanoVI Pipeline v1.0
+      NanoVI Pipeline v${workflow.manifest.version}
     ================================================
       Command    : ${params.cmd}
       Input      : ${params.input}
@@ -84,6 +84,7 @@ workflow {
         }
 
         ABUNDANCE(input_reads, fasta_file, tax_file)
+        versions = ABUNDANCE.out.versions
     }
 
     // ─── SUBCOMMAND: BUILD-DATABASE ─────────────────────────────────────────
@@ -104,6 +105,7 @@ workflow {
             taxonomy_flag,
             bin_ch
         )
+        versions = BUILD_DATABASE.out.versions
     }
 
     // ─── SUBCOMMAND: COLLAPSE-TAXONOMY ──────────────────────────────────────
@@ -117,6 +119,7 @@ workflow {
             channel.value(params.rank),
             bin_ch
         )
+        versions = COLLAPSE_TAXONOMY.out.versions
     }
 
     // ─── SUBCOMMAND: COMBINE-OUTPUTS ────────────────────────────────────────
@@ -130,15 +133,44 @@ workflow {
             channel.value(params.rank),
             bin_ch
         )
+        versions = COMBINE_OUTPUTS.out.versions
     }
 
     // ─── UNKNOWN COMMAND ────────────────────────────────────────────────────
     else {
         error "Unrecognized command: ${params.cmd}. Use: abundance, build-database, collapse-taxonomy, or combine-outputs"
     }
+
+    // ─── SOFTWARE VERSIONS ──────────────────────────────────────────────────
+    softwareVersionsToYAML(versions)
+        .collectFile(storeDir: "${params.output_dir}/pipeline_info", name: 'software_versions.yml', sort: true, newLine: true)
 }
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
+
+// Software versions (nf-core style): each process writes a versions.yml keyed by its
+// full name; keep the process name only, drop the copies that per-sample tasks write,
+// and add the pipeline and Nextflow versions
+def processVersionsFromYAML(yaml_file) {
+    def yaml = new org.yaml.snakeyaml.Yaml()
+    def versions = yaml.load(yaml_file.text).collectEntries { k, v -> [k.tokenize(':')[-1], v] }
+    return yaml.dumpAsMap(versions).trim()
+}
+
+def workflowVersionToYAML() {
+    return """
+    Workflow:
+        ${workflow.manifest.name}: ${workflow.manifest.version}
+        Nextflow: ${workflow.nextflow.version}
+    """.stripIndent().trim()
+}
+
+def softwareVersionsToYAML(ch_versions) {
+    return ch_versions
+        .map { yaml_file -> processVersionsFromYAML(yaml_file) }
+        .unique()
+        .mix(channel.of(workflowVersionToYAML()))
+}
 
 // --rank must name a column of the per-sample tables
 def validateRank(cmd) {

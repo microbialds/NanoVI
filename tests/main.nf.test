@@ -24,6 +24,14 @@ nextflow_pipeline {
         then {
             assert workflow.success
             assert workflow.exitStatus == 0
+
+            // Every step's versions.yml is collected once (F33), not published with the results
+            def versions = new org.yaml.snakeyaml.Yaml().load(file("${outputDir}/pipeline_info/software_versions.yml").text)
+            assert versions.keySet() == ['FILTER_READS', 'INDEX_DB', 'ALIGN_READS', 'GET_CIGAR', 'COMPUTE_LOGP',
+                                         'RUN_VI', 'WRITE_OUTPUT', 'GENERATE_PHYLOSEQ_TABLES', 'Workflow'] as Set
+            assert versions.Workflow['microbialds/NanoVI'] == workflow.manifest.version
+            assert !file("${outputDir}/sample_outputs/versions.yml").exists()
+            assert !file("${outputDir}/consolidated_output/versions.yml").exists()
         }
     }
 
@@ -296,6 +304,15 @@ nextflow_pipeline {
             // Consolidated phyloseq tables
             ['otu_table_abundance.tsv', 'otu_table_counts.tsv', 'tax_table.tsv', 'sample_metadata.tsv'].each { t ->
                 assert file("${outputDir}/consolidated_output/${t}").exists()
+            }
+
+            // Software versions (F33): the tools and the Python image report real versions
+            def versions = new org.yaml.snakeyaml.Yaml().load(file("${outputDir}/pipeline_info/software_versions.yml").text)
+            assert versions.FILTER_READS.fastplong ==~ /\d+\.\d+\.\d+/
+            assert versions.ALIGN_READS.minimap2 ==~ /\d+\.\d+.*/
+            assert versions.RUN_VI.python.toString().startsWith('3.11.')
+            ['numpy', 'pandas', 'scipy', 'pysam', 'biopython'].each { pkg ->
+                assert versions.RUN_VI[pkg] && versions.RUN_VI[pkg] != 'not installed'
             }
         }
     }

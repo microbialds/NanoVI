@@ -9,6 +9,7 @@ process WRITE_OUTPUT {
 
     output:
     path "*.tsv", emit: result_tsv
+    path "versions.yml", emit: versions
 
     script:
     """
@@ -41,11 +42,16 @@ freq_to_lineage_df(
     below_detection_count=below_detection_count
 )
     '
+    python3 ${bin_dir}/python_versions.py "${task.process}" > versions.yml
     """
 
     stub:
     """
     touch ${sample_id}_rel-abundance.tsv
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        python: stub
+    END_VERSIONS
     """
 }
 

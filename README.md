@@ -128,6 +128,7 @@ The pipeline produces the following output files in `--output_dir`:
 | `pipeline_info/timeline.html` | Nextflow execution timeline |
 | `pipeline_info/report.html` | Nextflow execution report |
 | `pipeline_info/trace.txt` | Nextflow trace file |
+| `pipeline_info/software_versions.yml` | Versions of fastplong, minimap2, Python and its packages, NanoVI and Nextflow used in the run |
 
 ## Profiles
 

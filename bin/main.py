@@ -45,7 +45,7 @@ from utils import (
     gather_fastq_paths,  # <-- Make sure we import gather_fastq_paths
 )
 
-__version__ = "1.0"
+from _version import __version__
 
 
 def main():

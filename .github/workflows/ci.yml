@@ -42,6 +42,17 @@ jobs:
           name: coverage-py${{ matrix.python-version }}
           path: coverage.xml
 
+  # ── Version strings agree (manifest, CHANGELOG, images, Python) ────────────
+  version-check:
+    name: Version strings agree
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check nextflow.config, CHANGELOG.md, Dockerfile, Singularity.def, bin/_version.py and conf/base.config
+        run: .github/scripts/check_versions.sh
+
   # ── 2. Nextflow integration tests ──────────────────────────────────────────
   integration-tests:
     name: Nextflow integration tests (nf-test)

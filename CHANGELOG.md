@@ -6,6 +6,7 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 
 ### Added
 
+- Every process writes an nf-core style `versions.yml`, and each run collects them into `pipeline_info/software_versions.yml`: the fastplong and minimap2 versions, the Python and package versions of every Python step, and the NanoVI and Nextflow versions (F33).
 - End-to-end test fixture in `tests/test_data/e2e/` (11 real 16S sequences, 600 simulated ONT-like reads in known proportions plus 30 non-16S reads) and an `e2e` nf-test that runs the real tools with Docker; CI runs it on pushes to `main`, `dev` and `roadmap/**` and on pull requests into `main` or `dev`.
 
 ### Changed
@@ -24,6 +25,7 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 ### Fixed
 
 - `RUN_VI` no longer runs `pip install scipy` in every task: scipy is in the image, so the step works on compute nodes without internet access and every run uses the same scipy. On the e2e fixture RUN_VI takes 2.5 s instead of 17.7 s. `build-database`, `collapse-taxonomy` and `combine-outputs`, which failed under Docker because their image had no scipy, now run (F29).
+- The log banner showed `v1.0` and `bin/main.py --version` said 1.0; both now read the pipeline version (1.0.0), from `manifest.version` and from `bin/_version.py`, the Python code's only version string. A CI job fails when `manifest.version`, the top release in this file, the Dockerfile and Singularity.def labels, `bin/_version.py` and the image tag in `conf/base.config` disagree (F33).
 - Per-sample tables now keep an `Unassigned` row (abundance 0, `estimated_counts` = reads with no alignment), so `otu_table_counts.tsv` and `sample_metadata.tsv` report unassigned reads instead of 0. Tax IDs missing from `taxonomy.tsv` are reported as `Unknown taxid <id>` with a warning, and species with an empty rank are no longer dropped. The blank ranks of these rows carry their label, so `collapse-taxonomy` and `combine-outputs` keep them apart at every rank (F01).
 - Reads whose candidate species were all pruned by the VI are no longer spread over the reported species. Per-sample tables have a `Below detection` row (abundance 0, `estimated_counts` = those reads) just before `Unassigned`, and the reported species share the remaining assigned reads. The consolidated tables carry the row too (blank taxonomy, like `Unassigned`); `assigned_counts` in `sample_metadata.tsv` still counts every read with an alignment. The VI's uniform start counts only reads with a score (F06).
 - `estimated_counts` uses largest-remainder rounding instead of truncation, so the assigned rows sum exactly to the number of assigned reads (F08).

@@ -10,6 +10,7 @@ process COMBINE {
 
     output:
       path "vi-combined-${rank}*.tsv", emit: combined
+      path "versions.yml", emit: versions
 
     script:
     """
@@ -19,11 +20,16 @@ process COMBINE {
         input_data \\
         ${rank}
     mv input_data/vi-combined-${rank}*.tsv ./
+    python3 ${bin_dir}/python_versions.py "${task.process}" > versions.yml
     """
 
     stub:
     """
     touch vi-combined-${rank}.tsv
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        python: stub
+    END_VERSIONS
     """
 }
 

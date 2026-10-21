@@ -8,6 +8,7 @@ process ALIGN_READS {
 
     output:
     tuple val(sample_id), path("${sample_id}_vi_alignments.sam"), emit: sam
+    path "versions.yml", emit: versions
 
     script:
     """
@@ -23,10 +24,18 @@ process ALIGN_READS {
              ${db_index} \\
              ${filtered_fastq} \\
              -o ${sample_id}_vi_alignments.sam
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        minimap2: \$(minimap2 --version)
+    END_VERSIONS
     """
 
     stub:
     """
     touch ${sample_id}_vi_alignments.sam
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        minimap2: stub
+    END_VERSIONS
     """
 }
