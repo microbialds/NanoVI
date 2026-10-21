@@ -312,6 +312,30 @@ class TestCombineOutputs:
         samples = [c for c in df.columns if c in {'A', 'B', 'C'}]
         assert samples == ['A', 'B', 'C']
 
+    def test_placeholders_stay_apart_above_species(self, tmp_path, taxonomy_df):
+        freq_to_lineage_df({'1': 0.8, '99': 0.2}, str(tmp_path / 'S2_rel-abundance'),
+                           taxonomy_df, 100, 40, counts=True)
+        df = combine_outputs(str(tmp_path), 'genus', count_table=True).set_index('genus')
+        assert df.loc['Unassigned', 'S2'] == 40
+        assert df.loc['Unknown taxid 99', 'S2'] == 20
+        assert df.loc['Escherichia', 'S2'] == 80
+        taxonomy.collapse_rank(str(tmp_path / 'S2_rel-abundance.tsv'), 'genus')
+        collapsed = pd.read_csv(tmp_path / 'S2_rel-abundance-genus.tsv', sep='\t').set_index('genus')
+        assert collapsed.loc['Unassigned', 'estimated_counts'] == 40
+        assert collapsed.loc['Unknown taxid 99', 'estimated_counts'] == 20
+
+    def test_ignores_collapsed_tables(self, two_samples):
+        taxonomy.collapse_rank(str(two_samples / 'A_rel-abundance.tsv'), 'genus')
+        df = combine_outputs(str(two_samples), 'species')
+        assert [c for c in df.columns if c not in taxonomy.TAXONOMY_RANKS] == ['A', 'B']
+
+    def test_counts_are_integers(self, two_samples):
+        combine_outputs(str(two_samples), 'genus', count_table=True)
+        text = (two_samples / 'vi-combined-genus-counts.tsv').read_text()
+        assert '.0' not in text
+        df = pd.read_csv(two_samples / 'vi-combined-genus-counts.tsv', sep='\t').set_index('genus')
+        assert df.loc['Staphylococcus', 'B'] == 0
+
     def test_invalid_rank(self, two_samples):
         with pytest.raises(ValueError, match="rank 'strain'"):
             combine_outputs(str(two_samples), 'strain')

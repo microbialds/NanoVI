@@ -368,10 +368,9 @@ def combine_outputs(dir_path, rank, split_files=False, count_table=False):
     sample_names = []
     for file in sorted(os.listdir(dir_path)):
         file_path = os.path.join(dir_path, file)
-        file_extension = pathlib.Path(file).suffix
-        if file_extension == '.tsv' and 'rel-abundance' in file:
-            name = pathlib.Path(file).stem  # e.g. "sample_rel-abundance"
-            name = name.replace('_rel-abundance', '')
+        # Per-sample tables only, not the <sample>_rel-abundance-<rank>.tsv files collapse-taxonomy writes
+        if file.endswith('_rel-abundance.tsv'):
+            name = file[:-len('_rel-abundance.tsv')]
             df_sample = pd.read_csv(file_path, sep='\t', dtype=str)
 
             for col in (rank, metric):
@@ -392,6 +391,8 @@ def combine_outputs(dir_path, rank, split_files=False, count_table=False):
 
     # Taxa absent from a sample are 0, not blank
     df_combined_full[sample_names] = df_combined_full[sample_names].fillna(0)
+    if count_table:
+        df_combined_full[sample_names] = df_combined_full[sample_names].round().astype(int)
 
     # Sort the combined table by the rank col
     if rank in df_combined_full.columns:
