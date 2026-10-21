@@ -71,7 +71,7 @@ sample2,/path/to/sample2.fastq.gz
 
 ### Directory
 
-A path to a directory containing FASTQ files. Sample IDs are inferred from filenames.
+A path to a directory containing FASTQ files (`.fastq`, `.fq`, optionally gzipped), searched recursively. The sample ID is the file name without that extension, so `S1.run1.fastq.gz` becomes `S1.run1`. If two files give the same ID (for example `S1.fastq` and `S1.fq`, or the same name in two subdirectories), the pipeline stops and lists them; rename the files or use a samplesheet. IDs may use letters, digits, `.`, `_` and `-`.
 
 ## Parameters
 
@@ -105,7 +105,8 @@ A path to a directory containing FASTQ files. Sample IDs are inferred from filen
 | `--db_name` | `db_custom` | Name for the custom database |
 | `--sequences` | required | Input FASTA with reference sequences |
 | `--seq2tax` | required | Sequence-to-taxonomy mapping TSV |
-| `--taxonomy_list` | required | Taxonomy terms list TSV |
+| `--taxonomy_list` | one of these two | Taxonomy TSV with a `tax_id` column and one column per rank |
+| `--ncbi_taxonomy` | one of these two | NCBI taxonomy dump directory (`names.dmp`, `nodes.dmp`) |
 
 ### Post-Processing
 

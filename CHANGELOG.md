@@ -14,6 +14,15 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 - CI runs on pushes to `dev` and `roadmap/**` and on pull requests into `dev`.
 - README credits Emu (Curry et al., Nature Methods 2022) for the CIGAR-based read score, the EM loop and the database layout; Emu's MIT license is in `THIRD_PARTY_LICENSES`, and the adapted files name their origin.
 
+### Fixed
+
+- Per-sample tables now keep an `Unassigned` row (abundance 0, `estimated_counts` = reads with no alignment), so `otu_table_counts.tsv` and `sample_metadata.tsv` report unassigned reads instead of 0. Tax IDs missing from `taxonomy.tsv` are reported as `Unknown taxid <id>` with a warning, and species with an empty rank are no longer dropped. The blank ranks of these rows carry their label, so `collapse-taxonomy` and `combine-outputs` keep them apart at every rank (F01).
+- `estimated_counts` uses largest-remainder rounding instead of truncation, so the assigned rows sum exactly to the number of assigned reads (F08).
+- The consolidated tables sum rows that share a species name instead of keeping the last one, take each species' taxonomy from its most common lineage across samples, and skip `otu_table_counts.tsv` with a warning when no sample has counts (`--keep_counts false`) instead of writing a table of zeros (F11).
+- `combine-outputs` stops with an error naming the file when a table lacks the rank or metric column (for example `--counts` on tables written without counts), writes 0 instead of a blank for taxa absent from a sample (whole numbers with `--counts`), orders sample columns by file name, and reads only `*_rel-abundance.tsv`, not the tables `collapse-taxonomy` writes next to them (F12).
+- `build-database` stops early unless it gets `--sequences`, `--seq2tax` and exactly one of `--taxonomy_list` or `--ncbi_taxonomy`, and `--ncbi_taxonomy` now reaches the database builder (it was declared but never passed). `collapse-taxonomy` and `combine-outputs` check that `--rank` is given and is a valid rank (F13).
+- Directory input removes only the FASTQ extension to make sample IDs (`S1.run1.fastq.gz` was `S1`, now `S1.run1`), and stops with a list of the files when two of them give the same ID instead of merging their results, or when an ID has characters other than letters, digits, `.`, `_` and `-` (F14).
+
 ## [1.0.0] - 2026-06-27
 
 ### Added

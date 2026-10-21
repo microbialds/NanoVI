@@ -59,13 +59,28 @@ workflow {
             input_reads = channel.from(rows)
                 .map { sample, fastq -> tuple(sample, file(fastq)) }
         } else {
-            // Directory mode (backward compatible)
+            // Directory mode (backward compatible): the sample ID is the file name
+            // without its FASTQ extension, so S1.run1.fastq.gz gives S1.run1
             log.info "Discovering FASTQs from directory: ${params.input}"
-            input_reads = channel
-                .fromPath("${params.input}/**", checkIfExists: true)
-                .filter { f -> f.name =~ /\.(fastq|fq)(\.gz)?$/ }
-                .ifEmpty { error "No FASTQ files found in ${params.input}" }
-                .map { fastq -> tuple(fastq.simpleName.replaceAll(/\.(fastq|fq)$/, ''), fastq) }
+            def fastq_ext = /\.(fastq|fq)(\.gz)?$/
+            def fastqs = files("${params.input}/**").findAll { f -> f.name =~ fastq_ext }
+            if (!fastqs)
+                error "No FASTQ files found in ${params.input}"
+            def by_sample = fastqs.groupBy { f -> f.name.replaceAll(fastq_ext, '') }
+            def clashes = by_sample.findAll { id, fs -> fs.size() > 1 }
+            if (clashes) {
+                def listing = clashes.collect { id, fs ->
+                    "  ${id}: ${fs.collect { it.toString() }.sort().join(', ')}"
+                }.sort().join('\n')
+                error "Several FASTQ files in ${params.input} give the same sample ID; rename them or use a samplesheet:\n${listing}"
+            }
+            def bad_ids = by_sample.keySet().findAll { id -> !(id ==~ /[A-Za-z0-9._-]+/) }.sort()
+            if (bad_ids)
+                error "Sample IDs from FASTQ file names may only use letters, digits, '.', '_' and '-'; rename these files or use a samplesheet:\n" +
+                    bad_ids.collect { id -> "  ${by_sample[id][0]}" }.join('\n')
+            input_reads = channel.fromList(
+                by_sample.collect { id, fs -> tuple(id, fs[0]) }.sort { it[0] }
+            )
         }
 
         ABUNDANCE(input_reads, fasta_file, tax_file)
@@ -75,11 +90,18 @@ workflow {
     else if (params.cmd == 'build-database') {
         if (!params.sequences || !params.seq2tax)
             error "For build-database you must provide --sequences and --seq2tax"
+        if (!params.taxonomy_list == !params.ncbi_taxonomy)
+            error "For build-database provide exactly one of --taxonomy_list or --ncbi_taxonomy"
+
+        // main.py takes the taxonomy source as --taxonomy-list <file> or --ncbi-taxonomy <dir>
+        def taxonomy_flag = params.taxonomy_list ? '--taxonomy-list' : '--ncbi-taxonomy'
+        def taxonomy_path = params.taxonomy_list ?: params.ncbi_taxonomy
 
         BUILD_DATABASE(
             channel.value(file(params.sequences)),
             channel.value(file(params.seq2tax)),
-            channel.value(file(params.taxonomy_list)),
+            channel.value(file(taxonomy_path)),
+            taxonomy_flag,
             bin_ch
         )
     }
@@ -88,6 +110,7 @@ workflow {
     else if (params.cmd == 'collapse-taxonomy') {
         if (!params.input_tsv)
             error "For collapse-taxonomy you must provide --input_tsv"
+        validateRank('collapse-taxonomy')
 
         COLLAPSE_TAXONOMY(
             channel.value(file(params.input_tsv)),
@@ -100,6 +123,7 @@ workflow {
     else if (params.cmd == 'combine-outputs') {
         if (!params.input_dir)
             error "For combine-outputs you must provide --input_dir"
+        validateRank('combine-outputs')
 
         COMBINE_OUTPUTS(
             channel.value(file(params.input_dir)),
@@ -114,7 +138,13 @@ workflow {
     }
 }
 
+// ─── HELPERS ────────────────────────────────────────────────────────────────
 
-
-
-
+// --rank must name a column of the per-sample tables
+def validateRank(cmd) {
+    def ranks = ['species', 'genus', 'family', 'order', 'class', 'phylum', 'superkingdom']
+    if (!params.rank)
+        error "For ${cmd} you must provide --rank (one of: ${ranks.join(', ')})"
+    if (!(params.rank in ranks))
+        error "Invalid --rank '${params.rank}' for ${cmd}. Use one of: ${ranks.join(', ')}"
+}

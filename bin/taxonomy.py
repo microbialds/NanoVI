@@ -17,7 +17,9 @@ taxonomic ranks, and combining per-sample results into matrices.
 # taxonomy.py
 
 import os
+import sys
 import math
+import numpy as np
 import pandas as pd
 import pathlib 
 from Bio import SeqIO
@@ -28,6 +30,11 @@ TAXONOMY_RANKS = ["species", "genus", "family", "order", "class", "phylum", "sup
 RANKS_PRINTOUT = ["tax_id"] + TAXONOMY_RANKS
 # In some places we also need the same ranks in order:
 RANKS_ORDER = RANKS_PRINTOUT[:]  # copy
+
+# Species labels for rows without a taxonomy entry (F01)
+UNASSIGNED_ID = "unassigned"
+UNASSIGNED_LABEL = "Unassigned"
+UNKNOWN_TAXID_LABEL = "Unknown taxid"
 
 def lineage_dict_from_tid(taxid, nodes_dict, names_dict):
     """
@@ -190,11 +197,11 @@ def unify_species_abundance(df):
     Merges strain-level or subspecies-level entries so that 'species' is only 2 words.
     E.g., 'Escherichia coli O157' -> 'Escherichia coli'.
     Summarizes total 'abundance' by species, then retains genus, family, order, etc.
+    The placeholder labels 'Unassigned' and 'Unknown taxid <id>' are kept as they
+    are. Empty ranks are kept as '' (F01).
     """
     if 'species' not in df.columns:
         raise ValueError("Column 'species' not found in DataFrame. Check input format.")
-
-    df['species'] = df['species'].str.split(' ').str[:2].str.join(' ')
 
     taxonomic_levels = ["genus", "family", "order", "class", "phylum", "superkingdom"]
     for level in taxonomic_levels:
@@ -202,8 +209,32 @@ def unify_species_abundance(df):
             df[level] = "Unknown"
 
     group_columns = ['species'] + taxonomic_levels
-    df_grouped = df.groupby(group_columns, as_index=False).agg({'abundance': 'sum'})
+    df[group_columns] = df[group_columns].fillna('')
+
+    is_placeholder = ((df['species'] == UNASSIGNED_LABEL)
+                      | df['species'].str.startswith(UNKNOWN_TAXID_LABEL + " "))
+    truncated = df['species'].str.split(' ').str[:2].str.join(' ')
+    df['species'] = df['species'].where(is_placeholder, truncated)
+
+    df_grouped = df.groupby(group_columns, as_index=False, sort=True).agg({'abundance': 'sum'})
     return df_grouped
+
+def largest_remainder(weights, total):
+    """
+    Round weights * total to integers that sum exactly to total (F08).
+    Each value is floored, then the reads left over go one each to the
+    largest fractional parts (ties to the earlier row). weights are
+    abundances that sum to about 1; total is a read count.
+    """
+    total = int(total)
+    raw = np.asarray(weights, dtype=float) * total
+    if raw.size == 0:
+        return np.zeros(0, dtype=int)
+    floors = np.floor(raw).astype(int)
+    left = min(max(total - int(floors.sum()), 0), raw.size)
+    order = np.argsort(-(raw - floors), kind='stable')
+    floors[order[:left]] += 1
+    return floors
 
 def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unassigned_count, counts=False):
     """
@@ -216,24 +247,50 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     """
     # Build a DataFrame from freq plus an 'unassigned' row
     results_df = pd.DataFrame(
-        zip(list(freq.keys()) + ['unassigned'],
+        zip(list(freq.keys()) + [UNASSIGNED_ID],
             list(freq.values()) + [0]),
         columns=["tax_id", "abundance"]
-    ).set_index('tax_id')
+    )
+    results_df["tax_id"] = results_df["tax_id"].astype(str)
+    results_df = results_df.set_index('tax_id')
 
     # Join with the full taxonomy info
     results_df = results_df.join(taxonomy_df, how='left').reset_index()
+    if 'species' not in results_df.columns:
+        results_df['species'] = pd.Series(pd.NA, index=results_df.index, dtype=object)
 
-    # Unify species-level names if 'species' col is present
-    if 'species' in results_df.columns:
-        results_df = unify_species_abundance(results_df)
+    # Label rows that have no species name instead of letting groupby drop them (F01)
+    is_unassigned = results_df["tax_id"] == UNASSIGNED_ID
+    known_ids = set(taxonomy_df.index.astype(str))
+    no_name = results_df["species"].isna() | (results_df["species"].astype(str).str.strip() == "")
+    for tid in results_df.loc[no_name & ~is_unassigned, "tax_id"]:
+        reason = "is missing from taxonomy.tsv" if tid not in known_ids else "has no species name in taxonomy.tsv"
+        print(f"Warning: tax_id {tid} {reason}; reported as '{UNKNOWN_TAXID_LABEL} {tid}'", file=sys.stderr)
+    results_df.loc[no_name & ~is_unassigned, "species"] = (
+        UNKNOWN_TAXID_LABEL + " " + results_df.loc[no_name & ~is_unassigned, "tax_id"])
+    results_df.loc[is_unassigned, "species"] = UNASSIGNED_LABEL
+
+    # Blank ranks of these rows take the row's label, so that collapsing or combining
+    # at a higher rank keeps them apart from each other and from real taxa
+    placeholder = is_unassigned | no_name
+    for rank in TAXONOMY_RANKS[1:]:
+        if rank in results_df.columns:
+            blank = results_df[rank].isna() | (results_df[rank].astype(str).str.strip() == "")
+            results_df.loc[placeholder & blank, rank] = results_df.loc[placeholder & blank, "species"]
+
+    results_df = unify_species_abundance(results_df)
+    # Unassigned goes last
+    is_unassigned = results_df["species"] == UNASSIGNED_LABEL
+    results_df = pd.concat([results_df[~is_unassigned], results_df[is_unassigned]], ignore_index=True)
 
     # Optionally add estimated counts
     if counts:
         # Identify the unassigned row by label, not by position, since groupby in
         # unify_species_abundance may reorder rows and break positional [:-1] slicing.
-        is_unassigned = results_df["species"].str.lower().str.strip() == "unassigned"
-        results_df["estimated_counts"] = (results_df["abundance"] * assigned_count).astype(int)
+        is_unassigned = results_df["species"] == UNASSIGNED_LABEL
+        results_df["estimated_counts"] = 0
+        results_df.loc[~is_unassigned, "estimated_counts"] = largest_remainder(
+            results_df.loc[~is_unassigned, "abundance"].to_numpy(), assigned_count)
         results_df.loc[is_unassigned, "estimated_counts"] = unassigned_count
 
     # Reorder columns
@@ -297,6 +354,9 @@ def combine_outputs(dir_path, rank, split_files=False, count_table=False):
     Optionally splits the final output into separate "taxonomy" and "abundance" files,
     or includes 'estimated counts' instead of 'abundance'.
     """
+    if rank not in TAXONOMY_RANKS:
+        raise ValueError(f"Specified rank '{rank}' must be in: {TAXONOMY_RANKS}")
+
     # We'll keep columns from 'rank' onward
     keep_ranks = RANKS_ORDER[RANKS_ORDER.index(rank):]
     df_combined_full = pd.DataFrame(columns=keep_ranks, dtype=str)
@@ -305,28 +365,34 @@ def combine_outputs(dir_path, rank, split_files=False, count_table=False):
     if count_table:
         metric = 'estimated_counts'
 
-    for file in os.listdir(dir_path):
+    sample_names = []
+    for file in sorted(os.listdir(dir_path)):
         file_path = os.path.join(dir_path, file)
-        file_extension = pathlib.Path(file).suffix
-        if file_extension == '.tsv' and 'rel-abundance' in file:
-            name = pathlib.Path(file).stem  # e.g. "sample_rel-abundance"
-            name = name.replace('_rel-abundance', '')
+        # Per-sample tables only, not the <sample>_rel-abundance-<rank>.tsv files collapse-taxonomy writes
+        if file.endswith('_rel-abundance.tsv'):
+            name = file[:-len('_rel-abundance.tsv')]
             df_sample = pd.read_csv(file_path, sep='\t', dtype=str)
+
+            for col in (rank, metric):
+                if col not in df_sample.columns:
+                    hint = " (was it written with --keep_counts?)" if col == 'estimated_counts' else ""
+                    raise ValueError(f"Column '{col}' not found in {file_path}{hint}")
 
             # Convert metric to numeric
             df_sample[metric] = pd.to_numeric(df_sample[metric], errors='coerce').fillna(0)
 
-            if rank in df_sample.columns and metric in df_sample.columns:
-                keep_ranks_sample = [r for r in keep_ranks if r in df_sample.columns]
+            keep_ranks_sample = [r for r in keep_ranks if r in df_sample.columns]
+            df_sample[keep_ranks_sample] = df_sample[keep_ranks_sample].fillna('')
 
-                # If last row is 'unassigned' in 'tax_id', you might handle that,
-                # but it doesn't look like you're merging 'tax_id' here, so skip?
+            df_sample_reduced = df_sample[keep_ranks_sample + [metric]].rename(columns={metric: name})
+            df_sample_reduced = df_sample_reduced.groupby(keep_ranks_sample, dropna=False).sum().reset_index()
+            df_combined_full = pd.merge(df_combined_full, df_sample_reduced, how='outer')
+            sample_names.append(name)
 
-                df_sample_reduced = df_sample[keep_ranks_sample + [metric]].rename(columns={metric: name})
-                df_sample_reduced = df_sample_reduced.groupby(keep_ranks_sample, dropna=False).sum().reset_index()
-                # Convert new column to numeric
-                df_sample_reduced[name] = pd.to_numeric(df_sample_reduced[name], errors='coerce').fillna(0)
-                df_combined_full = pd.merge(df_combined_full, df_sample_reduced, how='outer')
+    # Taxa absent from a sample are 0, not blank
+    df_combined_full[sample_names] = df_combined_full[sample_names].fillna(0)
+    if count_table:
+        df_combined_full[sample_names] = df_combined_full[sample_names].round().astype(int)
 
     # Sort the combined table by the rank col
     if rank in df_combined_full.columns:

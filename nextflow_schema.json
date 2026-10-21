@@ -110,11 +110,11 @@
         },
         "ncbi_taxonomy": {
           "type": "string",
-          "description": "Path to NCBI taxonomy dump directory (containing names.dmp and nodes.dmp)"
+          "description": "Path to NCBI taxonomy dump directory (containing names.dmp and nodes.dmp). build-database needs exactly one of ncbi_taxonomy or taxonomy_list"
         },
         "taxonomy_list": {
           "type": "string",
-          "description": "Path to taxonomy terms list TSV file"
+          "description": "Path to taxonomy terms list TSV file. build-database needs exactly one of taxonomy_list or ncbi_taxonomy"
         }
       }
     },

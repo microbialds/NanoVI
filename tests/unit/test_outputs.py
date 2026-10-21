@@ -2,8 +2,8 @@
 
 Covers freq_to_lineage_df and combine_outputs (bin/taxonomy.py),
 build_consolidated_tables (bin/generate_phyloseq_tables.py) and the parsers
-and builder in bin/build_gtdb_db.py. Tests marked xfail describe known bugs
-(F01, F11, F12) and are expected to pass once those are fixed.
+and builder in bin/build_gtdb_db.py. The tests for F01, F11 and F12
+were strict xfails until those bugs were fixed.
 """
 import gzip
 import os
@@ -78,27 +78,87 @@ class TestFreqToLineageDf:
         assert counts['Escherichia coli'] == 120
         assert counts['Staphylococcus aureus'] == 80
 
+    def test_estimated_counts_sum_to_assigned_count(self, tmp_path, taxonomy_df):
+        freq = {'1': 1 / 3, '2': 1 / 3, '3': 1 / 3}
+        taxonomy_df.loc['2', 'species'] = 'Escherichia albertii'
+        df = freq_to_lineage_df(freq, str(tmp_path / 's'), taxonomy_df, 100, 4, counts=True)
+        assigned = df[df['species'] != 'Unassigned']
+        assert assigned['estimated_counts'].sum() == 100
+        assert sorted(assigned['estimated_counts']) == [33, 33, 34]
+        assert df.loc[df['species'] == 'Unassigned', 'estimated_counts'].iloc[0] == 4
+
     def test_assigned_abundances_sum_to_one(self, tmp_path, taxonomy_df):
         df = freq_to_lineage_df({'1': 0.25, '2': 0.25, '3': 0.5}, str(tmp_path / 's'), taxonomy_df, 100, 0)
         assert df['abundance'].sum() == pytest.approx(1.0)
 
-    @pytest.mark.xfail(strict=True, reason='F01: the unassigned row is dropped by groupby(dropna=True)')
     def test_unassigned_row_kept_with_count(self, tmp_path, taxonomy_df):
         df = freq_to_lineage_df({'1': 0.6, '3': 0.4}, str(tmp_path / 's'), taxonomy_df, 100, 7, counts=True)
-        unassigned = df[df['species'].astype(str).str.lower() == 'unassigned']
+        unassigned = df[df['species'] == 'Unassigned']
         assert len(unassigned) == 1
         assert unassigned['estimated_counts'].iloc[0] == 7
+        assert unassigned['abundance'].iloc[0] == 0
+        assert df['species'].iloc[-1] == 'Unassigned'
+        on_disk = pd.read_csv(tmp_path / 's.tsv', sep='\t')
+        assert on_disk['species'].iloc[-1] == 'Unassigned'
 
-    @pytest.mark.xfail(strict=True, reason='F01: tax_ids missing from taxonomy.tsv are dropped silently')
-    def test_taxid_missing_from_taxonomy_kept(self, tmp_path, taxonomy_df):
+    def test_unassigned_row_without_counts(self, tmp_path, taxonomy_df):
+        df = freq_to_lineage_df({'1': 1.0}, str(tmp_path / 's'), taxonomy_df, 100, 7, counts=False)
+        assert list(df['species']) == ['Escherichia coli', 'Unassigned']
+
+    def test_placeholder_rows_get_their_label_as_ranks(self, tmp_path, taxonomy_df):
+        taxonomy_df.loc['3', 'species'] = np.nan
+        df = freq_to_lineage_df({'1': 0.4, '3': 0.3, '99': 0.3}, str(tmp_path / 's'), taxonomy_df, 100, 5)
+        rows = df.set_index('species')
+        assert (rows.loc['Unassigned', RANKS] == 'Unassigned').all()
+        assert (rows.loc['Unknown taxid 99', RANKS] == 'Unknown taxid 99').all()
+        assert rows.loc['Unknown taxid 3', 'genus'] == 'Staphylococcus'
+        assert rows.loc['Escherichia coli', 'genus'] == 'Escherichia'
+
+    def test_taxid_missing_from_taxonomy_kept(self, tmp_path, taxonomy_df, capsys):
         df = freq_to_lineage_df({'1': 0.6, '99': 0.4}, str(tmp_path / 's'), taxonomy_df, 100, 0)
         assert df['abundance'].sum() == pytest.approx(1.0)
+        unknown = df[df['species'] == 'Unknown taxid 99']
+        assert len(unknown) == 1
+        assert unknown['abundance'].iloc[0] == pytest.approx(0.4)
+        assert 'tax_id 99 is missing from taxonomy.tsv' in capsys.readouterr().err
 
-    @pytest.mark.xfail(strict=True, reason='F01: rows with an empty rank are dropped by groupby(dropna=True)')
+    def test_taxid_without_species_name_kept(self, tmp_path, taxonomy_df, capsys):
+        taxonomy_df.loc['3', 'species'] = np.nan
+        df = freq_to_lineage_df({'1': 0.6, '3': 0.4}, str(tmp_path / 's'), taxonomy_df, 100, 0)
+        row = df[df['species'] == 'Unknown taxid 3']
+        assert row['genus'].iloc[0] == 'Staphylococcus'
+        assert 'tax_id 3 has no species name' in capsys.readouterr().err
+
     def test_row_with_empty_rank_kept(self, tmp_path, taxonomy_df):
         taxonomy_df.loc['3', 'family'] = np.nan
         df = freq_to_lineage_df({'1': 0.6, '3': 0.4}, str(tmp_path / 's'), taxonomy_df, 100, 0)
         assert 'Staphylococcus aureus' in set(df['species'])
+        assert df.loc[df['species'] == 'Staphylococcus aureus', 'family'].iloc[0] == ''
+        assert df['abundance'].sum() == pytest.approx(1.0)
+
+
+class TestLargestRemainder:
+    @pytest.mark.parametrize('weights,total,expected', [
+        ([0.5, 0.5], 10, [5, 5]),
+        ([0.245, 0.155, 0.6], 597, [146, 93, 358]),
+        ([0.3996117581808098, 0.24657449242304955, 0.14990611578963237,
+          0.10011092623405436, 0.05348097069397765, 0.05031573667847634], 600,
+         [240, 148, 90, 60, 32, 30]),
+        ([1.0], 0, [0]),
+        ([], 5, []),
+    ])
+    def test_rounds_to_exact_total(self, weights, total, expected):
+        result = taxonomy.largest_remainder(weights, total)
+        assert list(result) == expected
+        if weights:
+            assert result.sum() == total
+
+    def test_ties_go_to_earlier_rows(self):
+        assert list(taxonomy.largest_remainder([0.25, 0.25, 0.25, 0.25], 2)) == [1, 1, 0, 0]
+
+    def test_weights_slightly_below_one(self):
+        result = taxonomy.largest_remainder([0.5 - 1e-12, 0.5 - 1e-12], 1000)
+        assert result.sum() == 1000
 
 
 # ─── build_consolidated_tables ───────────────────────────────────────────────
@@ -127,6 +187,18 @@ class TestBuildConsolidatedTables:
         assert otu_counts.loc['Unassigned', 'S1'] == 10
         assert meta.loc['S1', 'unassigned_counts'] == 10
 
+    def test_unassigned_counts_from_unassigned_row(self, tmp_path, taxonomy_df):
+        freq_to_lineage_df({'1': 0.6, '3': 0.4}, str(tmp_path / 'S1_rel-abundance'),
+                           taxonomy_df, 100, 30, counts=True)
+        _, otu_counts, tax, meta = build_consolidated_tables(
+            [parse_sample_file(tmp_path / 'S1_rel-abundance.tsv')])
+        assert otu_counts.loc['Unassigned', 'S1'] == 30
+        assert meta.loc['S1', 'unassigned_counts'] == 30
+        assert meta.loc['S1', 'assigned_counts'] == 100
+        assert meta.loc['S1', 'n_taxa_detected'] == 2
+        assert list(otu_counts.index)[-1] == 'Unassigned'
+        assert (tax.loc['Unassigned'] == '').all()
+
     def test_parse_sample_file(self, tmp_path):
         path = tmp_path / 'S9_rel-abundance.tsv'
         write_sample(path, [['Escherichia coli', 1.0] + lineage('Escherichia') + [12]])
@@ -134,7 +206,6 @@ class TestBuildConsolidatedTables:
         assert name == 'S9'
         assert df['abundance'].dtype == float
 
-    @pytest.mark.xfail(strict=True, reason='F11: duplicate species in one sample overwrite instead of summing')
     def test_duplicate_species_are_summed(self):
         s1 = sample([['Bacillus cereus', 0.3] + lineage('Bacillus') + [30],
                      ['Bacillus cereus', 0.2] + lineage('Bacillus', family='Other') + [20],
@@ -142,6 +213,45 @@ class TestBuildConsolidatedTables:
         otu_abund, otu_counts, _, _ = build_consolidated_tables([('S1', s1)])
         assert otu_abund.loc['Bacillus cereus', 'S1'] == pytest.approx(0.5)
         assert otu_counts.loc['Bacillus cereus', 'S1'] == 50
+
+    def test_taxonomy_is_most_common_lineage(self):
+        s1 = sample([['Bacillus cereus', 1.0] + lineage('Bacillus', family='Rare') + [10]])
+        s2 = sample([['Bacillus cereus', 1.0] + lineage('Bacillus', family='Common') + [10]])
+        s3 = sample([['Bacillus cereus', 1.0] + lineage('Bacillus', family='Common') + [10]])
+        _, _, tax, _ = build_consolidated_tables([('S1', s1), ('S2', s2), ('S3', s3)])
+        assert tax.loc['Bacillus cereus', 'family'] == 'Common'
+
+    def test_tied_lineages_keep_the_first(self):
+        s1 = sample([['Bacillus cereus', 1.0] + lineage('Bacillus', family='First') + [10]])
+        s2 = sample([['Bacillus cereus', 1.0] + lineage('Bacillus', family='Second') + [10]])
+        _, _, tax, _ = build_consolidated_tables([('S1', s1), ('S2', s2)])
+        assert tax.loc['Bacillus cereus', 'family'] == 'First'
+
+    def test_no_counts_table_without_estimated_counts(self):
+        s1 = sample([['Escherichia coli', 1.0] + lineage('Escherichia')], counts=False)
+        otu_abund, otu_counts, _, meta = build_consolidated_tables([('S1', s1)])
+        assert otu_counts is None
+        assert otu_abund.loc['Escherichia coli', 'S1'] == 1.0
+        assert meta.loc['S1', 'assigned_counts'] == 0
+
+    def test_samples_without_counts_are_zero_with_warning(self, capsys):
+        s1 = sample([['Escherichia coli', 1.0] + lineage('Escherichia') + [40]])
+        s2 = sample([['Escherichia coli', 1.0] + lineage('Escherichia')], counts=False)
+        _, otu_counts, _, _ = build_consolidated_tables([('S1', s1), ('S2', s2)])
+        assert otu_counts.loc['Escherichia coli', 'S1'] == 40
+        assert otu_counts.loc['Escherichia coli', 'S2'] == 0
+        assert 'no estimated_counts column in S2' in capsys.readouterr().err
+
+    def test_cli_skips_counts_table_without_counts(self, tmp_path, monkeypatch, capsys):
+        import generate_phyloseq_tables
+        path = tmp_path / 'S1_rel-abundance.tsv'
+        write_sample(path, [['Escherichia coli', 1.0] + lineage('Escherichia')], counts=False)
+        out = tmp_path / 'out'
+        monkeypatch.setattr(sys, 'argv', ['generate_phyloseq_tables.py', str(path), '--output-dir', str(out)])
+        generate_phyloseq_tables.main()
+        assert sorted(p.name for p in out.iterdir()) == [
+            'otu_table_abundance.tsv', 'sample_metadata.tsv', 'tax_table.tsv']
+        assert 'otu_table_counts.tsv not written' in capsys.readouterr().err
 
 
 # ─── combine_outputs ─────────────────────────────────────────────────────────
@@ -179,21 +289,19 @@ class TestCombineOutputs:
         df = combine_outputs(str(two_samples), 'genus')
         assert 'notes' not in df.columns
 
-    @pytest.mark.xfail(strict=True, reason='F12: --counts on tables without estimated_counts raises a bare KeyError')
     def test_missing_metric_column_names_the_file(self, tmp_path):
         write_sample(tmp_path / 'C_rel-abundance.tsv',
                      [['Escherichia coli', 1.0] + lineage('Escherichia')], counts=False)
-        with pytest.raises(Exception) as excinfo:
+        with pytest.raises(ValueError) as excinfo:
             combine_outputs(str(tmp_path), 'species', count_table=True)
         assert 'C_rel-abundance.tsv' in str(excinfo.value)
+        assert 'estimated_counts' in str(excinfo.value)
 
-    @pytest.mark.xfail(strict=True, reason='F12: taxa absent from a sample are left blank instead of 0')
     def test_absent_taxa_are_zero(self, two_samples):
         df = combine_outputs(str(two_samples), 'genus')
         value = df.set_index('genus').loc['Staphylococcus', 'B']
         assert not pd.isna(value) and float(value) == 0.0
 
-    @pytest.mark.xfail(strict=True, reason='F12: files are read in os.listdir order, so sample columns are not sorted')
     def test_sample_columns_sorted(self, tmp_path, monkeypatch):
         for name in ['C', 'A', 'B']:
             write_sample(tmp_path / f'{name}_rel-abundance.tsv',
@@ -203,6 +311,42 @@ class TestCombineOutputs:
         df = combine_outputs(str(tmp_path), 'genus')
         samples = [c for c in df.columns if c in {'A', 'B', 'C'}]
         assert samples == ['A', 'B', 'C']
+
+    def test_placeholders_stay_apart_above_species(self, tmp_path, taxonomy_df):
+        freq_to_lineage_df({'1': 0.8, '99': 0.2}, str(tmp_path / 'S2_rel-abundance'),
+                           taxonomy_df, 100, 40, counts=True)
+        df = combine_outputs(str(tmp_path), 'genus', count_table=True).set_index('genus')
+        assert df.loc['Unassigned', 'S2'] == 40
+        assert df.loc['Unknown taxid 99', 'S2'] == 20
+        assert df.loc['Escherichia', 'S2'] == 80
+        taxonomy.collapse_rank(str(tmp_path / 'S2_rel-abundance.tsv'), 'genus')
+        collapsed = pd.read_csv(tmp_path / 'S2_rel-abundance-genus.tsv', sep='\t').set_index('genus')
+        assert collapsed.loc['Unassigned', 'estimated_counts'] == 40
+        assert collapsed.loc['Unknown taxid 99', 'estimated_counts'] == 20
+
+    def test_ignores_collapsed_tables(self, two_samples):
+        taxonomy.collapse_rank(str(two_samples / 'A_rel-abundance.tsv'), 'genus')
+        df = combine_outputs(str(two_samples), 'species')
+        assert [c for c in df.columns if c not in taxonomy.TAXONOMY_RANKS] == ['A', 'B']
+
+    def test_counts_are_integers(self, two_samples):
+        combine_outputs(str(two_samples), 'genus', count_table=True)
+        text = (two_samples / 'vi-combined-genus-counts.tsv').read_text()
+        assert '.0' not in text
+        df = pd.read_csv(two_samples / 'vi-combined-genus-counts.tsv', sep='\t').set_index('genus')
+        assert df.loc['Staphylococcus', 'B'] == 0
+
+    def test_invalid_rank(self, two_samples):
+        with pytest.raises(ValueError, match="rank 'strain'"):
+            combine_outputs(str(two_samples), 'strain')
+
+    def test_unassigned_row_combines(self, tmp_path, taxonomy_df):
+        for name, unassigned in [('A', 5), ('B', 9)]:
+            freq_to_lineage_df({'1': 0.5, '3': 0.5}, str(tmp_path / f'{name}_rel-abundance'),
+                               taxonomy_df, 100, unassigned, counts=True)
+        df = combine_outputs(str(tmp_path), 'species', count_table=True).set_index('species')
+        assert list(df.loc['Unassigned', ['A', 'B']].astype(float)) == [5, 9]
+        assert list(df.loc['Escherichia coli', ['A', 'B']].astype(float)) == [50, 50]
 
 
 # ─── build_gtdb_db ───────────────────────────────────────────────────────────

@@ -27,6 +27,205 @@ nextflow_pipeline {
         }
     }
 
+    // Parameter checks (F13, F14): each error is raised before any process runs
+
+    test("build-database fails without --sequences") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                taxonomy_list = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("For build-database you must provide --sequences and --seq2tax") }
+        }
+    }
+
+    test("build-database fails without a taxonomy source") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                sequences     = "${projectDir}/tests/test_data/mock_db/species_taxid.fasta"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("For build-database provide exactly one of --taxonomy_list or --ncbi_taxonomy") }
+        }
+    }
+
+    test("build-database fails with both taxonomy sources") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                sequences     = "${projectDir}/tests/test_data/mock_db/species_taxid.fasta"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                taxonomy_list = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                ncbi_taxonomy = "${projectDir}/tests/test_data/mock_db"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("For build-database provide exactly one of --taxonomy_list or --ncbi_taxonomy") }
+        }
+    }
+
+    test("build-database runs with --ncbi_taxonomy") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                sequences     = "${projectDir}/tests/test_data/mock_db/species_taxid.fasta"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                ncbi_taxonomy = "${projectDir}/tests/test_data/mock_db"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.succeeded().size() == 1
+        }
+    }
+
+    test("collapse-taxonomy fails without --rank") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                cmd           = "collapse-taxonomy"
+                output_dir    = "${outputDir}"
+                input_tsv     = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("For collapse-taxonomy you must provide --rank (one of: species, genus, family, order, class, phylum, superkingdom)") }
+        }
+    }
+
+    test("collapse-taxonomy fails with an invalid --rank") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                cmd           = "collapse-taxonomy"
+                output_dir    = "${outputDir}"
+                input_tsv     = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                rank          = "strain"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Invalid --rank 'strain' for collapse-taxonomy. Use one of: species, genus, family, order, class, phylum, superkingdom") }
+        }
+    }
+
+    test("combine-outputs fails with an invalid --rank") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                cmd           = "combine-outputs"
+                output_dir    = "${outputDir}"
+                input_dir     = "${projectDir}/tests/test_data/mock_db"
+                rank          = "Genus"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Invalid --rank 'Genus' for combine-outputs. Use one of: species, genus, family, order, class, phylum, superkingdom") }
+        }
+    }
+
+    test("Directory mode keeps dots in sample IDs") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                input        = "${projectDir}/tests/test_data/multi_dot_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/sample_outputs/S1.run1_rel-abundance.tsv").exists()
+            assert file("${outputDir}/sample_outputs/S1.run2_rel-abundance.tsv").exists()
+        }
+    }
+
+    test("Directory mode fails when two FASTQ files give the same sample ID") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                input        = "${projectDir}/tests/test_data/clash_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            def reads = "${projectDir}/tests/test_data/clash_reads"
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Several FASTQ files in ${reads} give the same sample ID; rename them or use a samplesheet:") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("S1: ${reads}/S1.fastq, ${reads}/S1.fq") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("S2: ${reads}/S2.fastq, ${reads}/run2/S2.fastq") }
+        }
+    }
+
+    test("Directory mode fails on sample IDs with unsafe characters") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                input        = "${projectDir}/tests/test_data/bad_id_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Sample IDs from FASTQ file names may only use letters, digits, '.', '_' and '-'; rename these files or use a samplesheet:") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("${projectDir}/tests/test_data/bad_id_reads/S1+run.fastq") }
+        }
+    }
+
     // End-to-end test: runs fastplong, minimap2 and every Python step on the
     // e2e fixture (11 real 16S sequences, 600 simulated ONT-like reads in known
     // proportions plus 30 non-16S reads). See tests/test_data/e2e/README.md.
@@ -79,11 +278,12 @@ nextflow_pipeline {
                 assert (observed[exp.species] ?: 0.0) < 0.01
             }
 
-            // TODO(F01): the Unassigned row is dropped by freq_to_lineage_df; enable in Phase 2.
-            // def nonRrna = expected.find { it.species == 'non-16S' }.simulated_reads as int
-            // def unassignedRow = rows.find { it.species == 'Unassigned' }
-            // assert unassignedRow != null
-            // assert (unassignedRow.estimated_counts as int) >= nonRrna
+            // The Unassigned row holds at least the non-16S reads
+            def nonRrna = expected.find { it.species == 'non-16S' }.simulated_reads as int
+            def unassignedRow = rows.find { it.species == 'Unassigned' }
+            assert unassignedRow != null
+            assert (unassignedRow.abundance as double) == 0.0
+            assert (unassignedRow.estimated_counts as int) >= nonRrna
 
             // Consolidated phyloseq tables
             ['otu_table_abundance.tsv', 'otu_table_counts.tsv', 'tax_table.tsv', 'sample_metadata.tsv'].each { t ->

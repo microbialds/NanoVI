@@ -10,7 +10,7 @@ process GENERATE_PHYLOSEQ_TABLES {
 
     output:
     path "otu_table_abundance.tsv", emit: otu_abundance
-    path "otu_table_counts.tsv",    emit: otu_counts
+    path "otu_table_counts.tsv",    emit: otu_counts, optional: true   // only with --keep_counts
     path "tax_table.tsv",           emit: tax_table
     path "sample_metadata.tsv",     emit: sample_metadata
 

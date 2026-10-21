@@ -269,8 +269,7 @@ def run_build_database(args):
 
     output_taxonomy_location = os.path.join(custom_db_path, "taxonomy.tsv")
     if args.ncbi_taxonomy:
-        dict_nodes = create_nodes_dict(os.path.join(args.ncbi_taxonomy, 'nodes.dmp'))
-        dict_names = create_names_dict(os.path.join(args.ncbi_taxonomy, 'names.dmp'))
+        # dict_nodes and dict_names were read from the dump above
         build_ncbi_taxonomy(db_unique_ids, dict_nodes, dict_names, output_taxonomy_location)
     else:
         build_direct_taxonomy(db_unique_ids, args.taxonomy_list, output_taxonomy_location)
