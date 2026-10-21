@@ -10,9 +10,6 @@ include { COMBINE_OUTPUTS }    from './subworkflows/local/postprocessing'
 // ─── MAIN WORKFLOW ──────────────────────────────────────────────────────────
 workflow {
 
-    // ─── BIN DIRECTORY CHANNEL ──────────────────────────────────────────────
-    bin_ch = channel.value(file("${projectDir}/bin"))
-
     // ─── VERSION LOGGING ────────────────────────────────────────────────────
     log.info """
     ================================================
@@ -102,8 +99,7 @@ workflow {
             channel.value(file(params.sequences)),
             channel.value(file(params.seq2tax)),
             channel.value(file(taxonomy_path)),
-            taxonomy_flag,
-            bin_ch
+            taxonomy_flag
         )
         versions = BUILD_DATABASE.out.versions
     }
@@ -116,8 +112,7 @@ workflow {
 
         COLLAPSE_TAXONOMY(
             channel.value(file(params.input_tsv)),
-            channel.value(params.rank),
-            bin_ch
+            channel.value(params.rank)
         )
         versions = COLLAPSE_TAXONOMY.out.versions
     }
@@ -130,8 +125,7 @@ workflow {
 
         COMBINE_OUTPUTS(
             channel.value(file(params.input_dir)),
-            channel.value(params.rank),
-            bin_ch
+            channel.value(params.rank)
         )
         versions = COMBINE_OUTPUTS.out.versions
     }

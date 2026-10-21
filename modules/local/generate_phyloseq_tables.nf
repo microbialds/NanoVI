@@ -6,7 +6,6 @@ process GENERATE_PHYLOSEQ_TABLES {
 
     input:
     path(sample_tsvs)
-    path bin_dir
 
     output:
     path "otu_table_abundance.tsv", emit: otu_abundance
@@ -17,10 +16,10 @@ process GENERATE_PHYLOSEQ_TABLES {
 
     script:
     """
-    python3 ${bin_dir}/generate_phyloseq_tables.py \
+    generate_phyloseq_tables.py \
         ${sample_tsvs} \
         --output-dir .
-    python3 ${bin_dir}/python_versions.py "${task.process}" > versions.yml
+    python_versions.py "${task.process}" > versions.yml
     """
 
     stub:
