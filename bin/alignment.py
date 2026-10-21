@@ -1,3 +1,9 @@
+# Portions of this file are adapted from Emu (https://github.com/treangenlab/emu),
+# Copyright (c) 2021 Kristen Curry, Qi Wang, Michael G. Nute, Alona Tyshaieva,
+# Qinglong Wu, Tor Savidge, Alexander Dilthey, Todd J. Treangen. MIT License;
+# see THIRD_PARTY_LICENSES for the full text.
+# Adapted here: generate_alignments.
+
 """
 Alignment utilities for NanoVI.
 
@@ -19,7 +25,7 @@ def generate_alignments(in_file_list, out_basename, database, args):
 
     in_file_list: List of input FASTQ/FASTA files (already filtered).
     out_basename: Base filepath for alignment outputs.
-    database: Path to Emu database directory (containing species_taxid.fasta).
+    database: Path to the NanoVI database directory (containing species_taxid.fasta).
     args: Argument object with fields:
         - threads, kmer_size, N, K, type, split_prefix
     """

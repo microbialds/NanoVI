@@ -12,6 +12,7 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 
 - `-profile test` now runs on the bundled e2e fixture instead of a `db/` directory that was not in the repository.
 - CI runs on pushes to `dev` and `roadmap/**` and on pull requests into `dev`.
+- README credits Emu (Curry et al., Nature Methods 2022) for the CIGAR-based read score, the EM loop and the database layout; Emu's MIT license is in `THIRD_PARTY_LICENSES`, and the adapted files name their origin.
 
 ## [1.0.0] - 2026-06-27
 

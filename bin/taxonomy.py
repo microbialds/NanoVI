@@ -1,3 +1,11 @@
+# Portions of this file are adapted from Emu (https://github.com/treangenlab/emu),
+# Copyright (c) 2021 Kristen Curry, Qi Wang, Michael G. Nute, Alona Tyshaieva,
+# Qinglong Wu, Tor Savidge, Alexander Dilthey, Todd J. Treangen. MIT License;
+# see THIRD_PARTY_LICENSES for the full text.
+# Adapted here: lineage_dict_from_tid, the database builders
+# (create_nodes_dict to build_direct_taxonomy), freq_to_lineage_df, collapse_rank
+# and combine_outputs.
+
 """
 Taxonomy utilities for NanoVI output generation.
 
@@ -253,7 +261,7 @@ def collapse_rank(path, rank):
     Collapses an existing .tsv output to a given taxonomic rank by grouping abundance or counts.
     e.g.: python main.py collapse-taxonomy output_rel-abundance.tsv species
     """
-    df_emu = pd.read_csv(path, sep='\t')
+    df_in = pd.read_csv(path, sep='\t')
     if rank not in TAXONOMY_RANKS:
         raise ValueError(f"Specified rank '{rank}' must be in: {TAXONOMY_RANKS}")
 
@@ -261,26 +269,26 @@ def collapse_rank(path, rank):
     keep_ranks = TAXONOMY_RANKS[TAXONOMY_RANKS.index(rank):]
 
     # We handle "estimated counts" if present
-    has_counts = "estimated_counts" in df_emu.columns
+    has_counts = "estimated_counts" in df_in.columns
 
     if has_counts:
         # e.g., keep abundance + estimated_counts
         df_cols = ["abundance", "estimated_counts"] + keep_ranks
-        df_emu_copy = df_emu[df_cols].replace({'-': 0})
-        df_emu_copy = df_emu_copy.astype({'abundance': float, 'estimated_counts': float})
+        df_rank = df_in[df_cols].replace({'-': 0})
+        df_rank = df_rank.astype({'abundance': float, 'estimated_counts': float})
     else:
         # just keep abundance
         df_cols = ["abundance"] + keep_ranks
-        df_emu_copy = df_emu[df_cols].replace({'-': 0})
-        df_emu_copy = df_emu_copy.astype({'abundance': float})
+        df_rank = df_in[df_cols].replace({'-': 0})
+        df_rank = df_rank.astype({'abundance': float})
 
     # Group by the kept ranks
-    df_emu_copy = df_emu_copy.groupby(keep_ranks, dropna=False).sum()
+    df_rank = df_rank.groupby(keep_ranks, dropna=False).sum()
 
     # Write new file
     base, ext = os.path.splitext(path)
     output_path = f"{base}-{rank}.tsv"
-    df_emu_copy.to_csv(output_path, sep='\t')
+    df_rank.to_csv(output_path, sep='\t')
     print(f"File generated: {output_path}")
 
 def combine_outputs(dir_path, rank, split_files=False, count_table=False):
