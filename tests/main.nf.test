@@ -237,9 +237,10 @@ nextflow_pipeline {
     // End-to-end test: runs fastplong, minimap2 and every Python step on the
     // e2e fixture (11 real 16S sequences, 600 simulated ONT-like reads in known
     // proportions plus 30 non-16S reads). See tests/test_data/e2e/README.md.
+    // NANOVI_E2E_PROFILE picks the software profile (default docker; CI also runs conda)
     test("Pipeline recovers known proportions on the e2e fixture") {
         tag "e2e"
-        options "-profile test,docker"
+        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'}"
 
         when {
             params {
