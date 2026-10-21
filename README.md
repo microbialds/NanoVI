@@ -144,14 +144,16 @@ Combine profiles: `nextflow run main.nf -profile test,docker`
 
 ## Building Containers
 
+Every Python step runs in one image, `ghcr.io/microbialds/nanovi-python:<version>` (Python 3.11, with the exact package versions in `containers/requirements.txt`); nothing is installed at run time, so the pipeline runs on compute nodes without internet access. To test a change to the image, build it locally under the tag `conf/base.config` uses, and Docker runs the local copy instead of pulling it:
+
 **Docker:**
 ```bash
-docker build -t nanovi-python:1.0.0 -f containers/Dockerfile containers/
+docker build -t ghcr.io/microbialds/nanovi-python:1.0.0 -f containers/Dockerfile containers/
 ```
 
-**Singularity:**
+**Singularity** (from the `containers/` directory, so the build finds `requirements.txt`):
 ```bash
-singularity build nanovi-python.sif containers/Singularity.def
+cd containers && singularity build nanovi-python.sif Singularity.def
 ```
 
 ## Building a GTDB Reference Database

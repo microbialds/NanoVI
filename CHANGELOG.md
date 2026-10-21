@@ -10,6 +10,7 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 
 ### Changed
 
+- The Python image (`containers/Dockerfile`) is built on Python 3.11 (Python 3.8 is past end of life) with exact versions: numpy 2.4.6, pandas 3.0.6, scipy 1.17.1, pysam 0.24.1, biopython 1.88. `containers/Singularity.def` installs from the same `requirements.txt` and no longer installs flatten-dict. The unit tests run on Python 3.11 and 3.13 (F32).
 - `-profile test` now runs on the bundled e2e fixture instead of a `db/` directory that was not in the repository, and uses the pipeline's default k-mer size (21) instead of 27.
 - CI runs on pushes to `dev` and `roadmap/**` and on pull requests into `dev`.
 - README credits Emu (Curry et al., Nature Methods 2022) for the CIGAR-based read score, the EM loop and the database layout; Emu's MIT license is in `THIRD_PARTY_LICENSES`, and the adapted files name their origin.

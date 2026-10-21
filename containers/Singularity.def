@@ -1,25 +1,26 @@
 Bootstrap: docker
-From: python:3.8-slim
+From: python:3.11.17-slim-trixie
+
+# Build from the containers/ directory so that %files finds requirements.txt:
+#   cd containers && singularity build nanovi-python.sif Singularity.def
 
 %labels
     Author NanoVI developers
     Description Python environment for NanoVI variational inference pipeline
     Version 1.0.0
 
+%files
+    requirements.txt /tmp/requirements.txt
+
 %post
+    # procps provides the ps that Nextflow uses to collect task metrics
     apt-get update && \
-        apt-get install -y --no-install-recommends \
-            procps \
-            gcc \
-            libc6-dev \
+        apt-get install -y --no-install-recommends procps \
         && rm -rf /var/lib/apt/lists/*
 
-    pip install --no-cache-dir \
-        'numpy>=1.21,<2.0' \
-        'pandas>=1.3,<2.0' \
-        'pysam>=0.19' \
-        'biopython>=1.79' \
-        'flatten-dict>=0.4'
+    # Same exact pins as the Docker image
+    pip install --no-cache-dir -r /tmp/requirements.txt && \
+        rm /tmp/requirements.txt
 
 %environment
     export LC_ALL=C
