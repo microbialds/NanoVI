@@ -212,10 +212,11 @@ class TestBayesianViIterations:
         with pytest.raises(ValueError, match='0 reads'):
             vb.bayesian_vi_iterations({}, [1, 2])
 
-    def test_thresholded_output_drops_species_below_input_threshold(self):
+    def test_species_below_input_threshold_not_reported(self):
         lp = synthetic_reads({1: 1000, 2: 4}, seed=7, max_decoys=0)
         freq_full, freq_thresh, _ = vb.bayesian_vi_iterations(lp, [1, 2], abundance_threshold=0.01)
-        assert 2 not in (freq_thresh or freq_full)
+        assert set(freq_full) == {1}
+        assert freq_thresh is None or set(freq_thresh) == {1}
 
     @pytest.mark.xfail(strict=True, reason='F05: CAVI stops on a relative ELBO tolerance that is loose for large samples')
     def test_result_is_a_fixed_point(self):

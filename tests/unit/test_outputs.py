@@ -37,9 +37,13 @@ def taxonomy_df():
     return df.set_index('tax_id')
 
 
-def write_sample(path, rows, counts=True):
+def sample(rows, counts=True):
     cols = ['species', 'abundance'] + RANKS + (['estimated_counts'] if counts else [])
-    pd.DataFrame(rows, columns=cols).to_csv(path, sep='\t', index=False)
+    return pd.DataFrame(rows, columns=cols)
+
+
+def write_sample(path, rows, counts=True):
+    sample(rows, counts).to_csv(path, sep='\t', index=False)
 
 
 def lineage(genus, family='F', order='O', cls='C', phylum='P', kingdom='Bacteria'):
@@ -98,11 +102,6 @@ class TestFreqToLineageDf:
 
 
 # ─── build_consolidated_tables ───────────────────────────────────────────────
-
-def sample(rows, counts=True):
-    cols = ['species', 'abundance'] + RANKS + (['estimated_counts'] if counts else [])
-    return pd.DataFrame(rows, columns=cols)
-
 
 class TestBuildConsolidatedTables:
     def test_tables_shapes_and_values(self):
