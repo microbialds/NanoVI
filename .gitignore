@@ -36,3 +36,8 @@ figures/
 
 __pycache__*
 *.pyc
+
+# Local development files
+CLAUDE.md
+CLAUDE.local.md
+.claude/
