@@ -31,7 +31,7 @@ process FILTER_READS {
     gzip -f fastplong/${sample_id}_report.json
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        fastplong: \$(fastplong --version 2>&1 | sed 's/^fastplong //')
+        fastplong: "\$(fastplong --version 2>&1 | sed 's/^fastplong //')"
     END_VERSIONS
     """
 

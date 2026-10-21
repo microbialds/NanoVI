@@ -7,7 +7,7 @@ changelog=$(sed -n 's/^## \[\([0-9][^]]*\)\].*/\1/p' CHANGELOG.md | head -n 1)
 dockerfile=$(sed -n 's/^LABEL version="\([^"]*\)".*/\1/p' containers/Dockerfile)
 singularity=$(sed -n 's/^ *Version \(.*\)$/\1/p' containers/Singularity.def)
 python=$(sed -n 's/^__version__ = "\([^"]*\)".*/\1/p' bin/_version.py)
-images=$(grep -o "ghcr.io/microbialds/nanovi-python:[A-Za-z0-9._-]*" conf/base.config | sed 's/.*://' | sort -u)
+images=$(grep -o "ghcr.io/microbialds/nanovi-python:[A-Za-z0-9._-]*" conf/base.config | sed 's/.*://' | sort -u || true)
 
 status=0
 printf '%-48s %s\n' \

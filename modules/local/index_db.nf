@@ -14,7 +14,7 @@ process INDEX_DB {
     minimap2 -k ${params.kmer_size} -d gtdb_index.mmi ${species_fasta}
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        minimap2: \$(minimap2 --version)
+        minimap2: "\$(minimap2 --version)"
     END_VERSIONS
     """
 

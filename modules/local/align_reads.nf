@@ -26,7 +26,7 @@ process ALIGN_READS {
              -o ${sample_id}_vi_alignments.sam
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        minimap2: \$(minimap2 --version)
+        minimap2: "\$(minimap2 --version)"
     END_VERSIONS
     """
 
