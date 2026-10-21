@@ -435,3 +435,33 @@ class TestPosteriorUtilities:
     def test_expected_effective_species(self):
         assert vb.expected_effective_species(np.full(4, 10.0)) == pytest.approx(4.0)
         assert vb.expected_effective_species(np.array([1000.0, 1e-9])) == pytest.approx(1.0, abs=1e-6)
+
+
+# ─── posterior summary for the interval columns (F20, D7) ────────────────────
+
+class TestPosteriorReadSummary:
+    def test_expected_and_shared_reads_by_hand(self):
+        # read 0 only species 10; read 1 split 0.6 / 0.4; read 2 gives 0.995 to
+        # species 10, under the split cut-off of 1 %
+        phi = np.array([[1.0, 0.0], [0.6, 0.4], [0.995, 0.005]])
+        alpha = np.array([2.6, 0.9])
+        summary = vb.posterior_read_summary(alpha, phi, [10, 20])
+        assert summary[10] == pytest.approx({'alpha': 2.6, 'expected_reads': 2.595, 'shared_reads': 0.6})
+        assert summary[20] == pytest.approx({'alpha': 0.9, 'expected_reads': 0.405, 'shared_reads': 0.405})
+
+    def test_summary_matches_the_reported_abundances(self):
+        lp = synthetic_reads({1: 800, 2: 150, 3: 50}, seed=8)
+        lp['tie'] = ([1, 2], [-40.0, -40.0])
+        freq_full, freq_thresh, _, _, summary = vb.bayesian_vi_iterations(
+            lp, [1, 2, 3], posterior_summary=True)
+        reported = freq_thresh or freq_full
+        assert set(summary) == set(reported)
+        total = sum(v['alpha'] for v in summary.values())
+        for sid, value in reported.items():
+            assert summary[sid]['alpha'] / total == pytest.approx(value, rel=1e-12)
+            assert 0 < summary[sid]['shared_reads'] <= summary[sid]['expected_reads']
+        assert sum(v['expected_reads'] for v in summary.values()) == pytest.approx(len(lp))
+
+    def test_default_return_shape_is_unchanged(self):
+        lp = synthetic_reads({1: 100, 2: 100}, seed=9)
+        assert len(vb.bayesian_vi_iterations(lp, [1, 2])) == 4

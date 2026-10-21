@@ -48,6 +48,11 @@ workflow {
         if (params.min_length >= params.max_length)
             error "min_length (${params.min_length}) must be less than max_length (${params.max_length})"
 
+        if (!(params.estimator in ['vb', 'em']))
+            error "Invalid --estimator '${params.estimator}'. Use 'vb' (Bayesian variational inference) or 'em' (Emu-style EM)"
+        if (params.credible_intervals && params.estimator != 'vb')
+            error "--credible_intervals needs --estimator vb: the EM estimator gives no posterior"
+
         // Input: samplesheet or directory
         if (params.input.endsWith('.csv')) {
             // Samplesheet mode

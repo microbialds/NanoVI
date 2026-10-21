@@ -8,6 +8,9 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 
 - Every process writes an nf-core style `versions.yml`, and each run collects them into `pipeline_info/software_versions.yml`: the fastplong and minimap2 versions, the Python and package versions of every Python step, and the NanoVI and Nextflow versions (F33).
 - End-to-end test fixture in `tests/test_data/e2e/` (11 real 16S sequences, 600 simulated ONT-like reads in known proportions plus 30 non-16S reads) and an `e2e` nf-test that runs the real tools with Docker; CI runs it on pushes to `main`, `dev` and `roadmap/**` and on pull requests into `main` or `dev`.
+- Parameters for abundance estimation, which were fixed in the RUN_VI script: `--estimator` (`vb`, the Bayesian VI, by default; `em` for Emu's EM loop, kept as a baseline), `--min_abundance` (0.001, the value used so far), `--vi_tolerance` (1e-7), `--vi_max_iterations` (1,000 CAVI iterations per pruning round), `--alpha_prior` (1.0) and `--vi_elbo_threshold` (1e-4, EM only). The README explains the detection floor: species below max(1/R, min_abundance), or max(10/R, min_abundance) above 1,000 reads, are pruned. With the defaults the results are unchanged (F20, M7).
+- `--credible_intervals` (experimental, off by default, VB only) adds `ci_lower` and `ci_upper` (95% interval of each species' mean-field Beta marginal) and `shared_read_fraction` (the share of its expected reads that it splits with another species) to the per-sample tables. Mean-field intervals are too narrow for species that share reads; their coverage is measured in a later release (F20, D7).
+- `--min_quality` (off by default) turns on fastplong's quality filter on mean read quality; without it reads are filtered by length only, as before (F20, D5).
 
 ### Changed
 

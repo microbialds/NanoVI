@@ -95,8 +95,25 @@ A path to a directory containing FASTQ files (`.fastq`, `.fq`, optionally gzippe
 | `--type` | `map-ont` | Minimap2 preset (`map-ont`, `map-pb`, `sr`) |
 | `--min_length` | `500` | Minimum read length filter (bp) |
 | `--max_length` | `2000` | Maximum read length filter (bp) |
+| `--min_quality` | off | Minimum mean read quality (Phred). Off: fastplong filters by length only. Set: fastplong's quality filter drops reads with a lower mean quality (its per-base rule is switched off; its limit of 5 N bases per read still applies) |
 | `--keep_counts` | `false` | Include read count column in output |
 | `--keep_files` | `false` | Retain intermediate SAM and FASTQ files |
+
+### Inference
+
+| Parameter | Default | Estimator | Description |
+|-----------|---------|-----------|-------------|
+| `--estimator` | `vb` | | `vb`: Bayesian variational inference (Dirichlet prior, CAVI updates). `em`: the expectation-maximization loop of Emu, kept as a baseline |
+| `--min_abundance` | `0.001` | both | Lowest abundance reported (see the detection floor below) |
+| `--vi_tolerance` | `1e-7` | vb | CAVI stops when no species' posterior mean abundance changes by more than this between iterations |
+| `--vi_max_iterations` | `1000` | vb | Most CAVI iterations in each pruning round |
+| `--alpha_prior` | `1.0` | vb | Total concentration of the symmetric Dirichlet prior; each of the S candidate species gets `alpha_prior / S` |
+| `--vi_elbo_threshold` | `1e-4` | em | The EM loop stops when the log-likelihood rises by less than this. Its inner loop keeps Emu's settings (at most 20 iterations, total change in frequencies below 5e-4) |
+| `--credible_intervals` | `false` | vb | Experimental: adds `ci_lower`, `ci_upper` and `shared_read_fraction` columns (below) |
+
+**Detection floor.** R is the number of reads with at least one scored alignment. With `vb`, species whose posterior mean abundance falls below the pruning threshold are removed and the rest refitted, until none is below it: the threshold is max(1/R, `min_abundance`) up to 1,000 reads and max(10/R, `min_abundance`) above. With the default, the floor is 1/R up to 1,000 reads, 10/R up to 10,000 reads and 0.1% above that: nothing below 0.1% is reported at any depth (Emu's floor of 10/R would be 0.01% at 100,000 reads). With `em`, species are pruned below 1/R (10/R above 1,000 reads), as in Emu, and if `min_abundance` is higher the species at or above it are refitted and reported. With either estimator, reads whose candidate species were all pruned are reported in the `Below detection` row.
+
+**Credible intervals (experimental).** With `--credible_intervals`, the per-sample table gains three columns for each species: `ci_lower` and `ci_upper`, the 2.5% and 97.5% quantiles of the species' mean-field posterior marginal, Beta(α_s, Σα − α_s) over the reported species (tax IDs that share a species name add their α), and `shared_read_fraction`, the share of the species' expected reads whose responsibility is split with another reported species, that is, where the other species get at least 1% of the read. The mean-field approximation treats read assignments and abundances as independent, so the intervals carry only sampling noise: they are too narrow for species that share reads with a close relative, and a high `shared_read_fraction` marks those species. Their coverage has not been measured yet. The columns are left empty on the `Below detection` and `Unassigned` rows, and `collapse-taxonomy`, `combine-outputs` and the consolidated tables leave them out.
 
 ### Database Build
 
@@ -259,7 +276,7 @@ Until step 3 has published `:X.Y.Z`, `-profile docker` and `-profile singularity
 NanoVI builds on Emu (Curry KD, Wang Q, Nute MG, et al. Emu: species-level microbial community profiling of full-length 16S rRNA Oxford Nanopore sequencing data. *Nature Methods* 19, 845–853 (2022). [doi:10.1038/s41592-022-01520-4](https://doi.org/10.1038/s41592-022-01520-4); [github.com/treangenlab/emu](https://github.com/treangenlab/emu)). Parts of NanoVI's Python code are adapted from Emu's source:
 
 - **The CIGAR-based read score.** The log-likelihood of a read under each candidate species is Emu's: insertion, deletion, soft-clip and mismatch rates are estimated from the sample's own alignments, and each alignment is scored from its CIGAR counts, scaled by the length of the read's longest alignment (`bin/likelihood.py`).
-- **The EM loop.** The expectation-maximization loop with pruning of low-abundance species in `bin/em_estimator.py` follows Emu's. The default estimator, the Bayesian variational inference in `bin/variational_inference_bayesian.py`, is NanoVI's own: it places a Dirichlet prior on the species frequencies and estimates their posterior instead of a point estimate.
+- **The EM loop.** The expectation-maximization loop with pruning of low-abundance species in `bin/em_estimator.py` (`--estimator em`) follows Emu's. The default estimator, the Bayesian variational inference in `bin/variational_inference_bayesian.py`, is NanoVI's own: it places a Dirichlet prior on the species frequencies and estimates their posterior instead of a point estimate.
 - **The database layout.** A `species_taxid.fasta` with `taxid:db_name:n` headers plus a `taxonomy.tsv` lineage table, the build-database helpers, the per-sample output table and the collapse-taxonomy and combine-outputs commands follow Emu (`bin/taxonomy.py`, `bin/main.py`).
 
 Emu is distributed under the MIT License, Copyright (c) 2021 Kristen Curry, Qi Wang, Michael G. Nute, Alona Tyshaieva, Qinglong Wu, Tor Savidge, Alexander Dilthey, Todd J. Treangen. Its full license text is in [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES), and each file with adapted code names its origin in its header. If you use NanoVI, please cite Emu as well.

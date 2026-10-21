@@ -13,7 +13,14 @@ process RUN_VI {
     """
     estimate_abundance.py \\
         --logp "${logp_json}" \\
-        --output "${sample_id}_abundance.json"
+        --output "${sample_id}_abundance.json" \\
+        --estimator ${params.estimator} \\
+        --min-abundance ${params.min_abundance} \\
+        --tolerance ${params.vi_tolerance} \\
+        --max-iterations ${params.vi_max_iterations} \\
+        --alpha-prior ${params.alpha_prior} \\
+        --elbo-threshold ${params.vi_elbo_threshold} \\
+        ${params.credible_intervals ? '--credible-intervals' : ''}
     python_versions.py "${task.process}" > versions.yml
     """
 

@@ -79,6 +79,11 @@
           "minimum": 1,
           "description": "Maximum read length for FastpLong quality filter (bp)"
         },
+        "min_quality": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum mean read quality (Phred) for fastplong's quality filter. Off by default (length filter only)"
+        },
         "keep_counts": {
           "type": "boolean",
           "default": true,
@@ -88,6 +93,54 @@
           "type": "boolean",
           "default": false,
           "description": "Retain intermediate files (SAM alignments, filtered FASTQs) in output directory"
+        }
+      }
+    },
+    "inference_options": {
+      "title": "Inference options",
+      "type": "object",
+      "properties": {
+        "estimator": {
+          "type": "string",
+          "default": "vb",
+          "enum": ["vb", "em"],
+          "description": "Estimator: 'vb' (Bayesian variational inference, default) or 'em' (Emu-style expectation-maximization)"
+        },
+        "min_abundance": {
+          "type": "number",
+          "default": 0.001,
+          "minimum": 0,
+          "exclusiveMaximum": 1,
+          "description": "Lowest abundance reported. VB prunes species below max(1/R, min_abundance), or max(10/R, min_abundance) above 1,000 reads with an alignment (R)"
+        },
+        "vi_tolerance": {
+          "type": "number",
+          "default": 1e-7,
+          "exclusiveMinimum": 0,
+          "description": "VB only: CAVI stops when no posterior mean abundance changes by more than this between iterations"
+        },
+        "vi_max_iterations": {
+          "type": "integer",
+          "default": 1000,
+          "minimum": 1,
+          "description": "VB only: most CAVI iterations per pruning round"
+        },
+        "alpha_prior": {
+          "type": "number",
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "description": "VB only: total concentration of the symmetric Dirichlet prior (each species gets alpha_prior / S)"
+        },
+        "vi_elbo_threshold": {
+          "type": "number",
+          "default": 0.0001,
+          "exclusiveMinimum": 0,
+          "description": "EM only: the EM loop stops when the log-likelihood rises by less than this"
+        },
+        "credible_intervals": {
+          "type": "boolean",
+          "default": false,
+          "description": "Experimental, VB only: add ci_lower, ci_upper (95% mean-field interval) and shared_read_fraction columns. The intervals are too narrow for species that share reads"
         }
       }
     },
@@ -141,6 +194,7 @@
   "allOf": [
     { "$ref": "#/definitions/general_options" },
     { "$ref": "#/definitions/abundance_options" },
+    { "$ref": "#/definitions/inference_options" },
     { "$ref": "#/definitions/database_options" },
     { "$ref": "#/definitions/postprocessing_options" }
   ]

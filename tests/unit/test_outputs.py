@@ -151,6 +151,64 @@ class TestFreqToLineageDf:
         assert df['abundance'].sum() == pytest.approx(1.0)
 
 
+class TestIntervalColumns:
+    """Experimental ci_lower, ci_upper and shared_read_fraction columns (F20, D7)."""
+
+    POSTERIOR = {
+        '1': {'alpha': 60.2, 'expected_reads': 60.0, 'shared_reads': 6.0},
+        '2': {'alpha': 30.2, 'expected_reads': 30.0, 'shared_reads': 0.0},
+        '3': {'alpha': 10.2, 'expected_reads': 10.0, 'shared_reads': 5.0},
+    }
+
+    def write(self, tmp_path, taxonomy_df, freq, posterior):
+        return freq_to_lineage_df(freq, str(tmp_path / 'out'), taxonomy_df, 100, 7, counts=True,
+                                  posterior=posterior)
+
+    def test_columns_and_beta_quantiles(self, tmp_path):
+        from scipy.stats import beta
+        taxonomy_df = pd.DataFrame({
+            'tax_id': ['1', '2', '3'],
+            'species': ['Escherichia coli', 'Pseudomonas aeruginosa', 'Bacillus subtilis'],
+            'genus': ['Escherichia', 'Pseudomonas', 'Bacillus'],
+        }).set_index('tax_id')
+        total = 100.6
+        freq = {int(k): v['alpha'] / total for k, v in self.POSTERIOR.items()}
+        df = self.write(tmp_path, taxonomy_df, freq, self.POSTERIOR)
+        assert list(df.columns)[-4:] == ['estimated_counts', 'ci_lower', 'ci_upper', 'shared_read_fraction']
+        row = df.set_index('species').loc['Escherichia coli']
+        lower, upper = beta.ppf([0.025, 0.975], 60.2, total - 60.2)
+        assert row['ci_lower'] == pytest.approx(lower)
+        assert row['ci_upper'] == pytest.approx(upper)
+        assert row['ci_lower'] < row['abundance'] < row['ci_upper']
+        assert row['shared_read_fraction'] == pytest.approx(0.1)
+        assert df.set_index('species').loc['Pseudomonas aeruginosa', 'shared_read_fraction'] == 0.0
+        # Below detection and Unassigned rows are left empty
+        assert df.iloc[-2:][['ci_lower', 'ci_upper', 'shared_read_fraction']].isna().all().all()
+        written = pd.read_csv(tmp_path / 'out.tsv', sep='\t')
+        assert list(written.columns) == list(df.columns)
+
+    def test_tax_ids_sharing_a_species_name_add_their_alphas(self, tmp_path):
+        from scipy.stats import beta
+        taxonomy_df = pd.DataFrame({
+            'tax_id': ['1', '2', '3'],
+            'species': ['Escherichia coli A', 'Escherichia coli B', 'Bacillus subtilis'],
+            'genus': ['Escherichia', 'Escherichia', 'Bacillus'],
+        }).set_index('tax_id')
+        total = 100.6
+        freq = {int(k): v['alpha'] / total for k, v in self.POSTERIOR.items()}
+        df = self.write(tmp_path, taxonomy_df, freq, self.POSTERIOR).set_index('species')
+        lower, upper = beta.ppf([0.025, 0.975], 90.4, total - 90.4)
+        assert df.loc['Escherichia coli', 'abundance'] == pytest.approx(90.4 / total)
+        assert df.loc['Escherichia coli', 'ci_lower'] == pytest.approx(lower)
+        assert df.loc['Escherichia coli', 'ci_upper'] == pytest.approx(upper)
+        assert df.loc['Escherichia coli', 'shared_read_fraction'] == pytest.approx(6.0 / 90.0)
+
+    def test_no_interval_columns_without_posterior(self, tmp_path):
+        taxonomy_df = pd.DataFrame({'tax_id': ['1'], 'species': ['Escherichia coli']}).set_index('tax_id')
+        df = freq_to_lineage_df({1: 1.0}, str(tmp_path / 'out'), taxonomy_df, 10, 0, counts=True)
+        assert not set(['ci_lower', 'ci_upper', 'shared_read_fraction']) & set(df.columns)
+
+
 class TestLargestRemainder:
     @pytest.mark.parametrize('weights,total,expected', [
         ([0.5, 0.5], 10, [5, 5]),
