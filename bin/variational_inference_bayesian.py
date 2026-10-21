@@ -210,7 +210,7 @@ def compute_elbo(
     # Only sum over entries where phi > 0 (finite contributions)
     mask = phi > 0
     term1 = np.sum(
-        phi[mask] * (L[mask] + E_ln_pi[np.newaxis, :].repeat(L.shape[0], axis=0)[mask]
+        phi[mask] * (L[mask] + np.broadcast_to(E_ln_pi, L.shape)[mask]
                      - log_phi_safe[mask])
     )
 
@@ -278,10 +278,11 @@ def cavi_inner_loop(
     alpha = alpha_init.copy()
     mean = alpha / np.sum(alpha)
     prev_elbo = None
+    E_ln_pi = compute_dirichlet_expectation(alpha)
 
     for iteration in range(1, max_iterations + 1):
-        # Step 1: Compute Dirichlet expectations
-        E_ln_pi = compute_dirichlet_expectation(alpha)
+        # Step 1: Dirichlet expectations of the current α (E_ln_pi, computed
+        # before the loop or at the end of the previous iteration)
 
         # Step 2: Update responsibilities (E-step)
         phi = update_responsibilities(L, E_ln_pi)
