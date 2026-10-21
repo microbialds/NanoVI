@@ -27,6 +27,143 @@ nextflow_pipeline {
         }
     }
 
+    // Parameter checks (F13, F14): each error is raised before any process runs
+
+    test("build-database fails without --sequences") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                taxonomy_list = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("For build-database you must provide --sequences and --seq2tax") }
+        }
+    }
+
+    test("build-database fails without a taxonomy source") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                sequences     = "${projectDir}/tests/test_data/mock_db/species_taxid.fasta"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("For build-database provide exactly one of --taxonomy_list or --ncbi_taxonomy") }
+        }
+    }
+
+    test("build-database fails with both taxonomy sources") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                sequences     = "${projectDir}/tests/test_data/mock_db/species_taxid.fasta"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                taxonomy_list = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                ncbi_taxonomy = "${projectDir}/tests/test_data/mock_db"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("For build-database provide exactly one of --taxonomy_list or --ncbi_taxonomy") }
+        }
+    }
+
+    test("build-database runs with --ncbi_taxonomy") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                sequences     = "${projectDir}/tests/test_data/mock_db/species_taxid.fasta"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                ncbi_taxonomy = "${projectDir}/tests/test_data/mock_db"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.succeeded().size() == 1
+        }
+    }
+
+    test("collapse-taxonomy fails without --rank") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                cmd           = "collapse-taxonomy"
+                output_dir    = "${outputDir}"
+                input_tsv     = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("For collapse-taxonomy you must provide --rank (one of: species, genus, family, order, class, phylum, superkingdom)") }
+        }
+    }
+
+    test("collapse-taxonomy fails with an invalid --rank") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                cmd           = "collapse-taxonomy"
+                output_dir    = "${outputDir}"
+                input_tsv     = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                rank          = "strain"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("Invalid --rank 'strain' for collapse-taxonomy. Use one of: species, genus, family, order, class, phylum, superkingdom") }
+        }
+    }
+
+    test("combine-outputs fails with an invalid --rank") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                cmd           = "combine-outputs"
+                output_dir    = "${outputDir}"
+                input_dir     = "${projectDir}/tests/test_data/mock_db"
+                rank          = "Genus"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("Invalid --rank 'Genus' for combine-outputs. Use one of: species, genus, family, order, class, phylum, superkingdom") }
+        }
+    }
+
     // End-to-end test: runs fastplong, minimap2 and every Python step on the
     // e2e fixture (11 real 16S sequences, 600 simulated ONT-like reads in known
     // proportions plus 30 non-16S reads). See tests/test_data/e2e/README.md.

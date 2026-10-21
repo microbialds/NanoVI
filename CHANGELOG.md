@@ -20,6 +20,7 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 - `estimated_counts` uses largest-remainder rounding instead of truncation, so the assigned rows sum exactly to the number of assigned reads (F08).
 - The consolidated tables sum rows that share a species name instead of keeping the last one, take each species' taxonomy from its most common lineage across samples, and skip `otu_table_counts.tsv` with a warning when no sample has counts (`--keep_counts false`) instead of writing a table of zeros (F11).
 - `combine-outputs` stops with an error naming the file when a table lacks the rank or metric column (for example `--counts` on tables written without counts), writes 0 instead of a blank for taxa absent from a sample, and orders sample columns by file name (F12).
+- `build-database` stops early unless it gets `--sequences`, `--seq2tax` and exactly one of `--taxonomy_list` or `--ncbi_taxonomy`, and `--ncbi_taxonomy` now reaches the database builder (it was declared but never passed). `collapse-taxonomy` and `combine-outputs` check that `--rank` is given and is a valid rank (F13).
 
 ## [1.0.0] - 2026-06-27
 

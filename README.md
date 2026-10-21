@@ -105,7 +105,8 @@ A path to a directory containing FASTQ files. Sample IDs are inferred from filen
 | `--db_name` | `db_custom` | Name for the custom database |
 | `--sequences` | required | Input FASTA with reference sequences |
 | `--seq2tax` | required | Sequence-to-taxonomy mapping TSV |
-| `--taxonomy_list` | required | Taxonomy terms list TSV |
+| `--taxonomy_list` | one of these two | Taxonomy TSV with a `tax_id` column and one column per rank |
+| `--ncbi_taxonomy` | one of these two | NCBI taxonomy dump directory (`names.dmp`, `nodes.dmp`) |
 
 ### Post-Processing
 

@@ -346,6 +346,9 @@ def combine_outputs(dir_path, rank, split_files=False, count_table=False):
     Optionally splits the final output into separate "taxonomy" and "abundance" files,
     or includes 'estimated counts' instead of 'abundance'.
     """
+    if rank not in TAXONOMY_RANKS:
+        raise ValueError(f"Specified rank '{rank}' must be in: {TAXONOMY_RANKS}")
+
     # We'll keep columns from 'rank' onward
     keep_ranks = RANKS_ORDER[RANKS_ORDER.index(rank):]
     df_combined_full = pd.DataFrame(columns=keep_ranks, dtype=str)

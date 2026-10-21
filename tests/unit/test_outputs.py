@@ -303,6 +303,10 @@ class TestCombineOutputs:
         samples = [c for c in df.columns if c in {'A', 'B', 'C'}]
         assert samples == ['A', 'B', 'C']
 
+    def test_invalid_rank(self, two_samples):
+        with pytest.raises(ValueError, match="rank 'strain'"):
+            combine_outputs(str(two_samples), 'strain')
+
     def test_unassigned_row_combines(self, tmp_path, taxonomy_df):
         for name, unassigned in [('A', 5), ('B', 9)]:
             freq_to_lineage_df({'1': 0.5, '3': 0.5}, str(tmp_path / f'{name}_rel-abundance'),

@@ -75,11 +75,18 @@ workflow {
     else if (params.cmd == 'build-database') {
         if (!params.sequences || !params.seq2tax)
             error "For build-database you must provide --sequences and --seq2tax"
+        if (!params.taxonomy_list == !params.ncbi_taxonomy)
+            error "For build-database provide exactly one of --taxonomy_list or --ncbi_taxonomy"
+
+        // main.py takes the taxonomy source as --taxonomy-list <file> or --ncbi-taxonomy <dir>
+        def taxonomy_flag = params.taxonomy_list ? '--taxonomy-list' : '--ncbi-taxonomy'
+        def taxonomy_path = params.taxonomy_list ?: params.ncbi_taxonomy
 
         BUILD_DATABASE(
             channel.value(file(params.sequences)),
             channel.value(file(params.seq2tax)),
-            channel.value(file(params.taxonomy_list)),
+            channel.value(file(taxonomy_path)),
+            taxonomy_flag,
             bin_ch
         )
     }
@@ -88,6 +95,7 @@ workflow {
     else if (params.cmd == 'collapse-taxonomy') {
         if (!params.input_tsv)
             error "For collapse-taxonomy you must provide --input_tsv"
+        validateRank('collapse-taxonomy')
 
         COLLAPSE_TAXONOMY(
             channel.value(file(params.input_tsv)),
@@ -100,6 +108,7 @@ workflow {
     else if (params.cmd == 'combine-outputs') {
         if (!params.input_dir)
             error "For combine-outputs you must provide --input_dir"
+        validateRank('combine-outputs')
 
         COMBINE_OUTPUTS(
             channel.value(file(params.input_dir)),
@@ -114,7 +123,13 @@ workflow {
     }
 }
 
+// ─── HELPERS ────────────────────────────────────────────────────────────────
 
-
-
-
+// --rank must name a column of the per-sample tables
+def validateRank(cmd) {
+    def ranks = ['species', 'genus', 'family', 'order', 'class', 'phylum', 'superkingdom']
+    if (!params.rank)
+        error "For ${cmd} you must provide --rank (one of: ${ranks.join(', ')})"
+    if (!(params.rank in ranks))
+        error "Invalid --rank '${params.rank}' for ${cmd}. Use one of: ${ranks.join(', ')}"
+}
