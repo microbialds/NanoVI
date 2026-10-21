@@ -14,6 +14,7 @@ conf/params_private.config
 
 # Test 
 test_results/
+.nf-test/
 
 # large files
 *.mmi
@@ -41,3 +42,4 @@ __pycache__*
 CLAUDE.md
 CLAUDE.local.md
 .claude/
+internal_docs/

@@ -2,6 +2,18 @@
 
 All notable changes to the NanoVI pipeline will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- End-to-end test fixture in `tests/test_data/e2e/` (11 real 16S sequences, 600 simulated ONT-like reads in known proportions plus 30 non-16S reads) and an `e2e` nf-test that runs the real tools with Docker; CI runs it on pushes to `main`, `dev` and `roadmap/**` and on pull requests into `main` or `dev`.
+
+### Changed
+
+- `-profile test` now runs on the bundled e2e fixture instead of a `db/` directory that was not in the repository, and uses the pipeline's default k-mer size (21) instead of 27.
+- CI runs on pushes to `dev` and `roadmap/**` and on pull requests into `dev`.
+- README credits Emu (Curry et al., Nature Methods 2022) for the CIGAR-based read score, the EM loop and the database layout; Emu's MIT license is in `THIRD_PARTY_LICENSES`, and the adapted files name their origin.
+
 ## [1.0.0] - 2026-06-27
 
 ### Added

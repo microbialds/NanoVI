@@ -1,0 +1,40 @@
+Third-party licenses
+====================
+
+NanoVI includes code adapted from the software listed below. Each component's
+license applies to the portions derived from it; the rest of NanoVI is under
+the license in LICENSE.
+
+-------------------------------------------------------------------------------
+Emu
+-------------------------------------------------------------------------------
+
+Source:  https://github.com/treangenlab/emu (LICENSE.txt, commit 2470965)
+Paper:   Curry KD, Wang Q, Nute MG, et al. Emu: species-level microbial
+         community profiling of full-length 16S rRNA Oxford Nanopore
+         sequencing data. Nature Methods 19, 845-853 (2022).
+         doi:10.1038/s41592-022-01520-4
+Used in: bin/variational_inference.py, bin/taxonomy.py, bin/alignment.py,
+         bin/utils.py, bin/main.py (each file's header lists what is adapted)
+
+MIT License
+
+Copyright (c) 2021 Kristen Curry, Qi Wang, Michael G. Nute, Alona Tyshaieva, Qinglong Wu, Tor Savidge, Alexander Dilthey, Todd J. Treangen. 
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

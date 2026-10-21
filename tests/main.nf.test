@@ -6,12 +6,13 @@ nextflow_pipeline {
     // Smoke test: validates that the pipeline launches and all channels connect
     // correctly using stub execution (no real binaries or database required).
     test("Pipeline completes successfully in stub mode with test profile") {
+        tag "stub"
         options "-profile test -stub-run"
 
         when {
             params {
                 cmd          = "abundance"
-                input        = "${projectDir}/tests/test_data"
+                input        = "${projectDir}/tests/test_data/stub_reads"
                 output_dir   = "${outputDir}"
                 db           = "${projectDir}/tests/test_data/mock_db"
                 taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
@@ -23,6 +24,71 @@ nextflow_pipeline {
         then {
             assert workflow.success
             assert workflow.exitStatus == 0
+        }
+    }
+
+    // End-to-end test: runs fastplong, minimap2 and every Python step on the
+    // e2e fixture (11 real 16S sequences, 600 simulated ONT-like reads in known
+    // proportions plus 30 non-16S reads). See tests/test_data/e2e/README.md.
+    test("Pipeline recovers known proportions on the e2e fixture") {
+        tag "e2e"
+        options "-profile test,docker"
+
+        when {
+            params {
+                output_dir = "${outputDir}"
+            }
+        }
+
+        then {
+            assert workflow.success
+
+            def readTsv = { f ->
+                def lines = file(f).readLines().findAll { it }
+                def header = lines[0].split('\t', -1) as List
+                lines.drop(1).collect { line ->
+                    def cols = line.split('\t', -1) as List
+                    assert cols.size() == header.size()
+                    [header, cols].transpose().collectEntries { it }
+                }
+            }
+
+            def result = "${outputDir}/sample_outputs/e2e_mock_rel-abundance.tsv"
+            assert file(result).exists()
+            def rows = readTsv(result)
+            def expected = readTsv("${projectDir}/tests/test_data/e2e/expected.tsv")
+
+            // Assigned abundances sum to 1
+            def assigned = rows.findAll { it.species && it.species.toLowerCase() != 'unassigned' }
+            assert Math.abs(assigned.sum { it.abundance as double } - 1.0) < 1e-6
+
+            // Species at 10 % or more are present and within 5 percentage points
+            def observed = assigned.collectEntries { [(it.species): it.abundance as double] }
+            def inDb = expected.findAll { it.tax_id != 'NA' }
+            inDb.findAll { (it.expected_abundance as double) >= 0.10 }.each { exp ->
+                assert observed.containsKey(exp.species)
+                assert Math.abs(observed[exp.species] - (exp.expected_abundance as double)) <= 0.05
+            }
+
+            // Both members of each near-neighbour pair are reported (S. flexneri and
+            // S. mitis are 5 %), and no absent species reaches 1 %
+            inDb.findAll { (it.expected_abundance as double) > 0 }.each { exp ->
+                assert observed.containsKey(exp.species)
+            }
+            inDb.findAll { (it.expected_abundance as double) == 0 }.each { exp ->
+                assert (observed[exp.species] ?: 0.0) < 0.01
+            }
+
+            // TODO(F01): the Unassigned row is dropped by freq_to_lineage_df; enable in Phase 2.
+            // def nonRrna = expected.find { it.species == 'non-16S' }.simulated_reads as int
+            // def unassignedRow = rows.find { it.species == 'Unassigned' }
+            // assert unassignedRow != null
+            // assert (unassignedRow.estimated_counts as int) >= nonRrna
+
+            // Consolidated phyloseq tables
+            ['otu_table_abundance.tsv', 'otu_table_counts.tsv', 'tax_table.tsv', 'sample_metadata.tsv'].each { t ->
+                assert file("${outputDir}/consolidated_output/${t}").exists()
+            }
         }
     }
 }

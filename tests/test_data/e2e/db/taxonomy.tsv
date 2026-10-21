@@ -1,0 +1,12 @@
+tax_id	species	genus	family	order	class	phylum	superkingdom
+1	Bacillus subtilis	Bacillus	Bacillaceae	Bacillales	Bacilli	Bacillota	Bacteria
+2	Enterococcus faecalis	Enterococcus	Enterococcaceae	Lactobacillales	Bacilli	Bacillota	Bacteria
+3	Escherichia coli	Escherichia	Enterobacteriaceae	Enterobacterales	Gammaproteobacteria	Pseudomonadota	Bacteria
+4	Limosilactobacillus fermentum	Limosilactobacillus	Lactobacillaceae	Lactobacillales	Bacilli	Bacillota	Bacteria
+5	Listeria monocytogenes	Listeria	Listeriaceae	Bacillales	Bacilli	Bacillota	Bacteria
+6	Pseudomonas aeruginosa	Pseudomonas	Pseudomonadaceae	Pseudomonadales	Gammaproteobacteria	Pseudomonadota	Bacteria
+7	Salmonella enterica	Salmonella	Enterobacteriaceae	Enterobacterales	Gammaproteobacteria	Pseudomonadota	Bacteria
+8	Shigella flexneri	Shigella	Enterobacteriaceae	Enterobacterales	Gammaproteobacteria	Pseudomonadota	Bacteria
+9	Staphylococcus aureus	Staphylococcus	Staphylococcaceae	Bacillales	Bacilli	Bacillota	Bacteria
+10	Streptococcus mitis	Streptococcus	Streptococcaceae	Lactobacillales	Bacilli	Bacillota	Bacteria
+11	Streptococcus pneumoniae	Streptococcus	Streptococcaceae	Lactobacillales	Bacilli	Bacillota	Bacteria

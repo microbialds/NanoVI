@@ -1,3 +1,9 @@
+# Portions of this file are adapted from Emu (https://github.com/treangenlab/emu),
+# Copyright (c) 2021 Kristen Curry, Qi Wang, Michael G. Nute, Alona Tyshaieva,
+# Qinglong Wu, Tor Savidge, Alexander Dilthey, Todd J. Treangen. MIT License;
+# see THIRD_PARTY_LICENSES for the full text.
+# Adapted here: validate_input.
+
 """
 General utility functions for NanoVI.
 

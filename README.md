@@ -219,16 +219,29 @@ NanoVI includes a test suite covering the core algorithmic components and pipeli
 
 **Unit tests** (no database required):
 ```bash
-pip install pytest
+pip install -r containers/requirements.txt pytest
 pytest tests/unit/ -v
 ```
 
-**Pipeline integration test** (nf-test, stub mode — no database required):
+**Pipeline tests** (nf-test):
 ```bash
-nf-test test tests/main.nf.test
+nf-test test tests/main.nf.test --tag stub   # stub mode: checks the wiring, no tools or database needed
+nf-test test tests/main.nf.test --tag e2e    # real tools with Docker on the fixture in tests/test_data/e2e
 ```
 
-Continuous integration runs both test suites automatically on every pull request via GitHub Actions. The Docker image is built and published to `ghcr.io/microbialds/nanovi-python` on every merge to `main`.
+The e2e fixture is a small real 16S database with simulated reads in known proportions; see [tests/test_data/e2e/README.md](tests/test_data/e2e/README.md). `-profile test,docker` runs the pipeline on the same fixture (`-profile test` on its own sets no container engine).
+
+Continuous integration runs the unit tests and both nf-test tags on every push to `main`, `dev` and `roadmap/**` branches and on every pull request into `main` or `dev`, via GitHub Actions. The Docker image is built and published to `ghcr.io/microbialds/nanovi-python` on every merge to `main`.
+
+## Credits
+
+NanoVI builds on Emu (Curry KD, Wang Q, Nute MG, et al. Emu: species-level microbial community profiling of full-length 16S rRNA Oxford Nanopore sequencing data. *Nature Methods* 19, 845–853 (2022). [doi:10.1038/s41592-022-01520-4](https://doi.org/10.1038/s41592-022-01520-4); [github.com/treangenlab/emu](https://github.com/treangenlab/emu)). Parts of NanoVI's Python code are adapted from Emu's source:
+
+- **The CIGAR-based read score.** The log-likelihood of a read under each candidate species is Emu's: insertion, deletion, soft-clip and mismatch rates are estimated from the sample's own alignments, and each alignment is scored from its CIGAR counts, scaled by the length of the read's longest alignment (`bin/variational_inference.py`).
+- **The EM loop.** The expectation-maximization loop with pruning of low-abundance species in `bin/variational_inference.py` follows Emu's. The estimator the pipeline runs, the Bayesian variational inference in `bin/variational_inference_bayesian.py`, is NanoVI's own: it places a Dirichlet prior on the species frequencies and estimates their posterior instead of a point estimate.
+- **The database layout.** A `species_taxid.fasta` with `taxid:db_name:n` headers plus a `taxonomy.tsv` lineage table, the build-database helpers, the per-sample output table and the collapse-taxonomy and combine-outputs commands follow Emu (`bin/taxonomy.py`, `bin/main.py`, `bin/alignment.py`, `bin/utils.py`).
+
+Emu is distributed under the MIT License, Copyright (c) 2021 Kristen Curry, Qi Wang, Michael G. Nute, Alona Tyshaieva, Qinglong Wu, Tor Savidge, Alexander Dilthey, Todd J. Treangen. Its full license text is in [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES), and each file with adapted code names its origin in its header. If you use NanoVI, please cite Emu as well.
 
 ## Citation
 
@@ -238,5 +251,5 @@ If you use NanoVI in your research, please cite:
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details. Code adapted from Emu remains under Emu's MIT License; see [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES).
 

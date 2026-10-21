@@ -1,3 +1,14 @@
+# Portions of this file are adapted from Emu (https://github.com/treangenlab/emu),
+# Copyright (c) 2021 Kristen Curry, Qi Wang, Michael G. Nute, Alona Tyshaieva,
+# Qinglong Wu, Tor Savidge, Alexander Dilthey, Todd J. Treangen. MIT License;
+# see THIRD_PARTY_LICENSES for the full text.
+# Adapted here: get_align_stats, get_align_len,
+# get_cigar_op_log_probabilities, compute_log_prob_rgs and log_prob_rgs_dict (Emu's
+# CIGAR-based read score); variational_inference, update_q_distribution,
+# maximize_elbo and variational_inference_iterations (Emu's EM loop,
+# expectation_maximization and expectation_maximization_iterations);
+# output_read_assignments.
+
 """
 Variational inference engine for NanoVI taxonomic classification.
 
