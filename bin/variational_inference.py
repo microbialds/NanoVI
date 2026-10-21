@@ -96,46 +96,38 @@ def compute_log_prob_rgs(alignment, cigar_stats, log_p_cigar_op, dict_longest_al
     return log_score, query_name, species_tid
 
 def log_prob_rgs_dict(sam_path, log_p_cigar_op, dict_longest_align, p_cigar_op_zero_locs=None):
-    """Build dict mapping read_name -> (species_ids, log_scores) from SAM alignments."""
-    log_p_rgs, unassigned_set = {}, set()
-    sam_filename = pysam.AlignmentFile(sam_path, 'rb')
+    """Build dict mapping read_name -> (species_ids, log_scores) from SAM alignments.
 
-    if not p_cigar_op_zero_locs:
-        for alignment in sam_filename.fetch():
+    Each species keeps the best score among the read's alignments to it. An
+    alignment that uses an operation with no count in the error profile
+    (p_cigar_op_zero_locs) has no score and is skipped; its read counts as
+    unassigned unless another alignment of the read is scored (F10).
+    """
+    zero_locs = sorted(p_cigar_op_zero_locs or [], reverse=True)
+    log_p_rgs, unassigned_set = {}, set()
+
+    with pysam.AlignmentFile(sam_path) as sam_pysam:
+        for alignment in sam_pysam:
             align_len = get_align_len(alignment)
-            if alignment.reference_name and align_len:
-                cigar_stats = get_align_stats(alignment)
-                log_score, query_name, species_tid = compute_log_prob_rgs(alignment, cigar_stats, log_p_cigar_op, dict_longest_align, align_len)
-                if query_name not in log_p_rgs:
-                    log_p_rgs[query_name] = ([species_tid], [log_score])
-                elif query_name in log_p_rgs:
-                    if species_tid not in log_p_rgs[query_name][0]:
-                        log_p_rgs[query_name] = (log_p_rgs[query_name][0] + [species_tid], log_p_rgs[query_name][1] + [log_score])
-                    else:
-                        logprgs_idx = log_p_rgs[query_name][0].index(species_tid)
-                        if log_p_rgs[query_name][1][logprgs_idx] < log_score:
-                            log_p_rgs[query_name][1][logprgs_idx] = log_score
-            else:
+            if not (alignment.reference_name and align_len):
                 unassigned_set.add(alignment.query_name)
-    else:
-        for alignment in sam_filename.fetch():
-            align_len = get_align_len(alignment)
-            if alignment.reference_name and align_len:
-                cigar_stats = get_align_stats(alignment)
-                if sum(cigar_stats[x] for x in p_cigar_op_zero_locs) == 0:
-                    for i in sorted(p_cigar_op_zero_locs, reverse=True):
-                        del cigar_stats[i]
-                    log_score, query_name, species_tid = compute_log_prob_rgs(alignment, cigar_stats, log_p_cigar_op, dict_longest_align, align_len)
-                    if query_name not in log_p_rgs:
-                        log_p_rgs[query_name] = ([species_tid], [log_score])
-                    elif query_name in log_p_rgs and species_tid not in log_p_rgs[query_name][0]:
-                        log_p_rgs[query_name] = (log_p_rgs[query_name][0] + [species_tid], log_p_rgs[query_name][1] + [log_score])
-                    else:
-                        logprgs_idx = log_p_rgs[query_name][0].index(species_tid)
-                        if log_p_rgs[query_name][1][logprgs_idx] < log_score:
-                            log_p_rgs[query_name][1][logprgs_idx] = log_score
-            else:
+                continue
+            cigar_stats = get_align_stats(alignment)
+            if any(cigar_stats[i] for i in zero_locs):
                 unassigned_set.add(alignment.query_name)
+                continue
+            for i in zero_locs:
+                del cigar_stats[i]
+            log_score, query_name, species_tid = compute_log_prob_rgs(alignment, cigar_stats, log_p_cigar_op, dict_longest_align, align_len)
+            if query_name not in log_p_rgs:
+                log_p_rgs[query_name] = ([species_tid], [log_score])
+            elif species_tid not in log_p_rgs[query_name][0]:
+                log_p_rgs[query_name][0].append(species_tid)
+                log_p_rgs[query_name][1].append(log_score)
+            else:
+                logprgs_idx = log_p_rgs[query_name][0].index(species_tid)
+                if log_p_rgs[query_name][1][logprgs_idx] < log_score:
+                    log_p_rgs[query_name][1][logprgs_idx] = log_score
 
     assigned_reads = set(log_p_rgs.keys())
     unassigned_reads = unassigned_set - assigned_reads

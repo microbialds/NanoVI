@@ -24,6 +24,7 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 - `build-database` stops early unless it gets `--sequences`, `--seq2tax` and exactly one of `--taxonomy_list` or `--ncbi_taxonomy`, and `--ncbi_taxonomy` now reaches the database builder (it was declared but never passed). `collapse-taxonomy` and `combine-outputs` check that `--rank` is given and is a valid rank (F13).
 - Directory input removes only the FASTQ extension to make sample IDs (`S1.run1.fastq.gz` was `S1`, now `S1.run1`), and stops with a list of the files when two of them give the same ID instead of merging their results, or when an ID has characters other than letters, digits, `.`, `_` and `-` (F14).
 - The CIGAR statistics step reads the SAM once in a single streaming pass instead of handing every alignment to a multiprocessing pool that only added up lists (F25). It no longer crashes when a sample has fewer alignments than CPUs (including an empty SAM), keeps each read's longest alignment over all of its alignments instead of the value from the last chunk that saw the read, and stops with a clear error when the SAM has no mapped alignment (F04). Its CPU count no longer matters.
+- An alignment that uses an operation absent from the error profile (now possible, since the profile comes from primary alignments only) is skipped as before, but its read is counted as unassigned when it has no other scored alignment instead of disappearing from the totals (F10).
 
 ## [1.0.0] - 2026-06-27
 

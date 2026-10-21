@@ -115,3 +115,49 @@ class TestGetCigarOpLogProbabilities:
         sam = write_sam(tmp_path / 'p.sam', [('r1', PRIMARY, REFS[0], '100M', 0)])
         with pytest.raises(ValueError, match='error profile'):
             get_cigar_op_log_probabilities(sam, 1)
+
+
+class TestLogProbRgsDict:
+    LOG_P = [math.log(0.2), math.log(0.3), math.log(0.1), math.log(0.4)]
+
+    def score(self, stats, longest, align_len, log_p=None):
+        log_p = self.LOG_P if log_p is None else log_p
+        return sum(lp * n for lp, n in zip(log_p, stats)) * longest / align_len
+
+    def test_scores_and_best_alignment_per_species(self, tmp_path):
+        sam = write_sam(tmp_path / 'a.sam', [
+            ('r1', PRIMARY, REFS[0], '100M2I', 3),       # I 2, X 1
+            ('r1', SECONDARY, REFS[1], '100M1D', 4),     # D 1, X 3
+            ('r1', SECONDARY, REFS[1], '100M', 6),       # X 6: worse, same species
+            ('r2', UNMAPPED, None, None, 0),
+        ])
+        longest = {'r1': 102, 'r2': 0}
+        log_p_rgs, unassigned, assigned = log_prob_rgs_dict(sam, self.LOG_P, longest, [])
+        assert assigned == 1 and unassigned == 1
+        sids, scores = log_p_rgs['r1']
+        assert sids == [1, 2]
+        assert scores == pytest.approx([
+            self.score([2, 0, 0, 1], 102, 102),
+            self.score([0, 1, 0, 3], 102, 101),
+        ])
+
+    def test_zero_locs_none_and_empty_agree(self, tmp_path):
+        sam = write_sam(tmp_path / 'a.sam', [('r1', PRIMARY, REFS[0], '100M2I', 3)])
+        longest = {'r1': 102}
+        assert log_prob_rgs_dict(sam, self.LOG_P, longest) == log_prob_rgs_dict(sam, self.LOG_P, longest, [])
+
+    def test_alignment_using_a_zero_count_operation(self, tmp_path):
+        # F10: the profile has no deletions (zero_locs [1]). r1's only alignment
+        # has a deletion, so r1 is unassigned; r2 keeps its other alignment.
+        sam = write_sam(tmp_path / 'a.sam', [
+            ('r1', PRIMARY, REFS[0], '100M1D', 2),
+            ('r2', PRIMARY, REFS[1], '100M2I', 3),
+            ('r2', SECONDARY, REFS[2], '100M1D', 1),
+        ])
+        log_p = [math.log(0.3), math.log(0.2), math.log(0.5)]  # I, S, X
+        longest = {'r1': 101, 'r2': 102}
+        log_p_rgs, unassigned, assigned = log_prob_rgs_dict(sam, log_p, longest, [1])
+        assert set(log_p_rgs) == {'r2'}
+        assert log_p_rgs['r2'][0] == [2]
+        assert log_p_rgs['r2'][1] == pytest.approx([self.score([2, 0, 1], 102, 102, log_p)])
+        assert assigned == 1 and unassigned == 1
