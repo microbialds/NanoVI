@@ -3,7 +3,7 @@
 Covers freq_to_lineage_df and combine_outputs (bin/taxonomy.py),
 build_consolidated_tables (bin/generate_phyloseq_tables.py) and the parsers
 and builder in bin/build_gtdb_db.py. Tests marked xfail describe known bugs
-(F11, F12) and are expected to pass once those are fixed.
+(F12) and are expected to pass once those are fixed.
 """
 import gzip
 import os
@@ -197,7 +197,6 @@ class TestBuildConsolidatedTables:
         assert name == 'S9'
         assert df['abundance'].dtype == float
 
-    @pytest.mark.xfail(strict=True, reason='F11: duplicate species in one sample overwrite instead of summing')
     def test_duplicate_species_are_summed(self):
         s1 = sample([['Bacillus cereus', 0.3] + lineage('Bacillus') + [30],
                      ['Bacillus cereus', 0.2] + lineage('Bacillus', family='Other') + [20],
@@ -205,6 +204,45 @@ class TestBuildConsolidatedTables:
         otu_abund, otu_counts, _, _ = build_consolidated_tables([('S1', s1)])
         assert otu_abund.loc['Bacillus cereus', 'S1'] == pytest.approx(0.5)
         assert otu_counts.loc['Bacillus cereus', 'S1'] == 50
+
+    def test_taxonomy_is_most_common_lineage(self):
+        s1 = sample([['Bacillus cereus', 1.0] + lineage('Bacillus', family='Rare') + [10]])
+        s2 = sample([['Bacillus cereus', 1.0] + lineage('Bacillus', family='Common') + [10]])
+        s3 = sample([['Bacillus cereus', 1.0] + lineage('Bacillus', family='Common') + [10]])
+        _, _, tax, _ = build_consolidated_tables([('S1', s1), ('S2', s2), ('S3', s3)])
+        assert tax.loc['Bacillus cereus', 'family'] == 'Common'
+
+    def test_tied_lineages_keep_the_first(self):
+        s1 = sample([['Bacillus cereus', 1.0] + lineage('Bacillus', family='First') + [10]])
+        s2 = sample([['Bacillus cereus', 1.0] + lineage('Bacillus', family='Second') + [10]])
+        _, _, tax, _ = build_consolidated_tables([('S1', s1), ('S2', s2)])
+        assert tax.loc['Bacillus cereus', 'family'] == 'First'
+
+    def test_no_counts_table_without_estimated_counts(self):
+        s1 = sample([['Escherichia coli', 1.0] + lineage('Escherichia')], counts=False)
+        otu_abund, otu_counts, _, meta = build_consolidated_tables([('S1', s1)])
+        assert otu_counts is None
+        assert otu_abund.loc['Escherichia coli', 'S1'] == 1.0
+        assert meta.loc['S1', 'assigned_counts'] == 0
+
+    def test_samples_without_counts_are_zero_with_warning(self, capsys):
+        s1 = sample([['Escherichia coli', 1.0] + lineage('Escherichia') + [40]])
+        s2 = sample([['Escherichia coli', 1.0] + lineage('Escherichia')], counts=False)
+        _, otu_counts, _, _ = build_consolidated_tables([('S1', s1), ('S2', s2)])
+        assert otu_counts.loc['Escherichia coli', 'S1'] == 40
+        assert otu_counts.loc['Escherichia coli', 'S2'] == 0
+        assert 'no estimated_counts column in S2' in capsys.readouterr().err
+
+    def test_cli_skips_counts_table_without_counts(self, tmp_path, monkeypatch, capsys):
+        import generate_phyloseq_tables
+        path = tmp_path / 'S1_rel-abundance.tsv'
+        write_sample(path, [['Escherichia coli', 1.0] + lineage('Escherichia')], counts=False)
+        out = tmp_path / 'out'
+        monkeypatch.setattr(sys, 'argv', ['generate_phyloseq_tables.py', str(path), '--output-dir', str(out)])
+        generate_phyloseq_tables.main()
+        assert sorted(p.name for p in out.iterdir()) == [
+            'otu_table_abundance.tsv', 'sample_metadata.tsv', 'tax_table.tsv']
+        assert 'otu_table_counts.tsv not written' in capsys.readouterr().err
 
 
 # ─── combine_outputs ─────────────────────────────────────────────────────────
