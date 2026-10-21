@@ -354,7 +354,8 @@ def combine_outputs(dir_path, rank, split_files=False, count_table=False):
     if count_table:
         metric = 'estimated_counts'
 
-    for file in os.listdir(dir_path):
+    sample_names = []
+    for file in sorted(os.listdir(dir_path)):
         file_path = os.path.join(dir_path, file)
         file_extension = pathlib.Path(file).suffix
         if file_extension == '.tsv' and 'rel-abundance' in file:
@@ -362,20 +363,24 @@ def combine_outputs(dir_path, rank, split_files=False, count_table=False):
             name = name.replace('_rel-abundance', '')
             df_sample = pd.read_csv(file_path, sep='\t', dtype=str)
 
+            for col in (rank, metric):
+                if col not in df_sample.columns:
+                    hint = " (was it written with --keep_counts?)" if col == 'estimated_counts' else ""
+                    raise ValueError(f"Column '{col}' not found in {file_path}{hint}")
+
             # Convert metric to numeric
             df_sample[metric] = pd.to_numeric(df_sample[metric], errors='coerce').fillna(0)
 
-            if rank in df_sample.columns and metric in df_sample.columns:
-                keep_ranks_sample = [r for r in keep_ranks if r in df_sample.columns]
+            keep_ranks_sample = [r for r in keep_ranks if r in df_sample.columns]
+            df_sample[keep_ranks_sample] = df_sample[keep_ranks_sample].fillna('')
 
-                # If last row is 'unassigned' in 'tax_id', you might handle that,
-                # but it doesn't look like you're merging 'tax_id' here, so skip?
+            df_sample_reduced = df_sample[keep_ranks_sample + [metric]].rename(columns={metric: name})
+            df_sample_reduced = df_sample_reduced.groupby(keep_ranks_sample, dropna=False).sum().reset_index()
+            df_combined_full = pd.merge(df_combined_full, df_sample_reduced, how='outer')
+            sample_names.append(name)
 
-                df_sample_reduced = df_sample[keep_ranks_sample + [metric]].rename(columns={metric: name})
-                df_sample_reduced = df_sample_reduced.groupby(keep_ranks_sample, dropna=False).sum().reset_index()
-                # Convert new column to numeric
-                df_sample_reduced[name] = pd.to_numeric(df_sample_reduced[name], errors='coerce').fillna(0)
-                df_combined_full = pd.merge(df_combined_full, df_sample_reduced, how='outer')
+    # Taxa absent from a sample are 0, not blank
+    df_combined_full[sample_names] = df_combined_full[sample_names].fillna(0)
 
     # Sort the combined table by the rank col
     if rank in df_combined_full.columns:

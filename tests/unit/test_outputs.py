@@ -2,8 +2,8 @@
 
 Covers freq_to_lineage_df and combine_outputs (bin/taxonomy.py),
 build_consolidated_tables (bin/generate_phyloseq_tables.py) and the parsers
-and builder in bin/build_gtdb_db.py. Tests marked xfail describe known bugs
-(F12) and are expected to pass once those are fixed.
+and builder in bin/build_gtdb_db.py. The tests for F01, F11 and F12
+were strict xfails until those bugs were fixed.
 """
 import gzip
 import os
@@ -280,21 +280,19 @@ class TestCombineOutputs:
         df = combine_outputs(str(two_samples), 'genus')
         assert 'notes' not in df.columns
 
-    @pytest.mark.xfail(strict=True, reason='F12: --counts on tables without estimated_counts raises a bare KeyError')
     def test_missing_metric_column_names_the_file(self, tmp_path):
         write_sample(tmp_path / 'C_rel-abundance.tsv',
                      [['Escherichia coli', 1.0] + lineage('Escherichia')], counts=False)
-        with pytest.raises(Exception) as excinfo:
+        with pytest.raises(ValueError) as excinfo:
             combine_outputs(str(tmp_path), 'species', count_table=True)
         assert 'C_rel-abundance.tsv' in str(excinfo.value)
+        assert 'estimated_counts' in str(excinfo.value)
 
-    @pytest.mark.xfail(strict=True, reason='F12: taxa absent from a sample are left blank instead of 0')
     def test_absent_taxa_are_zero(self, two_samples):
         df = combine_outputs(str(two_samples), 'genus')
         value = df.set_index('genus').loc['Staphylococcus', 'B']
         assert not pd.isna(value) and float(value) == 0.0
 
-    @pytest.mark.xfail(strict=True, reason='F12: files are read in os.listdir order, so sample columns are not sorted')
     def test_sample_columns_sorted(self, tmp_path, monkeypatch):
         for name in ['C', 'A', 'B']:
             write_sample(tmp_path / f'{name}_rel-abundance.tsv',
@@ -304,6 +302,14 @@ class TestCombineOutputs:
         df = combine_outputs(str(tmp_path), 'genus')
         samples = [c for c in df.columns if c in {'A', 'B', 'C'}]
         assert samples == ['A', 'B', 'C']
+
+    def test_unassigned_row_combines(self, tmp_path, taxonomy_df):
+        for name, unassigned in [('A', 5), ('B', 9)]:
+            freq_to_lineage_df({'1': 0.5, '3': 0.5}, str(tmp_path / f'{name}_rel-abundance'),
+                               taxonomy_df, 100, unassigned, counts=True)
+        df = combine_outputs(str(tmp_path), 'species', count_table=True).set_index('species')
+        assert list(df.loc['Unassigned', ['A', 'B']].astype(float)) == [5, 9]
+        assert list(df.loc['Escherichia coli', ['A', 'B']].astype(float)) == [50, 50]
 
 
 # ─── build_gtdb_db ───────────────────────────────────────────────────────────
