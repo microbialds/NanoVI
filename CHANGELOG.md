@@ -23,6 +23,11 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 - The Bayesian VI's inner loop stops when the largest change in any species' posterior mean abundance is below 1e-7 (at most 1,000 iterations) instead of on a relative ELBO change of 5e-4, which stopped large samples after a couple of iterations, before minor species had settled. The ELBO is still computed and a warning is printed if it falls. Abundances move slightly (F05).
 - The Bayesian VI's pruning loop stops only when no species is below the pruning threshold. It no longer stops on an ELBO comparison between different species sets, which could leave species below the threshold in the output, and each round starts from the previous solution instead of from uniform. After the last allowed round (10) it fits the pruned set once more and warns if species are still below the threshold (F07).
 
+### Removed
+
+- The standalone `abundance` subcommand of `bin/main.py`, with `bin/alignment.py` and `bin/utils.py` (decision D1). It could not produce results (its tax IDs were strings, so no read matched a species), used its own defaults (k-mer size 27, fastplong's quality filter on) and wrote the minimap2 index into the database directory. Abundance estimation runs only through the Nextflow pipeline; `bin/main.py` keeps `build-database`, `collapse-taxonomy` and `combine-outputs` (F02, F39).
+- `output_read_assignments`, which nothing called and which would have failed (it used pandas without importing it) (F09).
+
 ### Fixed
 
 - `-profile conda` works: every process declares its conda packages (fastplong 0.2.2 and minimap2 2.24 from bioconda, the same builds as the containers), and the Python steps use `containers/environment.yml`, which pins the image's Python and package versions (it replaces the top-level `environment.yml`, which pinned Python 3.8 and lacked fastplong and scipy). Before, no process declared a conda environment, so the profile ran every tool from the host PATH. On the e2e fixture the conda run gives the same tables as Docker, and CI runs the e2e test with `-profile conda` (through micromamba) as well as with Docker (F31).

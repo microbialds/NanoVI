@@ -16,7 +16,7 @@ process GET_CIGAR {
     python3 -c '
 import sys, json
 sys.path.insert(0, "${bin_dir}")
-from variational_inference import get_cigar_op_log_probabilities
+from likelihood import get_cigar_op_log_probabilities
 
 log_probs, zero_locs, longest_align = get_cigar_op_log_probabilities("${sam_file}", ${task.cpus})
 

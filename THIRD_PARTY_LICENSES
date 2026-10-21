@@ -14,8 +14,8 @@ Paper:   Curry KD, Wang Q, Nute MG, et al. Emu: species-level microbial
          community profiling of full-length 16S rRNA Oxford Nanopore
          sequencing data. Nature Methods 19, 845-853 (2022).
          doi:10.1038/s41592-022-01520-4
-Used in: bin/variational_inference.py, bin/taxonomy.py, bin/alignment.py,
-         bin/utils.py, bin/main.py (each file's header lists what is adapted)
+Used in: bin/likelihood.py, bin/em_estimator.py, bin/taxonomy.py,
+         bin/main.py (each file's header lists what is adapted)
 
 MIT License
 

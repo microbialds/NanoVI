@@ -1,4 +1,4 @@
-"""Unit tests for the SAM-reading functions in bin/variational_inference.py.
+"""Unit tests for the SAM-reading functions in bin/likelihood.py.
 
 get_cigar_op_log_probabilities (GET_CIGAR) and log_prob_rgs_dict (COMPUTE_LOGP)
 are run on small SAM files written with pysam in tmp_path.
@@ -11,7 +11,7 @@ import pysam
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'bin'))
-from variational_inference import get_cigar_op_log_probabilities, log_prob_rgs_dict
+from likelihood import get_cigar_op_log_probabilities, log_prob_rgs_dict
 
 REFS = ('1:Species_one:1', '2:Species_two:1', '3:Species_three:1')
 PRIMARY, UNMAPPED, SECONDARY, SUPPLEMENTARY = 0, 4, 256, 2048
