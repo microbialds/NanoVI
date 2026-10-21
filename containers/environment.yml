@@ -1,0 +1,13 @@
+# Conda environment for the Python steps (-profile conda); the same versions as
+# containers/requirements.txt, which the Docker and Singularity images install
+name: nanovi-python
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - numpy=2.4.6
+  - pandas=3.0.6
+  - scipy=1.17.1
+  - pysam=0.24.1
+  - biopython=1.88

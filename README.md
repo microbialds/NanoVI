@@ -136,7 +136,7 @@ The pipeline produces the following output files in `--output_dir`:
 |---------|-------------|
 | `docker` | Run with Docker containers (default if no profile specified) |
 | `singularity` | Run with Singularity containers |
-| `conda` | Run with Conda environments |
+| `conda` | Run with Conda environments: fastplong 0.2.2 and minimap2 2.24 from bioconda, and `containers/environment.yml` (the image's Python and package versions) for the Python steps. Creating the environments with conda's classic solver can take a long time; a recent conda (libmamba solver) or `-c` with `conda.useMicromamba = true` is much faster |
 | `slurm` | Submit jobs to SLURM scheduler (uses Singularity) |
 | `sge` | Submit jobs to SGE scheduler (uses Singularity) |
 | `test` | Minimal test dataset with reduced resources |
