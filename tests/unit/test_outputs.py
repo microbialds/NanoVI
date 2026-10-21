@@ -105,6 +105,15 @@ class TestFreqToLineageDf:
         df = freq_to_lineage_df({'1': 1.0}, str(tmp_path / 's'), taxonomy_df, 100, 7, counts=False)
         assert list(df['species']) == ['Escherichia coli', 'Unassigned']
 
+    def test_placeholder_rows_get_their_label_as_ranks(self, tmp_path, taxonomy_df):
+        taxonomy_df.loc['3', 'species'] = np.nan
+        df = freq_to_lineage_df({'1': 0.4, '3': 0.3, '99': 0.3}, str(tmp_path / 's'), taxonomy_df, 100, 5)
+        rows = df.set_index('species')
+        assert (rows.loc['Unassigned', RANKS] == 'Unassigned').all()
+        assert (rows.loc['Unknown taxid 99', RANKS] == 'Unknown taxid 99').all()
+        assert rows.loc['Unknown taxid 3', 'genus'] == 'Staphylococcus'
+        assert rows.loc['Escherichia coli', 'genus'] == 'Escherichia'
+
     def test_taxid_missing_from_taxonomy_kept(self, tmp_path, taxonomy_df, capsys):
         df = freq_to_lineage_df({'1': 0.6, '99': 0.4}, str(tmp_path / 's'), taxonomy_df, 100, 0)
         assert df['abundance'].sum() == pytest.approx(1.0)

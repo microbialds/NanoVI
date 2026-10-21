@@ -18,8 +18,9 @@ from pathlib import Path
 
 import pandas as pd
 
+from taxonomy import TAXONOMY_RANKS as ALL_RANKS, UNASSIGNED_LABEL
 
-TAXONOMY_RANKS = ["genus", "family", "order", "class", "phylum", "superkingdom"]
+TAXONOMY_RANKS = ALL_RANKS[1:]  # ranks above species
 
 
 def parse_sample_file(filepath):
@@ -74,8 +75,8 @@ def build_consolidated_tables(sample_data):
             # WRITE_OUTPUT writes unassigned reads as a row named 'Unassigned' (F01);
             # older tables without a species name map to the same row
             species = str(row.get("species", "")).strip()
-            if not species or species == "nan" or species.lower() == "unassigned":
-                species = "Unassigned"
+            if not species or species == "nan" or species.lower() == UNASSIGNED_LABEL.lower():
+                species = UNASSIGNED_LABEL
 
             # Collect abundance, summing rows that share a species name
             abund_val = float(row.get("abundance", 0.0))
@@ -89,7 +90,7 @@ def build_consolidated_tables(sample_data):
                 sample_counts[sample_name] = sample_counts.get(sample_name, 0) + count_val
 
             # Tally lineages; the most common one is used for the taxonomy table
-            if species != "Unassigned":
+            if species != UNASSIGNED_LABEL:
                 lineage = []
                 for rank in TAXONOMY_RANKS:
                     val = str(row.get(rank, "")).strip()
@@ -101,21 +102,21 @@ def build_consolidated_tables(sample_data):
         taxa_detected = sum(
             1
             for sp, vals in abundance_dict.items()
-            if vals.get(sample_name, 0) > 0 and sp != "Unassigned"
+            if vals.get(sample_name, 0) > 0 and sp != UNASSIGNED_LABEL
         )
         total_abundance = sum(
             vals.get(sample_name, 0)
             for sp, vals in abundance_dict.items()
-            if sp != "Unassigned"
+            if sp != UNASSIGNED_LABEL
         )
 
         if has_counts:
             assigned_counts = sum(
                 vals.get(sample_name, 0)
                 for sp, vals in counts_dict.items()
-                if sp != "Unassigned"
+                if sp != UNASSIGNED_LABEL
             )
-            unassigned_counts = counts_dict.get("Unassigned", {}).get(sample_name, 0)
+            unassigned_counts = counts_dict.get(UNASSIGNED_LABEL, {}).get(sample_name, 0)
         else:
             assigned_counts = 0
             unassigned_counts = 0
@@ -135,8 +136,8 @@ def build_consolidated_tables(sample_data):
 
     # Build OTU abundance table (species × samples)
     all_species = sorted(
-        [sp for sp in abundance_dict if sp != "Unassigned"]
-    ) + ["Unassigned"]
+        [sp for sp in abundance_dict if sp != UNASSIGNED_LABEL]
+    ) + [UNASSIGNED_LABEL]
 
     otu_abundance = pd.DataFrame(
         {
@@ -171,7 +172,7 @@ def build_consolidated_tables(sample_data):
         sp: dict(zip(TAXONOMY_RANKS, max(tally, key=tally.get)))
         for sp, tally in lineage_counts.items()
     }
-    tax_records["Unassigned"] = {r: "" for r in TAXONOMY_RANKS}
+    tax_records[UNASSIGNED_LABEL] = {r: "" for r in TAXONOMY_RANKS}
     tax_table = pd.DataFrame.from_dict(tax_records, orient="index")
     tax_table = tax_table.reindex(all_species)
     tax_table.index.name = "species"

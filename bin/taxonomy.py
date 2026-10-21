@@ -197,8 +197,8 @@ def unify_species_abundance(df):
     Merges strain-level or subspecies-level entries so that 'species' is only 2 words.
     E.g., 'Escherichia coli O157' -> 'Escherichia coli'.
     Summarizes total 'abundance' by species, then retains genus, family, order, etc.
-    Rows flagged in an optional 'placeholder' column (Unassigned, Unknown taxid <id>)
-    keep their species label as it is. Empty ranks are kept as '' (F01).
+    The placeholder labels 'Unassigned' and 'Unknown taxid <id>' are kept as they
+    are. Empty ranks are kept as '' (F01).
     """
     if 'species' not in df.columns:
         raise ValueError("Column 'species' not found in DataFrame. Check input format.")
@@ -211,7 +211,8 @@ def unify_species_abundance(df):
     group_columns = ['species'] + taxonomic_levels
     df[group_columns] = df[group_columns].fillna('')
 
-    is_placeholder = df['placeholder'] if 'placeholder' in df.columns else pd.Series(False, index=df.index)
+    is_placeholder = ((df['species'] == UNASSIGNED_LABEL)
+                      | df['species'].str.startswith(UNKNOWN_TAXID_LABEL + " "))
     truncated = df['species'].str.split(' ').str[:2].str.join(' ')
     df['species'] = df['species'].where(is_placeholder, truncated)
 
@@ -268,7 +269,14 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     results_df.loc[no_name & ~is_unassigned, "species"] = (
         UNKNOWN_TAXID_LABEL + " " + results_df.loc[no_name & ~is_unassigned, "tax_id"])
     results_df.loc[is_unassigned, "species"] = UNASSIGNED_LABEL
-    results_df["placeholder"] = is_unassigned | no_name
+
+    # Blank ranks of these rows take the row's label, so that collapsing or combining
+    # at a higher rank keeps them apart from each other and from real taxa
+    placeholder = is_unassigned | no_name
+    for rank in TAXONOMY_RANKS[1:]:
+        if rank in results_df.columns:
+            blank = results_df[rank].isna() | (results_df[rank].astype(str).str.strip() == "")
+            results_df.loc[placeholder & blank, rank] = results_df.loc[placeholder & blank, "species"]
 
     results_df = unify_species_abundance(results_df)
     # Unassigned goes last
