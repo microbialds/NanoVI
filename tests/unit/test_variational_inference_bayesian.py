@@ -274,26 +274,26 @@ class TestBayesianViIterations:
         fixed_point = alpha / alpha.sum()
         assert freq_full[1] == pytest.approx(fixed_point[0], abs=1e-4)
 
-    @pytest.mark.xfail(strict=True, reason='F07: the outer loop stops on an ELBO comparison across species sets without pruning')
     def test_outer_loop_prunes_before_stopping(self, monkeypatch):
-        # The inner loop is scripted to isolate the outer loop's control flow.
+        # F07: the inner loop is scripted to isolate the outer loop's control flow.
         # After the first pruning, species 2 falls below the threshold and the
         # ELBO is lower (it is a different model); the loop must still prune it.
-        scripted = {3: np.array([900.0, 95.0, 5.0]), 2: np.array([995.0, 5.0]), 1: np.array([1000.0])}
+        # The fake takes the arguments the outer loop passes to cavi_inner_loop
+        # (max_iterations and tolerance by keyword) and returns its 5-tuple.
+        # With 2,000 reads the pruning threshold is 10 / 2000 = 0.005; 8 reads is 0.004.
+        scripted = {3: np.array([1800.0, 192.0, 8.0]), 2: np.array([1992.0, 8.0]), 1: np.array([2000.0])}
         elbos = iter([-100.0, -200.0, -300.0, -400.0])
 
-        def fake_inner_loop(L, alpha_0, alpha_init, **kwargs):
+        def fake_inner_loop(L, alpha_0, alpha_init, max_iterations, tolerance):
             alpha = alpha_0 + scripted[L.shape[1]]
             E = vb.compute_dirichlet_expectation(alpha)
             return alpha, vb.update_responsibilities(L, E), E, next(elbos), 2
 
         monkeypatch.setattr(vb, 'cavi_inner_loop', fake_inner_loop)
-        lp = {f'r{i}': ([1, 2, 3], [-1.0, -1.0, -1.0]) for i in range(1000)}
+        lp = {f'r{i}': ([1, 2, 3], [-1.0, -1.0, -1.0]) for i in range(2000)}
         freq_full, _, _ = vb.bayesian_vi_iterations(lp, [1, 2, 3])
-        threshold = max(10 / 1000, 1e-3)
-        assert all(v >= threshold for v in freq_full.values())
+        assert set(freq_full) == {1}
 
-    @pytest.mark.xfail(strict=True, reason='F07: each outer iteration restarts alpha from uniform instead of the previous solution')
     def test_outer_loop_warm_starts(self, monkeypatch):
         calls = []
         real_inner_loop = vb.cavi_inner_loop
@@ -308,6 +308,35 @@ class TestBayesianViIterations:
         assert len(calls) >= 2
         second = calls[1]
         assert not np.allclose(second, second[0])
+        # the surviving species start from their expected counts
+        np.testing.assert_allclose(second.sum(), calls[0].sum() - 5, atol=5)
+
+    def test_outer_loop_stops_after_max_iterations_with_a_final_fit(self, monkeypatch, capsys):
+        # Every fit leaves its last species at 8 of 2,000 reads, below 10 / 2000,
+        # so each pass prunes one. With max_outer_iterations=2 the loop prunes
+        # twice, fits the pruned set once more and warns that one is still below.
+        sizes = []
+
+        def fake_inner_loop(L, alpha_0, alpha_init, max_iterations, tolerance):
+            S = L.shape[1]
+            sizes.append(S)
+            alpha = alpha_0 + np.array([2000.0 - 8 - 40 * (S - 2)] + [40.0] * (S - 2) + [8.0])
+            E = vb.compute_dirichlet_expectation(alpha)
+            return alpha, vb.update_responsibilities(L, E), E, -1.0, 1
+
+        monkeypatch.setattr(vb, 'cavi_inner_loop', fake_inner_loop)
+        lp = {f'r{i}': ([1, 2, 3, 4, 5], [-1.0] * 5) for i in range(2000)}
+        freq_full, _, _ = vb.bayesian_vi_iterations(lp, [1, 2, 3, 4, 5], max_outer_iterations=2)
+        assert sizes == [5, 4, 3]
+        assert set(freq_full) == {1, 2, 3}
+        assert '1 species remain below the pruning threshold' in capsys.readouterr().err
+
+    def test_all_species_below_threshold_keeps_the_most_abundant(self):
+        # One read split evenly over three species: each has 1/3 < 1/n = 1
+        lp = {'r1': ([1, 2, 3], [-1.0, -1.0, -1.1])}
+        freq_full, _, _ = vb.bayesian_vi_iterations(lp, [1, 2, 3])
+        assert list(freq_full) in ([1], [2])
+        assert freq_full[list(freq_full)[0]] == pytest.approx(1.0)
 
     @pytest.mark.xfail(strict=True, reason='F06: reads whose species were all pruned are spread over the surviving species')
     def test_reads_of_pruned_species_are_not_counted_as_assigned(self, tmp_path):
