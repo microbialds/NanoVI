@@ -77,15 +77,15 @@ at 10 % or more is reported within 5 percentage points of `expected.tsv`, and
 that `consolidated_output/` holds the four tables. The Unassigned row (30 non-16S
 reads) is not checked until F01 is fixed.
 
-Reference output (`-profile test,docker`, NanoVI 1.0.0 code, October 2026):
+Reference output (`-profile test,docker`, which uses the pipeline defaults k = 21 and N = 3; NanoVI 1.0.0 code, October 2026):
 
 | Species | Expected | Reported | estimated_counts |
 |---|---|---|---|
 | *Staphylococcus aureus* | 0.40 | 0.3996 | 239 |
-| *Escherichia coli* | 0.25 | 0.2468 | 148 |
-| *Streptococcus pneumoniae* | 0.15 | 0.1500 | 89 |
+| *Escherichia coli* | 0.25 | 0.2466 | 147 |
+| *Streptococcus pneumoniae* | 0.15 | 0.1499 | 89 |
 | *Pseudomonas aeruginosa* | 0.10 | 0.1001 | 60 |
-| *Shigella flexneri* | 0.05 | 0.0533 | 31 |
+| *Shigella flexneri* | 0.05 | 0.0535 | 32 |
 | *Streptococcus mitis* | 0.05 | 0.0503 | 30 |
 
 600 reads assigned, 30 unassigned. No absent species is reported. The table has
