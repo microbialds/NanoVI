@@ -13,6 +13,7 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 - `-profile test` now runs on the bundled e2e fixture instead of a `db/` directory that was not in the repository, and uses the pipeline's default k-mer size (21) instead of 27.
 - CI runs on pushes to `dev` and `roadmap/**` and on pull requests into `dev`.
 - README credits Emu (Curry et al., Nature Methods 2022) for the CIGAR-based read score, the EM loop and the database layout; Emu's MIT license is in `THIRD_PARTY_LICENSES`, and the adapted files name their origin.
+- The error profile (the share of insertions, deletions, soft clips and mismatches that weights each read's score) is estimated from primary mapped alignments only, as Emu does; it also counted secondary and supplementary alignments, which go to less similar references and raised the mismatch share. Abundances move slightly (F03).
 
 ### Fixed
 

@@ -44,14 +44,16 @@ def get_cigar_op_log_probabilities(sam_path, threads=None):
     """Compute global log-probabilities for each CIGAR operation from the alignments.
 
     Reads the SAM once, streaming. Returns (log_probs, zero_locs, dict_longest_align):
-    the log share of each error operation (I, D, S, X) with the operations of
-    zero count removed, the indices of those operations in CIGAR_OPS, and each
-    read's longest alignment over all of its alignments (F04).
+    the log share of each error operation (I, D, S, X) over the primary mapped
+    alignments, with the operations of zero count removed (F03); the indices of
+    those operations in CIGAR_OPS; and each read's longest alignment over all of
+    its alignments, secondary and supplementary included (F04).
 
     threads is ignored: the pass is serial (F25). It is kept so that existing
     callers keep working.
 
-    Raises ValueError when the SAM holds no mapped alignment or no error operation.
+    Raises ValueError when the SAM holds no primary mapped alignment or when those
+    alignments have no error operation.
     """
     cigar_stats_primary = [0] * len(CIGAR_OPS)
     dict_longest_align = {}
@@ -63,13 +65,14 @@ def get_cigar_op_log_probabilities(sam_path, threads=None):
             query_name = alignment.query_name
             if dict_longest_align.get(query_name, -1) < align_len:
                 dict_longest_align[query_name] = align_len
-            if alignment.reference_name:
+            # The error profile comes from primary mapped alignments only, as in Emu (F03, D3)
+            if alignment.reference_name and not alignment.is_secondary and not alignment.is_supplementary:
                 n_mapped += 1
-            cigar_stats_primary = list(map(add, cigar_stats_primary, get_align_stats(alignment)))
+                cigar_stats_primary = list(map(add, cigar_stats_primary, get_align_stats(alignment)))
 
     if n_mapped == 0:
         raise ValueError(
-            f"No mapped alignments in {sam_path}. Check that the reads overlap with the "
+            f"No primary mapped alignments in {sam_path}. Check that the reads overlap with the "
             "reference database and that filtering (--min_length, --max_length) left reads to align."
         )
 
@@ -81,7 +84,7 @@ def get_cigar_op_log_probabilities(sam_path, threads=None):
     n_char = sum(cigar_stats_primary)
     if n_char == 0:
         raise ValueError(
-            f"No insertions, deletions, soft clips or mismatches in the alignments of {sam_path}; "
+            f"No insertions, deletions, soft clips or mismatches in the primary alignments of {sam_path}; "
             "the error profile cannot be estimated."
         )
     return [math.log(x) for x in np.array(cigar_stats_primary) / n_char], zero_locs, dict_longest_align

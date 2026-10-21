@@ -63,6 +63,31 @@ class TestGetCigarOpLogProbabilities:
         _, _, longest = get_cigar_op_log_probabilities(sam, 2)
         assert longest == {'r1': 150, 'r2': 81}
 
+    def test_error_profile_counts_primary_alignments_only(self, tmp_path):
+        # F03: secondary and supplementary alignments (and unmapped reads) are
+        # left out of the error profile, as in Emu
+        sam = write_sam(tmp_path / 'a.sam', [
+            ('r1', PRIMARY, REFS[0], '4S100M2I', 5),       # I 2, S 4, X 3
+            ('r1', SECONDARY, REFS[1], '100M3I3D', 20),    # left out
+            ('r2', PRIMARY, REFS[1], '100M1D', 2),         # D 1, X 1
+            ('r2', SUPPLEMENTARY, REFS[2], '10S50M', 9),   # left out
+            ('r3', UNMAPPED, None, None, 0),
+        ])
+        log_probs, zero_locs, longest = get_cigar_op_log_probabilities(sam, 1)
+        assert zero_locs == []
+        assert log_probs == pytest.approx(log_shares([2, 1, 4, 4]))
+        assert longest == {'r1': 106, 'r2': 101, 'r3': 0}
+
+    def test_operation_seen_only_in_secondary_alignments_is_a_zero_loc(self, tmp_path):
+        sam = write_sam(tmp_path / 'a.sam', [
+            ('r1', PRIMARY, REFS[0], '100M2I', 3),
+            ('r1', SECONDARY, REFS[1], '100M2D', 2),
+        ])
+        log_probs, zero_locs, _ = get_cigar_op_log_probabilities(sam, 1)
+        # D and S never occur in a primary alignment
+        assert zero_locs == [1, 2]
+        assert log_probs == pytest.approx(log_shares([2, 0, 0, 1]))
+
     def test_more_threads_than_alignments(self, tmp_path):
         # F04: the chunked version divided by zero when alignments < threads
         sam = write_sam(tmp_path / 'a.sam', [('r1', PRIMARY, REFS[0], '5S100M2I', 3)])
@@ -78,12 +103,12 @@ class TestGetCigarOpLogProbabilities:
 
     def test_empty_sam_raises(self, tmp_path):
         sam = write_sam(tmp_path / 'empty.sam', [])
-        with pytest.raises(ValueError, match='No mapped alignments'):
+        with pytest.raises(ValueError, match='No primary mapped alignments'):
             get_cigar_op_log_probabilities(sam, 2)
 
     def test_only_unmapped_reads_raises(self, tmp_path):
         sam = write_sam(tmp_path / 'u.sam', [('r1', UNMAPPED, None, None, 0), ('r2', UNMAPPED, None, None, 0)])
-        with pytest.raises(ValueError, match='No mapped alignments'):
+        with pytest.raises(ValueError, match='No primary mapped alignments'):
             get_cigar_op_log_probabilities(sam, 2)
 
     def test_no_error_operations_raises(self, tmp_path):
