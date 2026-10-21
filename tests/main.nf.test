@@ -285,6 +285,14 @@ nextflow_pipeline {
             assert (unassignedRow.abundance as double) == 0.0
             assert (unassignedRow.estimated_counts as int) >= nonRrna
 
+            // The Below detection row comes just before Unassigned (F06), and the
+            // counts of all rows add up to the reads that passed fastplong
+            assert rows[-2].species == 'Below detection'
+            assert (rows[-2].abundance as double) == 0.0
+            def report = "${outputDir}/qc/fastplong/e2e_mock_report.json.gz"
+            def qc = new groovy.json.JsonSlurper().parse(new java.util.zip.GZIPInputStream(new FileInputStream(report)))
+            assert rows.sum { it.estimated_counts as int } == qc.summary.after_filtering.total_reads
+
             // Consolidated phyloseq tables
             ['otu_table_abundance.tsv', 'otu_table_counts.tsv', 'tax_table.tsv', 'sample_metadata.tsv'].each { t ->
                 assert file("${outputDir}/consolidated_output/${t}").exists()

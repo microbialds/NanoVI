@@ -18,7 +18,10 @@ sys.path.insert(0, "${bin_dir}")
 from taxonomy import freq_to_lineage_df
 
 with open("${abundance_json}") as f:
-    freq = json.load(f)
+    abundance_data = json.load(f)
+
+freq = abundance_data["abundance"]
+below_detection_count = abundance_data["below_detection_count"]
 
 with open("${logp_json}") as f:
     logp_data = json.load(f)
@@ -34,7 +37,8 @@ freq_to_lineage_df(
     taxonomy_df=taxonomy_df,
     assigned_count=assigned_count,
     unassigned_count=unassigned_count,
-    counts=${params.keep_counts ? 'True' : 'False'}
+    counts=${params.keep_counts ? 'True' : 'False'},
+    below_detection_count=below_detection_count
 )
     '
     """

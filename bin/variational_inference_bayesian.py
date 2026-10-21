@@ -1,9 +1,14 @@
+import itertools
 import math
+import sys
 import numpy as np
 from scipy.special import digamma, gammaln
 from scipy.stats import beta as beta_dist
 from sys import stdout
 from typing import Dict, Tuple, Optional, List
+
+# Largest ELBO fall between CAVI iterations, relative to |ELBO|, taken as rounding
+ELBO_DECREASE_TOLERANCE = 1e-9
 
 
 # ============================================================================
@@ -206,7 +211,7 @@ def compute_elbo(
     # Only sum over entries where phi > 0 (finite contributions)
     mask = phi > 0
     term1 = np.sum(
-        phi[mask] * (L[mask] + E_ln_pi[np.newaxis, :].repeat(L.shape[0], axis=0)[mask]
+        phi[mask] * (L[mask] + np.broadcast_to(E_ln_pi, L.shape)[mask]
                      - log_phi_safe[mask])
     )
 
@@ -223,8 +228,8 @@ def cavi_inner_loop(
     L: np.ndarray,
     alpha_0: np.ndarray,
     alpha_init: np.ndarray,
-    max_iterations: int = 100,
-    tolerance: float = 1e-4,
+    max_iterations: int = 1000,
+    tolerance: float = 1e-7,
     verbose: bool = True,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float, int]:
     """
@@ -234,7 +239,14 @@ def cavi_inner_loop(
       1. Update E[ln π] from current α  (Dirichlet expectation)
       2. Update φ (responsibilities)      (E-step analogue)
       3. Update α from φ                  (M-step analogue)
-      4. Compute ELBO for convergence check
+      4. Compute ELBO for monitoring
+
+    The loop stops when the largest change in posterior mean abundance,
+    max_s |Δ(α_s / Σ_j α_j)|, falls below `tolerance` (F05). A relative ELBO
+    change is not used: the ELBO grows with the number of reads, so a relative
+    rule stops large samples early. CAVI never lowers the ELBO; a fall of more
+    than ELBO_DECREASE_TOLERANCE × |ELBO| is reported on stderr as a sign of
+    numerical trouble.
 
     Parameters
     ----------
@@ -247,7 +259,7 @@ def cavi_inner_loop(
     max_iterations : int
         Maximum number of CAVI iterations.
     tolerance : float
-        Convergence threshold on relative ELBO change.
+        Convergence threshold on the largest change in posterior mean abundance.
     verbose : bool
         If True, print progress.
 
@@ -265,11 +277,13 @@ def cavi_inner_loop(
         Number of iterations until convergence.
     """
     alpha = alpha_init.copy()
-    prev_elbo = -np.inf
+    mean = alpha / np.sum(alpha)
+    prev_elbo = None
+    E_ln_pi = compute_dirichlet_expectation(alpha)
 
     for iteration in range(1, max_iterations + 1):
-        # Step 1: Compute Dirichlet expectations
-        E_ln_pi = compute_dirichlet_expectation(alpha)
+        # Step 1: Dirichlet expectations of the current α (E_ln_pi, computed
+        # before the loop or at the end of the previous iteration)
 
         # Step 2: Update responsibilities (E-step)
         phi = update_responsibilities(L, E_ln_pi)
@@ -281,33 +295,35 @@ def cavi_inner_loop(
         E_ln_pi = compute_dirichlet_expectation(alpha)  # Recompute with updated α
         elbo = compute_elbo(L, phi, alpha, alpha_0, E_ln_pi)
 
-        # Convergence check
-        if iteration > 1:
-            # Use relative change for scale-invariant convergence
-            rel_change = abs(elbo - prev_elbo) / (abs(prev_elbo) + 1e-10)
+        new_mean = alpha / np.sum(alpha)
+        max_change = float(np.max(np.abs(new_mean - mean)))
+        mean = new_mean
+
+        if prev_elbo is not None and elbo < prev_elbo - ELBO_DECREASE_TOLERANCE * abs(prev_elbo):
+            sys.stderr.write(
+                f"  WARNING: ELBO fell from {prev_elbo:.6f} to {elbo:.6f} "
+                f"at CAVI iteration {iteration}; this may indicate numerical instability.\n"
+            )
+        prev_elbo = elbo
+
+        if verbose and (iteration == 1 or iteration % 100 == 0):
+            stdout.write(
+                f"  CAVI iteration {iteration}: "
+                f"ELBO = {elbo:.4f}, "
+                f"max Δ(mean) = {max_change:.2e}\n"
+            )
+        if max_change < tolerance:
             if verbose:
                 stdout.write(
-                    f"  CAVI iteration {iteration}: "
-                    f"ELBO = {elbo:.4f}, "
-                    f"Δ(rel) = {rel_change:.2e}\n"
+                    f"  Converged at iteration {iteration} "
+                    f"(ELBO = {elbo:.4f}, max Δ(mean) = {max_change:.2e})\n"
                 )
-            if rel_change < tolerance:
-                if verbose:
-                    stdout.write(
-                        f"  Converged at iteration {iteration} "
-                        f"(ELBO = {elbo:.4f})\n"
-                    )
-                return alpha, phi, E_ln_pi, elbo, iteration
-        else:
-            if verbose:
-                stdout.write(f"  CAVI iteration {iteration}: ELBO = {elbo:.4f}\n")
-
-        prev_elbo = elbo
+            return alpha, phi, E_ln_pi, elbo, iteration
 
     if verbose:
         stdout.write(
             f"  Reached max iterations ({max_iterations}). "
-            f"ELBO = {elbo:.4f}\n"
+            f"ELBO = {elbo:.4f}, max Δ(mean) = {max_change:.2e}\n"
         )
     return alpha, phi, E_ln_pi, elbo, max_iterations
 
@@ -323,17 +339,19 @@ def bayesian_vi_iterations(
     abundance_threshold: float = 1e-3,
     alpha_prior: float = 1.0,
     max_outer_iterations: int = 10,
-    max_inner_iterations: int = 100,
-    inner_tolerance: float = 5e-4,
-) -> Tuple[Dict[int, float], Optional[Dict[int, float]], Dict[int, Tuple[float, float]]]:
+    max_inner_iterations: int = 1000,
+    inner_tolerance: float = 1e-7,
+) -> Tuple[Dict[int, float], Optional[Dict[int, float]], Dict[int, Tuple[float, float]], int]:
     """
     Outer optimization loop with iterative species pruning.
 
     This function:
     1. Runs CAVI to convergence on the full species set.
     2. Prunes species with posterior mean abundance below a threshold.
-    3. Re-runs CAVI on the reduced set.
-    4. Repeats until the ELBO stabilizes.
+    3. Re-runs CAVI on the reduced set, warm-started from the previous α.
+    4. Repeats until no species is below the threshold (F07). After
+       max_outer_iterations prunings it fits the pruned set once more and
+       stops, with a warning if species are still below the threshold.
     5. Returns both full and thresholded abundance estimates,
        plus posterior credible intervals.
 
@@ -344,7 +362,8 @@ def bayesian_vi_iterations(
     db_species_ids : list of int
         All species taxonomy IDs in the reference database.
     elbo_threshold : float
-        Convergence threshold for outer loop ELBO change.
+        Ignored. The outer loop no longer compares ELBOs across species sets
+        (F07); kept so existing callers keep working.
     abundance_threshold : float
         Minimum posterior mean abundance to retain a species.
     alpha_prior : float
@@ -355,11 +374,12 @@ def bayesian_vi_iterations(
         - alpha_prior < 1.0: sparser prior (encourages fewer species).
         - alpha_prior > 1.0: smoothing prior (shrinks toward uniform).
     max_outer_iterations : int
-        Maximum number of pruning iterations.
+        Maximum number of pruning iterations; one more fit follows the last.
     max_inner_iterations : int
         Maximum CAVI iterations per inner loop.
     inner_tolerance : float
-        Convergence tolerance for inner CAVI loop.
+        Convergence tolerance for the inner CAVI loop: the largest change in
+        posterior mean abundance between iterations (F05).
 
     Returns
     -------
@@ -370,11 +390,16 @@ def bayesian_vi_iterations(
         None if no thresholding needed.
     credible_intervals : dict
         Species ID → (lower_95, upper_95) credible intervals on abundance.
+    below_detection_count : int
+        Number of reads with a score whose responsibilities are all zero on the
+        reported species: every species they align to was pruned (F06). They
+        are not part of the abundances and should not be counted as assigned to
+        the reported species.
 
     Raises
     ------
     ValueError
-        If no reads are assigned or ELBO decreases (numerical instability).
+        If no reads are assigned.
     """
     n_reads = len(log_p_rgs)
     stdout.write(f"Assigned read count: {n_reads}\n")
@@ -422,18 +447,31 @@ def bayesian_vi_iterations(
             f"(remaining: {len(current_species)})\n"
         )
 
-    # --- Outer loop: CAVI + prune ---
-    prev_outer_elbo = -np.inf
+    # Reads with at least one finite score; only these start the uniform α (F06)
+    scored = np.any(np.isfinite(L), axis=1)
+    n_scored = int(np.sum(scored))
 
-    for outer_iter in range(1, max_outer_iterations + 1):
+    # --- Outer loop: CAVI + prune ---
+    # The loop stops only when no species is below the pruning threshold. ELBOs
+    # of successive iterations are not compared: each belongs to a different
+    # species set and prior (F07). α is warm-started from the previous solution.
+    expected_counts = None
+    inner_iterations = []
+    final_fit = False
+
+    for outer_iter in itertools.count(1):
         S = len(current_species)
         stdout.write(f"\n=== Outer iteration {outer_iter} (S = {S}) ===\n")
 
         # Symmetric Dirichlet prior scaled so total pseudo-count = alpha_prior
         alpha_0 = np.full(S, alpha_prior / S)
 
-        # Initialize α uniformly (prior + uniform pseudo-counts)
-        alpha_init = alpha_0 + (n_reads / S)
+        if expected_counts is None:
+            # Initialize α uniformly (prior + uniform pseudo-counts)
+            alpha_init = alpha_0 + (n_scored / S)
+        else:
+            # Warm start: the surviving species keep their expected read counts
+            alpha_init = alpha_0 + expected_counts
 
         # Run inner CAVI
         alpha, phi, E_ln_pi, elbo, n_iters = cavi_inner_loop(
@@ -441,55 +479,44 @@ def bayesian_vi_iterations(
             max_iterations=max_inner_iterations,
             tolerance=inner_tolerance,
         )
-
-        # Check outer convergence
-        outer_elbo_change = elbo - prev_outer_elbo
-        stdout.write(
-            f"  Outer ELBO = {elbo:.4f}, "
-            f"Δ = {outer_elbo_change:.4f}\n"
-        )
-
-        if outer_iter > 1 and outer_elbo_change < 0:
-            # ELBO should not decrease between outer iterations with pruning
-            # Small decreases can occur due to removing species; allow a margin
-            if abs(outer_elbo_change) > 1.0:
-                stdout.write(
-                    f"  WARNING: Outer ELBO decreased by {outer_elbo_change:.4f}. "
-                    f"This may indicate numerical instability.\n"
-                )
+        inner_iterations.append(n_iters)
+        stdout.write(f"  ELBO = {elbo:.4f} after {n_iters} CAVI iterations\n")
 
         # Compute posterior mean abundances: E[π_s] = α_s / Σ_j α_j
         posterior_mean = alpha / np.sum(alpha)
-
-        # Prune low-abundance species
         keep_mask = posterior_mean >= freq_thresh
-        n_pruned = S - np.sum(keep_mask)
 
-        if n_pruned == 0 or outer_elbo_change < elbo_threshold:
-            stdout.write(
-                f"  Converged: pruned {n_pruned} species, "
-                f"ELBO change = {outer_elbo_change:.2e}\n"
-            )
+        if final_fit:
+            n_below = int(S - np.sum(keep_mask))
+            if n_below:
+                sys.stderr.write(
+                    f"WARNING: reached {max_outer_iterations} pruning iterations; "
+                    f"{n_below} species remain below the pruning threshold "
+                    f"({freq_thresh:.2e}).\n"
+                )
+            break
+
+        if not np.any(keep_mask):
+            # Every species is below the threshold (more species than reads can
+            # support); keep the most abundant one rather than none
+            keep_mask[np.argmax(posterior_mean)] = True
+        n_pruned = int(S - np.sum(keep_mask))
+
+        if n_pruned == 0:
+            stdout.write("  Converged: no species below the pruning threshold.\n")
             break
 
         stdout.write(f"  Pruning {n_pruned} species below threshold.\n")
 
-        # Update active species and likelihood matrix
+        # Update active species, likelihood matrix and warm-start counts. Every
+        # kept column already has a finite entry (empty ones were removed above).
         keep_indices = np.where(keep_mask)[0]
         current_species = [current_species[i] for i in keep_indices]
         L = L[:, keep_indices].copy()
+        expected_counts = (alpha - alpha_0)[keep_indices]
 
-        # Remove columns that are all -inf (no reads map to them)
-        col_has_data = np.any(np.isfinite(L), axis=0)
-        if not np.all(col_has_data):
-            L = L[:, col_has_data]
-            current_species = [
-                current_species[i]
-                for i in range(len(current_species))
-                if col_has_data[i]
-            ]
-
-        prev_outer_elbo = elbo
+        # The last allowed pruning is followed by one fit on the pruned set
+        final_fit = outer_iter >= max_outer_iterations
 
     # --- Final results ---
     # Posterior mean and credible intervals from the Dirichlet
@@ -527,12 +554,21 @@ def bayesian_vi_iterations(
                     k: v / total_t for k, v in freq_thresh_dict.items()
                 }
 
+    # Reads with a score whose responsibility is all on species that are not
+    # reported: every species they align to was pruned, or dropped by the
+    # abundance threshold (F06). Reads that never had a score are not counted.
+    reported = freq_thresholded if freq_thresholded is not None else freq_full
+    reported_cols = [i for i, sid in enumerate(current_species) if sid in reported]
+    below_detection_count = int(np.sum(scored & (phi[:, reported_cols].sum(axis=1) == 0)))
+
     stdout.write(
         f"\nFinal species count: {len(freq_full)}\n"
-        f"Number of VI outer iterations: {outer_iter}\n"
+        f"Reads below detection (all their species pruned): {below_detection_count}\n"
+        f"Number of VI outer iterations: {outer_iter} "
+        f"(CAVI iterations: {', '.join(map(str, inner_iterations))})\n"
     )
 
-    return freq_full, freq_thresholded, credible_intervals
+    return freq_full, freq_thresholded, credible_intervals, below_detection_count
 
 
 # ============================================================================
@@ -634,13 +670,13 @@ def variational_inference_iterations(
     db_ids: List[int],
     lli_thresh: float = 1e-4,
     input_threshold: float = 1e-3,
-) -> Tuple[Dict[int, float], Optional[Dict[int, float]], None]:
+) -> Tuple[Dict[int, float], Optional[Dict[int, float]], int]:
     """
     Drop-in replacement for the original variational_inference_iterations().
 
-    This function maintains the same signature and return type as the original
-    EM-based implementation, ensuring backward compatibility with the
-    Nextflow pipeline while using true Bayesian variational inference.
+    This function keeps the signature of the original EM-based implementation
+    and returns a 3-tuple like it, but the third value is the number of reads
+    below detection (F06) instead of the EM version's unused None.
 
     Parameters
     ----------
@@ -649,7 +685,8 @@ def variational_inference_iterations(
     db_ids : list of int
         Species taxonomy IDs in the reference database.
     lli_thresh : float
-        ELBO convergence threshold (maps to elbo_threshold).
+        Ignored by the Bayesian VI (maps to elbo_threshold, which the outer
+        loop no longer uses; F07).
     input_threshold : float
         Minimum abundance for output (maps to abundance_threshold).
 
@@ -659,17 +696,18 @@ def variational_inference_iterations(
         Species ID → posterior mean abundance.
     freq_thresholded : dict or None
         Abundance estimates after thresholding, or None.
-    read_dist : None
-        Placeholder for backward compatibility.
+    below_detection_count : int
+        Reads whose species were all pruned (F06). This position held an
+        unused read_dist placeholder (None).
     """
-    freq_full, freq_thresholded, _ = bayesian_vi_iterations(
+    freq_full, freq_thresholded, _, below_detection_count = bayesian_vi_iterations(
         log_p_rgs=log_p_rgs,
         db_species_ids=db_ids,
         elbo_threshold=lli_thresh,
         abundance_threshold=input_threshold,
         alpha_prior=1.0,  # Uniform Dirichlet prior
         max_outer_iterations=10,
-        max_inner_iterations=100,
-        inner_tolerance=5e-4,
+        max_inner_iterations=1000,
+        inner_tolerance=1e-7,
     )
-    return freq_full, freq_thresholded, None
+    return freq_full, freq_thresholded, below_detection_count

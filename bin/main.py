@@ -190,7 +190,7 @@ def run_abundance(args):
             locs_p_cigar_zero
         )
 
-        freq_full, freq_set_thresh, read_dist = timed_function(
+        freq_full, freq_set_thresh, below_detection_count = timed_function(
             f"Variational Inference Iterations for {sample_name}",
             variational_inference_iterations,
             log_prob_rgs,
@@ -208,11 +208,12 @@ def run_abundance(args):
             df_taxonomy,
             counts_assigned,
             counts_unassigned,
-            args.keep_counts
+            args.keep_counts,
+            below_detection_count
         )
 
         # Note: keep-read-assignments is not currently functional
-        # (variational_inference_iterations returns None for read_dist)
+        # (variational_inference_iterations returns no read distribution)
         # if args.keep_read_assignments and read_dist:
         #     output_read_assignments(read_dist, f"{out_file}_read-assignment-distributions")
 
@@ -226,7 +227,8 @@ def run_abundance(args):
                 df_taxonomy,
                 counts_assigned,
                 counts_unassigned,
-                args.keep_counts
+                args.keep_counts,
+                below_detection_count
             )
 
         # (optional) Output unclassified
