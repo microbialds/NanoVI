@@ -1,3 +1,4 @@
+import itertools
 import math
 import sys
 import numpy as np
@@ -390,9 +391,10 @@ def bayesian_vi_iterations(
     credible_intervals : dict
         Species ID → (lower_95, upper_95) credible intervals on abundance.
     below_detection_count : int
-        Number of reads whose responsibilities are all zero at the end: every
-        species they align to was pruned (F06). They are not part of the
-        abundances and should not be counted as assigned to the reported species.
+        Number of reads with a score whose responsibilities are all zero on the
+        reported species: every species they align to was pruned (F06). They
+        are not part of the abundances and should not be counted as assigned to
+        the reported species.
 
     Raises
     ------
@@ -446,7 +448,8 @@ def bayesian_vi_iterations(
         )
 
     # Reads with at least one finite score; only these start the uniform α (F06)
-    n_scored = int(np.sum(np.any(np.isfinite(L), axis=1)))
+    scored = np.any(np.isfinite(L), axis=1)
+    n_scored = int(np.sum(scored))
 
     # --- Outer loop: CAVI + prune ---
     # The loop stops only when no species is below the pruning threshold. ELBOs
@@ -456,7 +459,7 @@ def bayesian_vi_iterations(
     inner_iterations = []
     final_fit = False
 
-    for outer_iter in range(1, max_outer_iterations + 2):
+    for outer_iter in itertools.count(1):
         S = len(current_species)
         stdout.write(f"\n=== Outer iteration {outer_iter} (S = {S}) ===\n")
 
@@ -505,30 +508,17 @@ def bayesian_vi_iterations(
 
         stdout.write(f"  Pruning {n_pruned} species below threshold.\n")
 
-        # Update active species, likelihood matrix and warm-start counts
+        # Update active species, likelihood matrix and warm-start counts. Every
+        # kept column already has a finite entry (empty ones were removed above).
         keep_indices = np.where(keep_mask)[0]
         current_species = [current_species[i] for i in keep_indices]
         L = L[:, keep_indices].copy()
         expected_counts = (alpha - alpha_0)[keep_indices]
 
-        # Remove columns that are all -inf (no reads map to them)
-        col_has_data = np.any(np.isfinite(L), axis=0)
-        if not np.all(col_has_data):
-            L = L[:, col_has_data]
-            expected_counts = expected_counts[col_has_data]
-            current_species = [
-                current_species[i]
-                for i in range(len(current_species))
-                if col_has_data[i]
-            ]
-
         # The last allowed pruning is followed by one fit on the pruned set
-        final_fit = outer_iter == max_outer_iterations
+        final_fit = outer_iter >= max_outer_iterations
 
     # --- Final results ---
-    # Reads left with no surviving species (F06)
-    below_detection_count = int(np.sum(phi.sum(axis=1) == 0))
-
     # Posterior mean and credible intervals from the Dirichlet
     alpha_sum = np.sum(alpha)
     posterior_mean = alpha / alpha_sum
@@ -563,6 +553,13 @@ def bayesian_vi_iterations(
                 freq_thresholded = {
                     k: v / total_t for k, v in freq_thresh_dict.items()
                 }
+
+    # Reads with a score whose responsibility is all on species that are not
+    # reported: every species they align to was pruned, or dropped by the
+    # abundance threshold (F06). Reads that never had a score are not counted.
+    reported = freq_thresholded if freq_thresholded is not None else freq_full
+    reported_cols = [i for i, sid in enumerate(current_species) if sid in reported]
+    below_detection_count = int(np.sum(scored & (phi[:, reported_cols].sum(axis=1) == 0)))
 
     stdout.write(
         f"\nFinal species count: {len(freq_full)}\n"

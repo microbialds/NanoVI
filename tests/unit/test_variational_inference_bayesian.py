@@ -372,7 +372,8 @@ class TestBayesianViIterations:
 
     def test_initial_alpha_counts_only_scored_reads(self, monkeypatch):
         # 'elsewhere' aligns only to a species outside the list, so it has no
-        # finite score; the uniform start spreads 100 reads, not 101
+        # finite score; the uniform start spreads 100 reads, not 101, and the
+        # read is not below detection either (it was never part of the fit)
         calls = []
         real_inner_loop = vb.cavi_inner_loop
 
@@ -386,7 +387,36 @@ class TestBayesianViIterations:
         *_, below = vb.bayesian_vi_iterations(lp, [1, 2])
         alpha_0, alpha_init = calls[0]
         assert (alpha_init - alpha_0).sum() == pytest.approx(100.0)
-        assert below == 1
+        assert below == 0
+
+    def test_reads_of_species_dropped_at_the_cap_are_below_detection(self, monkeypatch):
+        # One pruning allowed: species 3 is pruned, and in the final fit species 2
+        # is still below the threshold, so the abundance threshold drops it. Its
+        # 10 reads of its own must not be spread over species 1.
+        scripted = {3: np.array([1980.0, 12.0, 8.0]), 2: np.array([1994.0, 6.0])}
+
+        def fake_inner_loop(L, alpha_0, alpha_init, max_iterations, tolerance):
+            alpha = alpha_0 + scripted[L.shape[1]]
+            E = vb.compute_dirichlet_expectation(alpha)
+            return alpha, vb.update_responsibilities(L, E), E, -1.0, 1
+
+        monkeypatch.setattr(vb, 'cavi_inner_loop', fake_inner_loop)
+        lp = {f'r{i}': ([1, 2, 3], [-1.0, -1.0, -1.0]) for i in range(1990)}
+        lp.update({f'own2_{i}': ([2], [-1.0]) for i in range(10)})
+        freq_full, freq_thresh, _, below = vb.bayesian_vi_iterations(
+            lp, [1, 2, 3], abundance_threshold=0.004, max_outer_iterations=1)
+        assert set(freq_full) == {1, 2}
+        assert set(freq_thresh) == {1}
+        assert below == 10
+
+    def test_zero_max_outer_iterations_still_refits_after_pruning(self):
+        lp = synthetic_reads({1: 1500, 2: 495}, seed=10, max_decoys=1)
+        lp.update({f'orphan{i}': ([3], [-40.0]) for i in range(5)})
+        freq_full, _, _, below = vb.bayesian_vi_iterations(lp, [1, 2, 3], max_outer_iterations=0)
+        reference, _, _, ref_below = vb.bayesian_vi_iterations(lp, [1, 2, 3])
+        assert set(freq_full) == {1, 2}
+        assert freq_full == pytest.approx(reference, abs=1e-6)
+        assert below == ref_below == 5
 
 
 class TestVariationalInferenceIterationsWrapper:
