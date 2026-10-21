@@ -59,13 +59,24 @@ workflow {
             input_reads = channel.from(rows)
                 .map { sample, fastq -> tuple(sample, file(fastq)) }
         } else {
-            // Directory mode (backward compatible)
+            // Directory mode (backward compatible): the sample ID is the file name
+            // without its FASTQ extension, so S1.run1.fastq.gz gives S1.run1
             log.info "Discovering FASTQs from directory: ${params.input}"
-            input_reads = channel
-                .fromPath("${params.input}/**", checkIfExists: true)
-                .filter { f -> f.name =~ /\.(fastq|fq)(\.gz)?$/ }
-                .ifEmpty { error "No FASTQ files found in ${params.input}" }
-                .map { fastq -> tuple(fastq.simpleName.replaceAll(/\.(fastq|fq)$/, ''), fastq) }
+            def fastq_ext = /\.(fastq|fq)(\.gz)?$/
+            def fastqs = files("${params.input}/**").findAll { f -> f.name =~ fastq_ext }
+            if (!fastqs)
+                error "No FASTQ files found in ${params.input}"
+            def by_sample = fastqs.groupBy { f -> f.name.replaceAll(fastq_ext, '') }
+            def clashes = by_sample.findAll { id, fs -> fs.size() > 1 }
+            if (clashes) {
+                def listing = clashes.collect { id, fs ->
+                    "  ${id}: ${fs.collect { it.toString() }.sort().join(', ')}"
+                }.sort().join('\n')
+                error "Several FASTQ files in ${params.input} give the same sample ID; rename them or use a samplesheet:\n${listing}"
+            }
+            input_reads = channel.fromList(
+                by_sample.collect { id, fs -> tuple(id, fs[0]) }.sort { it[0] }
+            )
         }
 
         ABUNDANCE(input_reads, fasta_file, tax_file)

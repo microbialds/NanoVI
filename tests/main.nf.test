@@ -164,6 +164,48 @@ nextflow_pipeline {
         }
     }
 
+    test("Directory mode keeps dots in sample IDs") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                input        = "${projectDir}/tests/test_data/multi_dot_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/sample_outputs/S1.run1_rel-abundance.tsv").exists()
+            assert file("${outputDir}/sample_outputs/S1.run2_rel-abundance.tsv").exists()
+        }
+    }
+
+    test("Directory mode fails when two FASTQ files give the same sample ID") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                input        = "${projectDir}/tests/test_data/clash_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            def reads = "${projectDir}/tests/test_data/clash_reads"
+            assert workflow.failed
+            assert workflow.stdout.any { it.contains("Several FASTQ files in ${reads} give the same sample ID; rename them or use a samplesheet:") }
+            assert workflow.stdout.any { it.contains("S1: ${reads}/S1.fastq, ${reads}/S1.fq") }
+            assert workflow.stdout.any { it.contains("S2: ${reads}/S2.fastq, ${reads}/run2/S2.fastq") }
+        }
+    }
+
     // End-to-end test: runs fastplong, minimap2 and every Python step on the
     // e2e fixture (11 real 16S sequences, 600 simulated ONT-like reads in known
     // proportions plus 30 non-16S reads). See tests/test_data/e2e/README.md.
