@@ -1,30 +1,35 @@
 """Unit tests for the SAM-reading functions in bin/likelihood.py.
 
-get_cigar_op_log_probabilities (GET_CIGAR) and log_prob_rgs_dict (COMPUTE_LOGP)
-are run on small SAM files written with pysam in tmp_path.
+get_cigar_op_log_probabilities, log_prob_rgs_dict and score_reads (LIKELIHOOD,
+which does both in one pass) are run on small SAM and BAM files written with
+pysam in tmp_path.
 """
+import json
 import math
 import os
+import subprocess
 import sys
 
+import numpy as np
 import pysam
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'bin'))
-from likelihood import get_cigar_op_log_probabilities, log_prob_rgs_dict
+BIN = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'bin'))
+sys.path.insert(0, BIN)
+from likelihood import get_cigar_op_log_probabilities, log_prob_rgs_dict, read_scores_to_arrays, score_reads
 
 REFS = ('1:Species_one:1', '2:Species_two:1', '3:Species_three:1')
 PRIMARY, UNMAPPED, SECONDARY, SUPPLEMENTARY = 0, 4, 256, 2048
 
 
-def write_sam(path, records):
-    """Write records (query_name, flag, reference, cigar, NM) as a SAM file.
+def write_sam(path, records, mode='w'):
+    """Write records (query_name, flag, reference, cigar, NM) as a SAM file ('wb': BAM).
 
     NM is the edit distance (mismatches + inserted + deleted bases); pysam's
     get_cigar_stats reports it at index 10, from which the code derives mismatches.
     """
     header = {'HD': {'VN': '1.6'}, 'SQ': [{'SN': r, 'LN': 5000} for r in REFS]}
-    with pysam.AlignmentFile(str(path), 'w', header=header) as out:
+    with pysam.AlignmentFile(str(path), mode, header=header) as out:
         for name, flag, ref, cigar, nm in records:
             a = pysam.AlignedSegment(out.header)
             a.query_name = name
@@ -161,3 +166,56 @@ class TestLogProbRgsDict:
         assert log_p_rgs['r2'][0] == [2]
         assert log_p_rgs['r2'][1] == pytest.approx([self.score([2, 0, 1], 102, 102, log_p)])
         assert assigned == 1 and unassigned == 1
+
+
+# ─── score_reads and read_likelihood.py: one pass (F24) ─────────────────────
+
+MIXED = [
+    ('r1', SECONDARY, REFS[2], '150M', 4),
+    ('r1', PRIMARY, REFS[0], '100M2I', 3),
+    ('r2', PRIMARY, REFS[1], '80M1D', 2),
+    ('r3', UNMAPPED, None, None, 0),
+    ('r1', SUPPLEMENTARY, REFS[1], '50M', 1),
+    ('r4', PRIMARY, REFS[1], '90M5S', 2),
+    ('r4', SECONDARY, REFS[1], '95M', 7),
+]
+
+
+@pytest.mark.parametrize('mode,suffix', [('w', 'sam'), ('wb', 'bam')])
+def test_score_reads_equals_the_two_passes(tmp_path, mode, suffix):
+    path = write_sam(tmp_path / f'a.{suffix}', MIXED, mode)
+    log_probs, zero_locs, longest = get_cigar_op_log_probabilities(path)
+    assert score_reads(path) == log_prob_rgs_dict(path, log_probs, longest, zero_locs)
+
+
+def test_score_reads_raises_without_primary_alignments(tmp_path):
+    path = write_sam(tmp_path / 'a.sam', [('r1', UNMAPPED, None, None, 0)])
+    with pytest.raises(ValueError, match='No primary mapped alignments'):
+        score_reads(path)
+
+
+def test_read_scores_to_arrays():
+    lp = {'b': ([3, 1], [-2.0, -5.0]), 'a': ([2], [-1.5])}
+    offsets, tax_ids, scores = read_scores_to_arrays(lp)
+    assert offsets.tolist() == [0, 2, 3]
+    assert tax_ids.tolist() == [3, 1, 2]
+    assert scores.tolist() == [-2.0, -5.0, -1.5]
+
+
+def test_read_likelihood_script(tmp_path):
+    path = write_sam(tmp_path / 'a.bam', MIXED, 'wb')
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'read_likelihood.py'), '--alignments', path,
+         '--scores', 'scores.npz', '--counts', 'counts.json'],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    log_p_rgs, unassigned, assigned = score_reads(path)
+    with np.load(tmp_path / 'scores.npz') as data:
+        assert set(data.files) == {'offsets', 'tax_ids', 'scores'}
+        expected = read_scores_to_arrays(log_p_rgs)
+        for key, value in zip(('offsets', 'tax_ids', 'scores'), expected):
+            np.testing.assert_array_equal(data[key], value)
+    assert json.loads((tmp_path / 'counts.json').read_text()) == {
+        'assigned_count': assigned, 'unassigned_count': unassigned}
+    assert (assigned, unassigned) == (3, 1)

@@ -27,8 +27,8 @@ nextflow_pipeline {
 
             // Every step's versions.yml is collected once (F33), not published with the results
             def versions = new org.yaml.snakeyaml.Yaml().load(file("${outputDir}/pipeline_info/software_versions.yml").text)
-            assert versions.keySet() == ['FILTER_READS', 'INDEX_DB', 'ALIGN_READS', 'GET_CIGAR', 'COMPUTE_LOGP',
-                                         'RUN_VI', 'WRITE_OUTPUT', 'GENERATE_PHYLOSEQ_TABLES', 'Workflow'] as Set
+            assert versions.keySet() == ['FILTER_READS', 'INDEX_DB', 'ALIGN_READS', 'LIKELIHOOD', 'RUN_VI',
+                                         'WRITE_OUTPUT', 'GENERATE_PHYLOSEQ_TABLES', 'Workflow'] as Set
             assert versions.Workflow['microbialds/NanoVI'] ==~ /\d+\.\d+\.\d+/
             assert !file("${outputDir}/sample_outputs/versions.yml").exists()
             assert !file("${outputDir}/consolidated_output/versions.yml").exists()

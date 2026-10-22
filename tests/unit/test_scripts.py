@@ -9,6 +9,7 @@ import os
 import subprocess
 import sys
 
+import numpy as np
 import pytest
 
 from .synthetic import synthetic_reads
@@ -16,10 +17,9 @@ from .synthetic import synthetic_reads
 BIN = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'bin'))
 
 SCRIPTS = {
-    'cigar_profile.py': '--sam',
-    'read_scores.py': '--cigar-json',
-    'estimate_abundance.py': '--logp',
-    'write_abundance_table.py': '--output-prefix',
+    'read_likelihood.py': '--alignments',
+    'estimate_abundance.py': '--scores',
+    'write_abundance_table.py': '--read-counts',
     'generate_phyloseq_tables.py': '--output-dir',
     'main.py': 'build-database',
 }
@@ -58,11 +58,14 @@ def test_python_versions_prints_a_versions_block(tmp_path):
 
 def run_estimate(tmp_path, *options):
     lp = synthetic_reads({1: 700, 2: 250, 3: 45, 4: 5}, seed=3)
-    logp = tmp_path / 'logp.json'
-    logp.write_text(json.dumps({'log_p_rgs': lp, 'assigned_count': len(lp), 'unassigned_count': 0}))
+    sys.path.insert(0, BIN)
+    from likelihood import read_scores_to_arrays
+    offsets, tax_ids, scores = read_scores_to_arrays(lp)
+    npz = tmp_path / 'read_scores.npz'
+    np.savez_compressed(npz, offsets=offsets, tax_ids=tax_ids, scores=scores)
     out = tmp_path / 'abundance.json'
     result = subprocess.run(
-        [sys.executable, os.path.join(BIN, 'estimate_abundance.py'), '--logp', str(logp),
+        [sys.executable, os.path.join(BIN, 'estimate_abundance.py'), '--scores', str(npz),
          '--output', str(out), *options],
         cwd=tmp_path, capture_output=True, text=True,
     )

@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Estimate species abundances from the per-read scores (RUN_VI).
 
+Reads the per-read scores that read_likelihood.py writes (an npz with
+"offsets", "tax_ids" and "scores").
+
 Writes a JSON with the reported abundances ("abundance": {tax_id: value}) and
 the number of reads whose species were all pruned ("below_detection_count").
 With --credible-intervals it also writes "posterior": {tax_id: {"alpha",
@@ -10,13 +13,15 @@ the experimental ci_lower, ci_upper and shared_read_fraction columns.
 import argparse
 import json
 
+import numpy as np
+
 import em_estimator
-from variational_inference_bayesian import bayesian_vi_iterations
+from variational_inference_bayesian import bayesian_vi, sparse_likelihood_from_csr
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    parser.add_argument("--logp", required=True, help="per-read scores from read_scores.py")
+    parser.add_argument("--scores", required=True, help="per-read scores (npz) from read_likelihood.py")
     parser.add_argument("--output", required=True, help="output JSON (<sample>_abundance.json)")
     parser.add_argument("--estimator", choices=["vb", "em"], default="vb",
                         help="'vb': Bayesian variational inference (default); 'em': Emu-style EM")
@@ -36,22 +41,27 @@ def main():
     if args.credible_intervals and args.estimator != "vb":
         parser.error("--credible-intervals needs --estimator vb")
 
-    with open(args.logp) as f:
-        data = json.load(f)
+    with np.load(args.scores) as data:
+        offsets, tax_ids, scores = data["offsets"], data["tax_ids"], data["scores"]
 
-    log_p_rgs = data["log_p_rgs"]
-
-    db_ids = list({tid for read in log_p_rgs.values() for tid in read[0]})
+    # Species in order of first appearance through a set, as the JSON hand-off did,
+    # so the columns (and the floating-point sums) are in the same order as before
+    db_ids = list({int(tid) for tid in tax_ids})
 
     posterior = None
     if args.estimator == "em":
+        tax_id_lists, score_lists = tax_ids.tolist(), scores.tolist()
+        log_p_rgs = {
+            r: (tax_id_lists[start:end], score_lists[start:end])
+            for r, (start, end) in enumerate(zip(offsets[:-1].tolist(), offsets[1:].tolist()))
+        }
         freq_full, freq_thresh, below_detection_count = em_estimator.variational_inference_iterations(
             log_p_rgs, db_ids, lli_thresh=args.elbo_threshold, input_threshold=args.min_abundance
         )
     else:
-        result = bayesian_vi_iterations(
-            log_p_rgs=log_p_rgs,
-            db_species_ids=db_ids,
+        idx, logL = sparse_likelihood_from_csr(offsets, tax_ids, scores, np.array(db_ids, dtype=np.int64))
+        result = bayesian_vi(
+            idx, logL, db_ids,
             abundance_threshold=args.min_abundance,
             alpha_prior=args.alpha_prior,
             max_outer_iterations=10,

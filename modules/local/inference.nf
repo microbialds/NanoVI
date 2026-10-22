@@ -3,7 +3,7 @@ process RUN_VI {
     label 'vi_inference'
 
     input:
-    tuple val(sample_id), path(logp_json)
+    tuple val(sample_id), path(read_scores)
 
     output:
     tuple val(sample_id), path("${sample_id}_abundance.json"), emit: abundance
@@ -12,7 +12,7 @@ process RUN_VI {
     script:
     """
     estimate_abundance.py \\
-        --logp "${logp_json}" \\
+        --scores "${read_scores}" \\
         --output "${sample_id}_abundance.json" \\
         --estimator ${params.estimator} \\
         --min-abundance ${params.min_abundance} \\

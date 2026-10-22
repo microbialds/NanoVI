@@ -13,7 +13,7 @@ NanoVI is a Nextflow DSL2 pipeline that performs taxonomic classification of ful
 ### Pipeline Workflow
 
 ```
-Input FASTQs → Quality Filter (FastpLong) → Align (minimap2) → CIGAR Stats → Log-Probabilities → VI → Abundance Tables
+Input FASTQs → Quality Filter (FastpLong) → Align (minimap2) → Read likelihoods (CIGAR error profile and read scores) → VI → Abundance Tables
 ```
 
 **Subcommands:**

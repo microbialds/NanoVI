@@ -94,7 +94,7 @@ class TestSparseLikelihoodFromCsr:
         offsets = np.cumsum([0] + [len(v[0]) for v in lp.values()])
         tax_ids = np.concatenate([v[0] for v in lp.values()])
         scores = np.concatenate([v[1] for v in lp.values()])
-        species = np.array([10, 20, 30])
+        species = np.array([30, 10, 20])  # any order: column j is species[j]
         idx, logL = vb.sparse_likelihood_from_csr(offsets, tax_ids, scores, species)
         ref_idx, ref_logL, _ = vb.build_sparse_likelihood(lp, list(species))
         np.testing.assert_array_equal(idx, ref_idx)

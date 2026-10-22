@@ -2,9 +2,9 @@
 # Copyright (c) 2021 Kristen Curry, Qi Wang, Michael G. Nute, Alona Tyshaieva,
 # Qinglong Wu, Tor Savidge, Alexander Dilthey, Todd J. Treangen. MIT License;
 # see THIRD_PARTY_LICENSES for the full text.
-# Adapted here: get_align_stats, get_align_len,
-# get_cigar_op_log_probabilities, compute_log_prob_rgs and log_prob_rgs_dict (Emu's
-# CIGAR-based read score).
+# Adapted here: get_align_stats, get_align_len, cigar_profile
+# (get_cigar_op_log_probabilities) and read_scores_from_records (log_prob_rgs_dict):
+# Emu's CIGAR-based read score.
 
 """
 Read likelihoods for NanoVI.
@@ -12,11 +12,14 @@ Read likelihoods for NanoVI.
 1. CIGAR operation log-probabilities estimated from the sample's primary alignments
 2. Per-read log-likelihood of each candidate species
 
-The estimators (em_estimator.py, variational_inference_bayesian.py) take the
-per-read scores that log_prob_rgs_dict returns.
+score_reads does both from one pass over the alignments (LIKELIHOOD, F24); the
+estimators (em_estimator.py, variational_inference_bayesian.py) take the
+per-read scores it returns.
 """
 
 import math
+from array import array
+
 import numpy as np
 import pysam
 from operator import add, mul
@@ -33,6 +36,93 @@ def get_align_stats(alignment):
 def get_align_len(alignment):
     return sum(alignment.get_cigar_stats()[0][cigar_op] for cigar_op in CIGAR_OPS_ALL)
 
+class AlignmentRecords:
+    """What the read score needs from each alignment, read in one pass (F24).
+
+    Per alignment, in file order: the read (an index into names), the
+    reference (an index into ref_names, -1 when unmapped), the aligned length
+    (M + I + D + S), the counts of I, D, S and mismatches, and whether it is a
+    primary mapped alignment. Integers are kept in array.array, about 60 bytes
+    per alignment, so the alignments are not held as pysam objects.
+    """
+
+    def __init__(self, sam_path):
+        self.sam_path = sam_path
+        self.names = []
+        self.read = array("q")
+        self.ref = array("q")
+        self.length = array("q")
+        self.stats = array("q")
+        self.primary = array("b")
+        read_index = {}
+        with pysam.AlignmentFile(sam_path) as sam_pysam:
+            self.ref_names = list(sam_pysam.references)
+            for alignment in sam_pysam:
+                query_name = alignment.query_name
+                r = read_index.get(query_name)
+                if r is None:
+                    r = read_index[query_name] = len(self.names)
+                    self.names.append(query_name)
+                self.read.append(r)
+                self.ref.append(alignment.reference_id if alignment.reference_name else -1)
+                self.length.append(get_align_len(alignment))
+                self.stats.extend(get_align_stats(alignment))
+                self.primary.append(
+                    not alignment.is_unmapped and not alignment.is_secondary and not alignment.is_supplementary
+                )
+
+    def __len__(self):
+        return len(self.read)
+
+    def align_stats(self, i):
+        return list(self.stats[4 * i:4 * i + 4])
+
+
+def read_alignment_records(sam_path):
+    """Read a SAM or BAM file once into AlignmentRecords."""
+    return AlignmentRecords(sam_path)
+
+
+def cigar_profile(records):
+    """Error profile and longest alignments from AlignmentRecords.
+
+    Returns what get_cigar_op_log_probabilities returns.
+    """
+    cigar_stats_primary = [0] * len(CIGAR_OPS)
+    longest = [-1] * len(records.names)
+    n_mapped = 0
+
+    for i in range(len(records)):
+        r = records.read[i]
+        align_len = records.length[i]
+        if longest[r] < align_len:
+            longest[r] = align_len
+        # The error profile comes from primary mapped alignments only, as in Emu (F03, D3)
+        if records.primary[i]:
+            n_mapped += 1
+            cigar_stats_primary = list(map(add, cigar_stats_primary, records.align_stats(i)))
+
+    if n_mapped == 0:
+        raise ValueError(
+            f"No primary mapped alignments in {records.sam_path}. Check that the reads overlap with the "
+            "reference database and that filtering (--min_length, --max_length) left reads to align."
+        )
+
+    zero_locs = [i for i, e in enumerate(cigar_stats_primary) if e == 0]
+    if zero_locs:
+        for i in sorted(zero_locs, reverse=True):
+            del cigar_stats_primary[i]
+
+    n_char = sum(cigar_stats_primary)
+    if n_char == 0:
+        raise ValueError(
+            f"No insertions, deletions, soft clips or mismatches in the primary alignments of {records.sam_path}; "
+            "the error profile cannot be estimated."
+        )
+    dict_longest_align = dict(zip(records.names, longest))
+    return [math.log(x) for x in np.array(cigar_stats_primary) / n_char], zero_locs, dict_longest_align
+
+
 def get_cigar_op_log_probabilities(sam_path, threads=None):
     """Compute global log-probabilities for each CIGAR operation from the alignments.
 
@@ -48,45 +138,47 @@ def get_cigar_op_log_probabilities(sam_path, threads=None):
     Raises ValueError when the SAM holds no primary mapped alignment or when those
     alignments have no error operation.
     """
-    cigar_stats_primary = [0] * len(CIGAR_OPS)
-    dict_longest_align = {}
-    n_mapped = 0
+    return cigar_profile(read_alignment_records(sam_path))
 
-    with pysam.AlignmentFile(sam_path) as sam_pysam:
-        for alignment in sam_pysam:
-            align_len = get_align_len(alignment)
-            query_name = alignment.query_name
-            if dict_longest_align.get(query_name, -1) < align_len:
-                dict_longest_align[query_name] = align_len
-            # The error profile comes from primary mapped alignments only, as in Emu (F03, D3)
-            if not alignment.is_unmapped and not alignment.is_secondary and not alignment.is_supplementary:
-                n_mapped += 1
-                cigar_stats_primary = list(map(add, cigar_stats_primary, get_align_stats(alignment)))
+def read_scores_from_records(records, log_p_cigar_op, dict_longest_align, p_cigar_op_zero_locs=None):
+    """log_prob_rgs_dict on AlignmentRecords: the same scores, in the same order."""
+    zero_locs = sorted(p_cigar_op_zero_locs or [], reverse=True)
+    log_p_rgs, unassigned_set = {}, set()
+    species_tids = {}
 
-    if n_mapped == 0:
-        raise ValueError(
-            f"No primary mapped alignments in {sam_path}. Check that the reads overlap with the "
-            "reference database and that filtering (--min_length, --max_length) left reads to align."
-        )
+    for i in range(len(records)):
+        query_name = records.names[records.read[i]]
+        align_len = records.length[i]
+        ref = records.ref[i]
+        if not (ref >= 0 and align_len):
+            unassigned_set.add(query_name)
+            continue
+        cigar_stats = records.align_stats(i)
+        if any(cigar_stats[j] for j in zero_locs):
+            unassigned_set.add(query_name)
+            continue
+        for j in zero_locs:
+            del cigar_stats[j]
+        log_score = sum(list(map(mul, log_p_cigar_op, cigar_stats))) * (dict_longest_align[query_name] / align_len)
+        species_tid = species_tids.get(ref)
+        if species_tid is None:
+            species_tid = species_tids[ref] = int(records.ref_names[ref].split(":")[0])
+        if query_name not in log_p_rgs:
+            log_p_rgs[query_name] = ([species_tid], [log_score])
+        elif species_tid not in log_p_rgs[query_name][0]:
+            log_p_rgs[query_name][0].append(species_tid)
+            log_p_rgs[query_name][1].append(log_score)
+        else:
+            logprgs_idx = log_p_rgs[query_name][0].index(species_tid)
+            if log_p_rgs[query_name][1][logprgs_idx] < log_score:
+                log_p_rgs[query_name][1][logprgs_idx] = log_score
 
-    zero_locs = [i for i, e in enumerate(cigar_stats_primary) if e == 0]
-    if zero_locs:
-        for i in sorted(zero_locs, reverse=True):
-            del cigar_stats_primary[i]
+    assigned_reads = set(log_p_rgs.keys())
+    unassigned_reads = unassigned_set - assigned_reads
+    unassigned_count = len(unassigned_reads)
+    stdout.write(f"Unassigned read count: {unassigned_count}\n")
 
-    n_char = sum(cigar_stats_primary)
-    if n_char == 0:
-        raise ValueError(
-            f"No insertions, deletions, soft clips or mismatches in the primary alignments of {sam_path}; "
-            "the error profile cannot be estimated."
-        )
-    return [math.log(x) for x in np.array(cigar_stats_primary) / n_char], zero_locs, dict_longest_align
-
-def compute_log_prob_rgs(alignment, cigar_stats, log_p_cigar_op, dict_longest_align, align_len):
-    ref_name, query_name = alignment.reference_name, alignment.query_name
-    log_score = sum(list(map(mul, log_p_cigar_op, cigar_stats))) * (dict_longest_align[query_name] / align_len)
-    species_tid = int(ref_name.split(":")[0])
-    return log_score, query_name, species_tid
+    return log_p_rgs, unassigned_count, len(assigned_reads)
 
 def log_prob_rgs_dict(sam_path, log_p_cigar_op, dict_longest_align, p_cigar_op_zero_locs=None):
     """Build dict mapping read_name -> (species_ids, log_scores) from SAM alignments.
@@ -96,35 +188,31 @@ def log_prob_rgs_dict(sam_path, log_p_cigar_op, dict_longest_align, p_cigar_op_z
     (p_cigar_op_zero_locs) has no score and is skipped; its read counts as
     unassigned unless another alignment of the read is scored (F10).
     """
-    zero_locs = sorted(p_cigar_op_zero_locs or [], reverse=True)
-    log_p_rgs, unassigned_set = {}, set()
+    return read_scores_from_records(
+        read_alignment_records(sam_path), log_p_cigar_op, dict_longest_align, p_cigar_op_zero_locs
+    )
 
-    with pysam.AlignmentFile(sam_path) as sam_pysam:
-        for alignment in sam_pysam:
-            align_len = get_align_len(alignment)
-            if not (alignment.reference_name and align_len):
-                unassigned_set.add(alignment.query_name)
-                continue
-            cigar_stats = get_align_stats(alignment)
-            if any(cigar_stats[i] for i in zero_locs):
-                unassigned_set.add(alignment.query_name)
-                continue
-            for i in zero_locs:
-                del cigar_stats[i]
-            log_score, query_name, species_tid = compute_log_prob_rgs(alignment, cigar_stats, log_p_cigar_op, dict_longest_align, align_len)
-            if query_name not in log_p_rgs:
-                log_p_rgs[query_name] = ([species_tid], [log_score])
-            elif species_tid not in log_p_rgs[query_name][0]:
-                log_p_rgs[query_name][0].append(species_tid)
-                log_p_rgs[query_name][1].append(log_score)
-            else:
-                logprgs_idx = log_p_rgs[query_name][0].index(species_tid)
-                if log_p_rgs[query_name][1][logprgs_idx] < log_score:
-                    log_p_rgs[query_name][1][logprgs_idx] = log_score
+def score_reads(sam_path):
+    """Error profile and read scores from one pass over a SAM or BAM file (F24).
 
-    assigned_reads = set(log_p_rgs.keys())
-    unassigned_reads = unassigned_set - assigned_reads
-    unassigned_count = len(unassigned_reads)
-    stdout.write(f"Unassigned read count: {unassigned_count}\n")
+    Returns (log_p_rgs, unassigned_count, assigned_count), as log_prob_rgs_dict
+    does after get_cigar_op_log_probabilities, which read the file twice.
+    """
+    records = read_alignment_records(sam_path)
+    log_probs, zero_locs, dict_longest_align = cigar_profile(records)
+    return read_scores_from_records(records, log_probs, dict_longest_align, zero_locs)
 
-    return log_p_rgs, unassigned_count, len(assigned_reads)
+def read_scores_to_arrays(log_p_rgs):
+    """Per-read lists as flat arrays, in read order (the read-scores npz, F24).
+
+    Returns (offsets, tax_ids, scores): read r's candidates are
+    tax_ids[offsets[r]:offsets[r + 1]], with their scores.
+    """
+    lengths = [len(sids) for sids, _ in log_p_rgs.values()]
+    offsets = np.zeros(len(lengths) + 1, dtype=np.int64)
+    np.cumsum(lengths, out=offsets[1:])
+    tax_ids = np.fromiter((sid for sids, _ in log_p_rgs.values() for sid in sids),
+                          dtype=np.int64, count=int(offsets[-1]))
+    scores = np.fromiter((score for _, scores in log_p_rgs.values() for score in scores),
+                         dtype=np.float64, count=int(offsets[-1]))
+    return offsets, tax_ids, scores

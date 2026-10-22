@@ -92,8 +92,8 @@ def sparse_likelihood_from_csr(
     Padded idx/logL arrays from the per-read lists in a read-scores npz (F24).
 
     Read r's candidates are tax_ids[offsets[r]:offsets[r + 1]] with their scores.
-    species_ids must be sorted; candidates not in it are ignored, and a species
-    listed twice for a read keeps its best score.
+    Column j is species_ids[j]; candidates not in species_ids are ignored, and a
+    species listed twice for a read keeps its best score.
     """
     offsets = np.asarray(offsets, dtype=np.int64)
     tax_ids = np.asarray(tax_ids)
@@ -101,10 +101,11 @@ def sparse_likelihood_from_csr(
     species_ids = np.asarray(species_ids)
     R = len(offsets) - 1
     rows = np.repeat(np.arange(R), np.diff(offsets))
-    cols = np.searchsorted(species_ids, tax_ids)
-    found = cols < len(species_ids)
-    found[found] = species_ids[cols[found]] == tax_ids[found]
-    rows, cols, scores = rows[found], cols[found], scores[found]
+    order = np.argsort(species_ids, kind="stable")
+    pos = np.searchsorted(species_ids[order], tax_ids)
+    found = pos < len(species_ids)
+    found[found] = species_ids[order[pos[found]]] == tax_ids[found]
+    rows, cols, scores = rows[found], order[pos[found]], scores[found]
 
     # A species listed twice for one read keeps its best score
     order = np.lexsort((-scores, cols, rows))
