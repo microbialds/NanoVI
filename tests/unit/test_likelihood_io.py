@@ -215,3 +215,86 @@ def test_read_likelihood_script(tmp_path):
     assert json.loads((tmp_path / 'counts.json').read_text()) == {
         'assigned_count': assigned, 'unassigned_count': unassigned}
     assert (assigned, unassigned) == (3, 1)
+
+
+# ─── Experimental options (Phase 7a benchmark) ──────────────────────────────
+
+def test_error_profile_all_counts_secondary_alignments(tmp_path):
+    path = write_sam(tmp_path / 'a.sam', MIXED)
+    from likelihood import cigar_profile, read_alignment_records
+    records = read_alignment_records(path)
+    # Mapped records, I, D, S, X: r1 secondary (0,0,0,4), r1 primary (2,0,0,1),
+    # r2 (0,1,0,1), r1 supplementary (0,0,0,1), r4 primary (0,0,5,2), r4 secondary (0,0,0,7)
+    log_p, zero_locs, _ = cigar_profile(records, 'all')
+    assert zero_locs == []
+    assert log_p == pytest.approx(log_shares([2, 1, 5, 16]))
+    assert cigar_profile(records, 'primary')[0] == pytest.approx(log_shares([2, 1, 5, 4]))
+    with pytest.raises(ValueError, match='error_profile'):
+        cigar_profile(records, 'some')
+
+
+def test_per_base_score_counts_matches_and_clips(tmp_path):
+    records_in = [
+        ('r1', PRIMARY, REFS[0], '10H98M2I', 5),   # 98 columns, NM 5: 3 mismatches, 95 matches
+        ('r1', SECONDARY, REFS[1], '100M10S', 2),  # 100 columns, 2 mismatches, 98 matches
+    ]
+    path = write_sam(tmp_path / 'a.sam', records_in)
+    from likelihood import per_base_log_probabilities, read_alignment_records
+    records = read_alignment_records(path)
+    assert records.op_counts().tolist() == [[95, 2, 0, 10, 3], [98, 0, 0, 10, 2]]
+    np.testing.assert_allclose(records.identity(), [100 * (1 - 5 / 100), 100 * (1 - 2 / 100)])
+    assert records.aligned_query_length().tolist() == [100, 100]
+    log_p = per_base_log_probabilities(records)  # primary only, pseudocount 0.5
+    counts = np.array([95, 2, 0, 10, 3]) + 0.5
+    np.testing.assert_allclose(log_p, np.log(counts / counts.sum()))
+    log_p_rgs, unassigned, assigned = score_reads(path, score='per-base')
+    assert log_p_rgs['r1'][0] == [1, 2]
+    np.testing.assert_allclose(log_p_rgs['r1'][1], [np.dot([95, 2, 0, 10, 3], log_p), np.dot([98, 0, 0, 10, 2], log_p)])
+
+
+def test_identity_and_length_filters_skip_alignments(tmp_path):
+    records_in = [
+        ('r1', PRIMARY, REFS[0], '100M', 2),       # 98% identity, 100 aligned bases
+        ('r1', SECONDARY, REFS[1], '100M', 10),    # 90%
+        ('r2', PRIMARY, REFS[1], '50M50S', 1),     # 98%, 50 aligned bases
+    ]
+    path = write_sam(tmp_path / 'a.sam', records_in)
+    log_p_rgs, unassigned, assigned = score_reads(path, min_identity=95)
+    assert {r: v[0] for r, v in log_p_rgs.items()} == {'r1': [1], 'r2': [2]}
+    log_p_rgs, unassigned, assigned = score_reads(path, min_aligned_length=60)
+    assert {r: v[0] for r, v in log_p_rgs.items()} == {'r1': [1, 2]}
+    assert (assigned, unassigned) == (1, 1)
+    # Defaults: nothing filtered, the same scores as before
+    assert score_reads(path, min_identity=None) == score_reads(path)
+
+
+def test_unknown_floor_is_the_score_at_the_median_error_rate_plus_delta(tmp_path):
+    records_in = [
+        ('r1', PRIMARY, REFS[0], '100M', 2),
+        ('r2', PRIMARY, REFS[1], '90M10S', 4),
+        ('r3', PRIMARY, REFS[1], '200M', 10),
+    ]
+    path = write_sam(tmp_path / 'a.sam', records_in)
+    log_p_rgs, _, _, floors = score_reads(path, unknown_delta=0.03)
+    # Emu columns M+I+D+S: 100, 100, 200; errors I+D+S+X: 2, 14, 10 -> rates .02, .14, .05
+    rate = 0.05 + 0.03
+    log_p = np.array(log_shares([0, 0, 10, 16]))
+    p = np.exp(log_p)
+    np.testing.assert_allclose(floors, [100 * rate * p @ log_p, 100 * rate * p @ log_p, 200 * rate * p @ log_p])
+    # A read whose best alignment has the median error rate scores above its floor
+    assert log_p_rgs['r3'][1][0] > floors[2]
+
+
+def test_read_likelihood_script_writes_unknown_floor(tmp_path):
+    path = write_sam(tmp_path / 'a.bam', MIXED, 'wb')
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'read_likelihood.py'), '--alignments', path,
+         '--scores', 'scores.npz', '--counts', 'counts.json', '--score', 'per-base', '--unknown-delta', '0.05'],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    log_p_rgs, _, _, floors = score_reads(path, score='per-base', unknown_delta=0.05)
+    with np.load(tmp_path / 'scores.npz') as data:
+        assert set(data.files) == {'offsets', 'tax_ids', 'scores', 'unknown_floor'}
+        np.testing.assert_array_equal(data['unknown_floor'], floors)
+        assert len(data['unknown_floor']) == len(data['offsets']) - 1
