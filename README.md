@@ -100,7 +100,7 @@ Parameters are checked against `nextflow_schema.json` at the start of every run 
 | `--taxonomy_tsv` | `<db>/taxonomy.tsv` | Path to taxonomy TSV |
 | `--kmer_size` | `21` | K-mer size for minimap2 indexing |
 | `--N` | `3` | Maximum secondary alignments per read |
-| `--K` | `4000000000` | Minibatch size for minimap2 mapping (minimap2 `-K`: bases per batch; a number, optionally with `K`, `M` or `G`) |
+| `--K` | `500M` | Minibatch size for minimap2 mapping (minimap2 `-K`): the number of read **bases** (not bytes) loaded and mapped per batch, a number optionally with `K`, `M` or `G`. 500M (minimap2's default) is 500 million bases, about 330,000 reads of 1.5 kb; larger batches use more memory |
 | `--type` | `map-ont` | Minimap2 preset (`map-ont`, `map-pb`, `sr`) |
 | `--min_length` | `500` | Minimum read length filter (bp) |
 | `--max_length` | `2000` | Maximum read length filter (bp) |

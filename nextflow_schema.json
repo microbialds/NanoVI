@@ -77,9 +77,9 @@
         },
         "K": {
           "type": "string",
-          "default": "4000000000",
+          "default": "500M",
           "pattern": "^[0-9]+[KMGkmg]?$",
-          "description": "Minibatch size for minimap2 mapping (minimap2 -K: bases loaded per batch; a number, optionally with K, M or G)"
+          "description": "Minibatch size for minimap2 mapping (minimap2 -K): the number of read bases loaded and mapped per batch, a number optionally with K, M or G (500M = 500 million bases)"
         },
         "type": {
           "type": "string",
