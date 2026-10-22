@@ -121,13 +121,18 @@ def write_references(genomes, out_dir):
 
 
 def run_badread(args):
+    """One Badread call; its output is kept, so an interrupted run resumes where it stopped."""
     ref, n_reads, chem, seed, out = args
+    if Path(out).exists():
+        return out
     mean_len = np.mean([len(s) for _, s in fasta_records(str(ref))])
     quantity = int(n_reads * mean_len * 1.25) + 5000
-    with open(out, "w") as fh, open(str(out) + ".log", "w") as log:
+    tmp = Path(str(out) + ".tmp")
+    with open(tmp, "w") as fh, open(str(out) + ".log", "w") as log:
         subprocess.run([BADREAD, "simulate", "--reference", str(ref), "--quantity", str(quantity),
                         "--seed", str(seed), *CHEMISTRY[chem], *COMMON_ARGS],
                        stdout=fh, stderr=log, check=True)
+    tmp.rename(out)
     return out
 
 
@@ -216,7 +221,7 @@ def main():
         write_tsv(pd.DataFrame({"species": species, "design_abundance": [design[s] for s in species],
                                 "reads": [counts[s] for s in species]}), out / "truth.tsv")
         for p in (out / "parts").iterdir():
-            p.unlink()
+            p.unlink()  # parts and their Badread logs
         (out / "parts").rmdir()
     print("done")
 
