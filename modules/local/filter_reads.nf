@@ -13,7 +13,8 @@ process FILTER_READS {
     path "fastplong/*.html.gz"
     path "versions.yml", emit: versions
 
-    // fastplong writes the filtered reads gzipped (F27)
+    // fastplong writes the filtered reads gzipped (F27) with the CPUs the task asks for
+    // (F28; its default is 3 worker threads); the output does not depend on the count
     script:
     // --min_quality turns on fastplong's quality filter on mean read quality (D5; off by default):
     // the per-base rule is switched off, fastplong's limit of 5 N bases per read still applies
@@ -26,6 +27,7 @@ process FILTER_READS {
     fastplong \\
         -i ${fastq_file} \\
         -o ${sample_id}_filtered.fastq.gz \\
+        --thread ${task.cpus} \\
         --html fastplong/${sample_id}_report.html \\
         --json fastplong/${sample_id}_report.json \\
         --length_required ${params.min_length} \\

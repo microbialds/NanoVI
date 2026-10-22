@@ -37,12 +37,12 @@ nextflow_pipeline {
 
     // minimap2 index cache (F26): INDEX_DB keeps the index in --index_cache_dir under a
     // name made of the FASTA's MD5, the preset, the k-mer size and the minimap2 version,
-    // and a run that finds it there skips the step
+    // and a run that finds it there skips the step. Stub runs add '.stub' to the name
     def mockIndexName = { projectDir ->
         def fasta = new File("${projectDir}/tests/test_data/mock_db/species_taxid.fasta")
         def md5 = java.security.MessageDigest.getInstance('MD5').digest(fasta.bytes).encodeHex().toString().take(12)
         def mm2 = (new File("${projectDir}/conf/base.config").text =~ /ext.minimap2_version\s*=\s*'([^']+)'/)[0][1]
-        "species_taxid.${md5}.map-ont.k21.minimap2-${mm2}"
+        "species_taxid.${md5}.map-ont.k21.stub.minimap2-${mm2}"
     }
 
     test("INDEX_DB builds the index into the index cache") {

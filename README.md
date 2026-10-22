@@ -96,7 +96,7 @@ Parameters are checked against `nextflow_schema.json` at the start of every run 
 | `--input` | required | Path to samplesheet CSV or FASTQ directory |
 | `--db` | required | Path to NanoVI/GTDB reference database |
 | `--db_index` | none | Prebuilt minimap2 index (`.mmi`) of the database's `species_taxid.fasta`; INDEX_DB is skipped. Build it with the pipeline's minimap2 (2.24) and the same `-x <type> -k <kmer_size>`, or take it from the index cache of an earlier run |
-| `--index_cache_dir` | `<output_dir>/index_cache` | Where INDEX_DB keeps the indexes it builds. The file name records the database (the first 12 digits of the FASTA's MD5), `--type`, `--kmer_size` and the minimap2 version, e.g. `species_taxid.3f9c0a12b7de.map-ont.k21.minimap2-2.24.mmi`, so a later run with the same settings reuses the index instead of rebuilding it. Point several runs at one directory to share it |
+| `--index_cache_dir` | `<output_dir>/index_cache` | Where INDEX_DB keeps the indexes it builds. The file name records the database (the first 12 digits of the FASTA's MD5), `--type`, `--kmer_size` and the minimap2 version, e.g. `species_taxid.3f9c0a12b7de.map-ont.k21.minimap2-2.24.mmi`, so a later run with the same settings reuses the index instead of rebuilding it. Point several runs at one directory to share it, but let the first run that builds an index finish before starting others: a run reuses any file with the right name, and nothing checks that it is complete |
 | `--taxonomy_tsv` | `<db>/taxonomy.tsv` | Path to taxonomy TSV |
 | `--kmer_size` | `21` | K-mer size for minimap2 indexing |
 | `--N` | `3` | Maximum secondary alignments per read |
@@ -133,6 +133,8 @@ The Python steps ask for one CPU each and run on one core (`nextflow.config` set
 | `--max_cpus` | `16` | Most CPUs any task asks for |
 | `--max_memory` | `128.GB` | Most memory any task asks for |
 | `--max_time` | `240.h` | Most time any task asks for |
+
+Give the caps on the command line or in a `-params-file`. In a custom `-c` config, `params.max_*` comes too late to change them: set `process.resourceLimits = [cpus: 32, memory: 256.GB, time: 48.h]` there instead.
 
 ### Database Build
 

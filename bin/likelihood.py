@@ -22,19 +22,22 @@ from array import array
 
 import numpy as np
 import pysam
-from operator import add, mul
+from operator import mul
 from sys import stdout
 
 CIGAR_OPS = [1, 2, 4, 10]
 CIGAR_OPS_ALL = [0, 1, 2, 4]
 
-def get_align_stats(alignment):
-    cigar_stats = alignment.get_cigar_stats()[0]
+def get_align_stats(alignment, cigar_stats=None):
+    if cigar_stats is None:
+        cigar_stats = alignment.get_cigar_stats()[0]
     n_mismatch = cigar_stats[10] - cigar_stats[1] - cigar_stats[2]
     return [cigar_stats[1], cigar_stats[2], cigar_stats[4], n_mismatch]
 
-def get_align_len(alignment):
-    return sum(alignment.get_cigar_stats()[0][cigar_op] for cigar_op in CIGAR_OPS_ALL)
+def get_align_len(alignment, cigar_stats=None):
+    if cigar_stats is None:
+        cigar_stats = alignment.get_cigar_stats()[0]
+    return sum(cigar_stats[cigar_op] for cigar_op in CIGAR_OPS_ALL)
 
 class AlignmentRecords:
     """What the read score needs from each alignment, read in one pass (F24).
@@ -65,8 +68,10 @@ class AlignmentRecords:
                     self.names.append(query_name)
                 self.read.append(r)
                 self.ref.append(alignment.reference_id if alignment.reference_name else -1)
-                self.length.append(get_align_len(alignment))
-                self.stats.extend(get_align_stats(alignment))
+                # The CIGAR is parsed once per alignment
+                cigar_stats = alignment.get_cigar_stats()[0]
+                self.length.append(get_align_len(alignment, cigar_stats))
+                self.stats.extend(get_align_stats(alignment, cigar_stats))
                 self.primary.append(
                     not alignment.is_unmapped and not alignment.is_secondary and not alignment.is_supplementary
                 )
@@ -88,19 +93,14 @@ def cigar_profile(records):
 
     Returns what get_cigar_op_log_probabilities returns.
     """
-    cigar_stats_primary = [0] * len(CIGAR_OPS)
-    longest = [-1] * len(records.names)
-    n_mapped = 0
-
-    for i in range(len(records)):
-        r = records.read[i]
-        align_len = records.length[i]
-        if longest[r] < align_len:
-            longest[r] = align_len
-        # The error profile comes from primary mapped alignments only, as in Emu (F03, D3)
-        if records.primary[i]:
-            n_mapped += 1
-            cigar_stats_primary = list(map(add, cigar_stats_primary, records.align_stats(i)))
+    longest = np.full(len(records.names), -1, dtype=np.int64)
+    np.maximum.at(longest, np.frombuffer(records.read, dtype=np.int64),
+                  np.frombuffer(records.length, dtype=np.int64))
+    # The error profile comes from primary mapped alignments only, as in Emu (F03, D3)
+    primary = np.frombuffer(records.primary, dtype=np.int8).astype(bool)
+    n_mapped = int(primary.sum())
+    stats = np.frombuffer(records.stats, dtype=np.int64).reshape(-1, len(CIGAR_OPS))
+    cigar_stats_primary = [int(x) for x in stats[primary].sum(axis=0)]
 
     if n_mapped == 0:
         raise ValueError(
@@ -119,7 +119,7 @@ def cigar_profile(records):
             f"No insertions, deletions, soft clips or mismatches in the primary alignments of {records.sam_path}; "
             "the error profile cannot be estimated."
         )
-    dict_longest_align = dict(zip(records.names, longest))
+    dict_longest_align = dict(zip(records.names, longest.tolist()))
     return [math.log(x) for x in np.array(cigar_stats_primary) / n_char], zero_locs, dict_longest_align
 
 

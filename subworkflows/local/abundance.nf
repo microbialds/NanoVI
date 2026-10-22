@@ -26,7 +26,9 @@ workflow ABUNDANCE {
         mm2_index = channel.value(db_index)
         index_versions = channel.empty()
     } else {
-        def index_name = "${fasta_file.baseName}.${md5Prefix(fasta_file)}.${params.type}.k${params.kmer_size}"
+        // A stub run's empty index gets its own name, so a later real run never reuses it
+        def stub = workflow.stubRun ? '.stub' : ''
+        def index_name = "${fasta_file.baseName}.${md5Prefix(fasta_file)}.${params.type}.k${params.kmer_size}${stub}"
         INDEX_DB(fasta_file, index_name)
         mm2_index = INDEX_DB.out.index
         index_versions = INDEX_DB.out.versions

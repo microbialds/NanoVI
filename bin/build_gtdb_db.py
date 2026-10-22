@@ -234,8 +234,10 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
     print(f"  Sequences        : {len(out_records):,}")
     print(f"  Avg seq/species  : {len(out_records)/n_species:.1f}")
     print("=" * 60)
-    print("\nNext step — index with minimap2:")
-    print(f"  minimap2 -k 27 -d {output_dir}/gtdb_index.mmi {fasta_out}")
+    print("\nNext step: pass the directory as --db; the pipeline builds the minimap2")
+    print("index (with --type and --kmer_size) and keeps it in --index_cache_dir.")
+    print("To build it yourself for --db_index, use the same settings, e.g.:")
+    print(f"  minimap2 -x map-ont -k 21 -d {output_dir}/species_taxid.map-ont.k21.mmi {fasta_out}")
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
