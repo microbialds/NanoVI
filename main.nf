@@ -1,7 +1,7 @@
 // main.nf – NanoVI: Taxonomic classification via variational inference
 nextflow.enable.dsl = 2
 
-include { validateParameters } from 'plugin/nf-schema'
+include { validateParameters; samplesheetToList } from 'plugin/nf-schema'
 
 // ─── PARAMETER TYPES ────────────────────────────────────────────────────────
 // Defaults are in nextflow.config and descriptions in nextflow_schema.json. The
@@ -108,9 +108,11 @@ workflow {
         if (params.input.endsWith('.csv')) {
             // Samplesheet mode
             log.info "Reading samplesheet: ${params.input}"
-            def rows = new SamplesheetParser().parseSamplesheet(params.input)
-            input_reads = channel.from(rows)
-                .map { sample, fastq -> tuple(sample, file(fastq)) }
+            // Rows checked against assets/schema_input.json: name pattern, unique
+            // IDs, FASTQ extension, and the file exists (local, relative or remote)
+            def rows = samplesheetToList(params.input, "${projectDir}/assets/schema_input.json")
+            input_reads = channel.fromList(rows)
+                .map { meta, fastq -> tuple(meta.id, fastq) }
         } else {
             // Directory mode (backward compatible): the sample ID is the file name
             // without its FASTQ extension, so S1.run1.fastq.gz gives S1.run1

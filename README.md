@@ -68,8 +68,11 @@ A CSV file with `sample` and `fastq` columns:
 ```csv
 sample,fastq
 sample1,/path/to/sample1.fastq.gz
-sample2,/path/to/sample2.fastq.gz
+sample2,reads/sample2.fastq.gz
+sample3,s3://my-bucket/run1/sample3.fastq.gz
 ```
+
+It is checked against `assets/schema_input.json` before any step runs: sample IDs must be unique and may use letters, digits, `_` and `-`; each `fastq` must exist and end in `.fastq`, `.fq`, `.fastq.gz` or `.fq.gz`, with no spaces in the path. Paths may be absolute, relative to the directory you launch Nextflow from (not to the samplesheet), or remote (`s3://`, `gs://`, `az://`, `https://`). Fields may be quoted.
 
 ### Directory
 
