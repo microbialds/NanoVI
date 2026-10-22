@@ -1,6 +1,55 @@
 // main.nf – NanoVI: Taxonomic classification via variational inference
 nextflow.enable.dsl = 2
 
+include { validateParameters } from 'plugin/nf-schema'
+
+// ─── PARAMETER TYPES ────────────────────────────────────────────────────────
+// Defaults are in nextflow.config and descriptions in nextflow_schema.json. The
+// types make Nextflow convert values given on the command line, which arrive as
+// strings (on Nextflow 26.04, `--keep_counts false` was the truthy string "false"),
+// and reject values of the wrong type (F40)
+params {
+    // General
+    cmd: String
+    output_dir: String
+
+    // Abundance
+    input: String?
+    db: String?
+    taxonomy_tsv: String?
+    kmer_size: Integer
+    N: Integer
+    K: String
+    type: String
+    split_prefix: String
+    min_length: Integer
+    max_length: Integer
+    min_quality: Integer?
+    keep_counts: Boolean
+    keep_files: Boolean
+
+    // Abundance estimation (RUN_VI)
+    estimator: String
+    min_abundance: Float
+    vi_tolerance: Float
+    vi_max_iterations: Integer
+    alpha_prior: Float
+    vi_elbo_threshold: Float
+    credible_intervals: Boolean
+
+    // Build database
+    db_name: String
+    sequences: String?
+    seq2tax: String?
+    ncbi_taxonomy: String?
+    taxonomy_list: String?
+
+    // Post-processing
+    input_tsv: String?
+    input_dir: String?
+    rank: String?
+}
+
 // ─── SUBWORKFLOW INCLUDES ───────────────────────────────────────────────────
 include { ABUNDANCE }          from './subworkflows/local/abundance'
 include { BUILD_DATABASE }     from './subworkflows/local/build_database'
@@ -9,6 +58,10 @@ include { COMBINE_OUTPUTS }    from './subworkflows/local/postprocessing'
 
 // ─── MAIN WORKFLOW ──────────────────────────────────────────────────────────
 workflow {
+
+    // ─── PARAMETER VALIDATION ───────────────────────────────────────────────
+    // Types, ranges, enums and paths from nextflow_schema.json (F40)
+    validateParameters()
 
     // ─── VERSION LOGGING ────────────────────────────────────────────────────
     log.info """
@@ -48,8 +101,6 @@ workflow {
         if (params.min_length >= params.max_length)
             error "min_length (${params.min_length}) must be less than max_length (${params.max_length})"
 
-        if (!(params.estimator in ['vb', 'em']))
-            error "Invalid --estimator '${params.estimator}'. Use 'vb' (Bayesian variational inference) or 'em' (Emu-style EM)"
         if (params.credible_intervals && params.estimator != 'vb')
             error "--credible_intervals needs --estimator vb: the EM estimator gives no posterior"
 
@@ -171,11 +222,10 @@ def softwareVersionsToYAML(ch_versions) {
         .mix(channel.of(workflowVersionToYAML()))
 }
 
-// --rank must name a column of the per-sample tables
+// --rank must name a column of the per-sample tables; validateParameters() checks
+// the value against the schema's enum, this checks that it is given
 def validateRank(cmd) {
     def ranks = ['species', 'genus', 'family', 'order', 'class', 'phylum', 'superkingdom']
     if (!params.rank)
         error "For ${cmd} you must provide --rank (one of: ${ranks.join(', ')})"
-    if (!(params.rank in ranks))
-        error "Invalid --rank '${params.rank}' for ${cmd}. Use one of: ${ranks.join(', ')}"
 }

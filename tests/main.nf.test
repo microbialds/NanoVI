@@ -153,7 +153,7 @@ nextflow_pipeline {
 
         then {
             assert workflow.failed
-            assert (workflow.stdout + workflow.stderr).any { it.contains("Invalid --rank 'strain' for collapse-taxonomy. Use one of: species, genus, family, order, class, phylum, superkingdom") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("* --rank (strain): Expected any of [species, genus, family, order, class, phylum, superkingdom]") }
         }
     }
 
@@ -172,7 +172,7 @@ nextflow_pipeline {
 
         then {
             assert workflow.failed
-            assert (workflow.stdout + workflow.stderr).any { it.contains("Invalid --rank 'Genus' for combine-outputs. Use one of: species, genus, family, order, class, phylum, superkingdom") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("* --rank (Genus): Expected any of [species, genus, family, order, class, phylum, superkingdom]") }
         }
     }
 
@@ -259,6 +259,48 @@ nextflow_pipeline {
         }
     }
 
+    // Parameter and samplesheet validation (F40, F15)
+
+    test("A value of the wrong type on the command line is rejected") {
+        tag "stub"
+        options "-profile test -stub-run --N abc"
+
+        when {
+            params {
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Parameter `N` with type Integer cannot be assigned to abc") }
+        }
+    }
+
+    test("A parameter outside its schema range is rejected") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                input         = "${projectDir}/tests/test_data/stub_reads"
+                output_dir    = "${outputDir}"
+                db            = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv  = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                min_abundance = 1.5
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Validation of pipeline parameters failed!") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("* --min_abundance (1.5)") }
+        }
+    }
+
     // End-to-end test: runs fastplong, minimap2 and every Python step on the
     // e2e fixture (11 real 16S sequences, 600 simulated ONT-like reads in known
     // proportions plus 30 non-16S reads). See tests/test_data/e2e/README.md.
@@ -340,6 +382,29 @@ nextflow_pipeline {
             ['numpy', 'pandas', 'scipy', 'pysam', 'biopython'].each { pkg ->
                 assert versions.RUN_VI[pkg] && versions.RUN_VI[pkg] != 'not installed'
             }
+        }
+    }
+
+    // Boolean parameters given on the command line arrive as strings on Nextflow
+    // 26.04+, so `--keep_counts false` used to keep the counts; the typed params
+    // block in main.nf converts them (F40). This needs the real WRITE_OUTPUT script
+    test("--keep_counts false and --keep_files true on the command line") {
+        tag "e2e"
+        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --keep_counts false --keep_files true"
+
+        when {
+            params {
+                output_dir = "${outputDir}"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def header = file("${outputDir}/sample_outputs/e2e_mock_rel-abundance.tsv").readLines()[0].split('\t') as List
+            assert header == ['species', 'abundance', 'genus', 'family', 'order', 'class', 'phylum', 'superkingdom']
+            assert !file("${outputDir}/consolidated_output/otu_table_counts.tsv").exists()
+            assert file("${outputDir}/sam/e2e_mock_vi_alignments.sam").exists()
+            assert file("${outputDir}/filtered/e2e_mock_filtered.fastq.gz").exists()
         }
     }
 }

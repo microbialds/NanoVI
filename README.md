@@ -2,7 +2,7 @@
 
 Taxonomic classification of full-length 16S rRNA Oxford Nanopore reads using variational inference.
 
-[![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A524.0.0-brightgreen.svg)](https://www.nextflow.io/)
+[![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A526.04.0-brightgreen.svg)](https://www.nextflow.io/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/microbialds/NanoVI/actions/workflows/ci.yml/badge.svg)](https://github.com/microbialds/NanoVI/actions/workflows/ci.yml)
 
@@ -26,6 +26,8 @@ Input FASTQs → Quality Filter (FastpLong) → Align (minimap2) → CIGAR Stats
 | `combine-outputs` | Merge per-sample abundance tables into a single matrix |
 
 ## Quick Start
+
+NanoVI needs Nextflow 26.04.0 or later.
 
 ```bash
 # Install Nextflow
@@ -75,6 +77,8 @@ A path to a directory containing FASTQ files (`.fastq`, `.fq`, optionally gzippe
 
 ## Parameters
 
+Parameters are checked against `nextflow_schema.json` at the start of every run (types, allowed values, ranges, and that input paths exist), and values given on the command line are converted to the declared types, so `--keep_counts false` turns the counts off. A parameter that is not declared stops the run.
+
 ### General
 
 | Parameter | Default | Description |
@@ -91,7 +95,7 @@ A path to a directory containing FASTQ files (`.fastq`, `.fq`, optionally gzippe
 | `--taxonomy_tsv` | `<db>/taxonomy.tsv` | Path to taxonomy TSV |
 | `--kmer_size` | `21` | K-mer size for minimap2 indexing |
 | `--N` | `3` | Maximum secondary alignments per read |
-| `--K` | `4000000000` | Minibatch size for minimap2 mapping (bytes) |
+| `--K` | `4000000000` | Minibatch size for minimap2 mapping (minimap2 `-K`: bases per batch; a number, optionally with `K`, `M` or `G`) |
 | `--type` | `map-ont` | Minimap2 preset (`map-ont`, `map-pb`, `sr`) |
 | `--min_length` | `500` | Minimum read length filter (bp) |
 | `--max_length` | `2000` | Maximum read length filter (bp) |
