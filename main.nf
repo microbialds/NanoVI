@@ -111,6 +111,8 @@ workflow {
             // Rows checked against assets/schema_input.json: name pattern, unique
             // IDs, FASTQ extension, and the file exists (local, relative or remote)
             def rows = samplesheetToList(params.input, "${projectDir}/assets/schema_input.json")
+            if (!rows)
+                error "Samplesheet has no data rows: ${params.input}"
             input_reads = channel.fromList(rows)
                 .map { meta, fastq -> tuple(meta.id, fastq) }
         } else {
