@@ -95,6 +95,8 @@ Parameters are checked against `nextflow_schema.json` at the start of every run 
 |-----------|---------|-------------|
 | `--input` | required | Path to samplesheet CSV or FASTQ directory |
 | `--db` | required | Path to NanoVI/GTDB reference database |
+| `--db_index` | none | Prebuilt minimap2 index (`.mmi`) of the database's `species_taxid.fasta`; INDEX_DB is skipped. Build it with the pipeline's minimap2 (2.24) and the same `-x <type> -k <kmer_size>`, or take it from the index cache of an earlier run |
+| `--index_cache_dir` | `<output_dir>/index_cache` | Where INDEX_DB keeps the indexes it builds. The file name records the database (the first 12 digits of the FASTA's MD5), `--type`, `--kmer_size` and the minimap2 version, e.g. `species_taxid.3f9c0a12b7de.map-ont.k21.minimap2-2.24.mmi`, so a later run with the same settings reuses the index instead of rebuilding it. Point several runs at one directory to share it |
 | `--taxonomy_tsv` | `<db>/taxonomy.tsv` | Path to taxonomy TSV |
 | `--kmer_size` | `21` | K-mer size for minimap2 indexing |
 | `--N` | `3` | Maximum secondary alignments per read |
@@ -222,24 +224,18 @@ python3 bin/build_gtdb_db.py \
 | `species_taxid.fasta` | Reference FASTA — one entry per unique 16S sequence, header: `taxid:db_name:n` |
 | `taxonomy.tsv` | Taxonomy table — one row per species with full lineage |
 
-### 3. Index with minimap2
-
-```bash
-minimap2 -k 21 -d /path/to/db_gtdb_r226/gtdb_index.mmi \
-    /path/to/db_gtdb_r226/species_taxid.fasta
-```
-Note: The minimap2 index (.mmi) is version-specific and may not be compatible across different minimap2 versions. To avoid conflicts, either build the index using the pipeline's container, or pass the FASTA file directly as --db and let the pipeline index it at runtime.
-
-### 4. Run NanoVI with the GTDB database
+### 3. Run NanoVI with the GTDB database
 
 ```bash
 nextflow run microbialds/NanoVI \
     --cmd abundance \
     --input samplesheet.csv \
-    --db /path/to/db_gtdb_r226/gtdb_index.mmi \
-    --taxonomy_tsv /path/to/db_gtdb_r226/taxonomy.tsv \
+    --db /path/to/db_gtdb_r226 \
+    --index_cache_dir /path/to/nanovi_index_cache \
     --output_dir results/
 ```
+
+`--db` is the database directory (with `species_taxid.fasta` and `taxonomy.tsv`), never a `.mmi` file. The first run builds the minimap2 index with the pipeline's minimap2 and the run's `--type` and `--kmer_size` and keeps it in `--index_cache_dir` (by default `<output_dir>/index_cache`); later runs with the same database and settings reuse it. To use an index built elsewhere, pass it with `--db_index`: index-time settings (k-mer size, window, homopolymer compression) are fixed in the index, and an index from another minimap2 version may not load.
 
 ## Testing
 

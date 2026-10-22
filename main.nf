@@ -16,6 +16,8 @@ params {
     // Abundance
     input: String?
     db: String?
+    db_index: String?
+    index_cache_dir: String?
     taxonomy_tsv: String?
     kmer_size: Integer
     N: Integer
@@ -70,7 +72,7 @@ workflow {
     ================================================
       Command    : ${params.cmd}
       Input      : ${params.input}
-      Database   : ${params.db}
+      Database   : ${params.db}${params.db_index ? "\n      Index      : ${params.db_index}" : ''}
       Output     : ${params.output_dir}
       K-mer size : ${params.kmer_size}
     ================================================
@@ -89,8 +91,10 @@ workflow {
         if (!db_dir.exists())
             error "Database directory not found: ${params.db}"
 
+        // With --db_index the prebuilt index replaces the FASTA (F26)
+        def db_index = params.db_index ? file(params.db_index) : null
         def fasta_file = file("${params.db}/species_taxid.fasta")
-        if (!fasta_file.exists())
+        if (!db_index && !fasta_file.exists())
             error "Reference FASTA not found: ${params.db}/species_taxid.fasta"
 
         def taxonomy_tsv = params.taxonomy_tsv ?: "${params.db}/taxonomy.tsv"
@@ -140,7 +144,7 @@ workflow {
             )
         }
 
-        ABUNDANCE(input_reads, fasta_file, tax_file)
+        ABUNDANCE(input_reads, fasta_file, tax_file, db_index)
         versions = ABUNDANCE.out.versions
     }
 

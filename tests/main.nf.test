@@ -35,6 +35,93 @@ nextflow_pipeline {
         }
     }
 
+    // minimap2 index cache (F26): INDEX_DB keeps the index in --index_cache_dir under a
+    // name made of the FASTA's MD5, the preset, the k-mer size and the minimap2 version,
+    // and a run that finds it there skips the step
+    def mockIndexName = { projectDir ->
+        def fasta = new File("${projectDir}/tests/test_data/mock_db/species_taxid.fasta")
+        def md5 = java.security.MessageDigest.getInstance('MD5').digest(fasta.bytes).encodeHex().toString().take(12)
+        def mm2 = (new File("${projectDir}/conf/base.config").text =~ /ext.minimap2_version\s*=\s*'([^']+)'/)[0][1]
+        "species_taxid.${md5}.map-ont.k21.minimap2-${mm2}"
+    }
+
+    test("INDEX_DB builds the index into the index cache") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().count { it.name == 'ABUNDANCE:INDEX_DB' } == 1
+            // default cache: <output_dir>/index_cache
+            assert file("${outputDir}/index_cache/${mockIndexName(projectDir)}.mmi").exists()
+            assert file("${outputDir}/index_cache/${mockIndexName(projectDir)}.versions.yml").exists()
+        }
+    }
+
+    test("A second run finds the index in the index cache and does not rebuild it") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            // the files a first run leaves in the cache
+            def cache = new File("${outputDir}/shared_cache")
+            cache.mkdirs()
+            new File(cache, "${mockIndexName(projectDir)}.mmi").text = 'cached index'
+            new File(cache, "${mockIndexName(projectDir)}.versions.yml").text = '"ABUNDANCE:INDEX_DB":\n    minimap2: cached\n'
+            params {
+                input           = "${projectDir}/tests/test_data/stub_reads"
+                output_dir      = "${outputDir}"
+                index_cache_dir = "${outputDir}/shared_cache"
+                db              = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv    = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().count { it.name == 'ABUNDANCE:INDEX_DB' } == 0
+            assert workflow.trace.tasks().count { it.name.startsWith('ABUNDANCE:ALIGN_READS') } > 0
+            assert file("${outputDir}/shared_cache/${mockIndexName(projectDir)}.mmi").text == 'cached index'
+            def versions = new org.yaml.snakeyaml.Yaml().load(file("${outputDir}/pipeline_info/software_versions.yml").text)
+            assert versions.INDEX_DB.minimap2 == 'cached'
+        }
+    }
+
+    test("--db_index skips INDEX_DB") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            def index = new File("${outputDir}/prebuilt/db.mmi")
+            index.parentFile.mkdirs()
+            index.text = 'prebuilt index'
+            params {
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                db_index     = "${outputDir}/prebuilt/db.mmi"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().count { it.name == 'ABUNDANCE:INDEX_DB' } == 0
+            assert !file("${outputDir}/index_cache").exists()
+            def versions = new org.yaml.snakeyaml.Yaml().load(file("${outputDir}/pipeline_info/software_versions.yml").text)
+            assert !versions.containsKey('INDEX_DB')
+        }
+    }
+
     // Parameter checks (F13, F14): each error is raised before any process runs
 
     test("build-database fails without --sequences") {
