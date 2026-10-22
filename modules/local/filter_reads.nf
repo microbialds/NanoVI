@@ -13,6 +13,7 @@ process FILTER_READS {
     path "fastplong/*.html.gz"
     path "versions.yml", emit: versions
 
+    // fastplong writes the filtered reads gzipped (F27)
     script:
     // --min_quality turns on fastplong's quality filter on mean read quality (D5; off by default):
     // the per-base rule is switched off, fastplong's limit of 5 N bases per read still applies
@@ -21,17 +22,16 @@ process FILTER_READS {
         '--disable_quality_filtering'
     """
     mkdir -p fastplong
-    
+
     fastplong \\
         -i ${fastq_file} \\
-        -o ${sample_id}_filtered.fastq \\
+        -o ${sample_id}_filtered.fastq.gz \\
         --html fastplong/${sample_id}_report.html \\
         --json fastplong/${sample_id}_report.json \\
         --length_required ${params.min_length} \\
         --length_limit ${params.max_length} \\
         ${quality_filter}
 
-    gzip -f ${sample_id}_filtered.fastq
     gzip -f fastplong/${sample_id}_report.html
     gzip -f fastplong/${sample_id}_report.json
     cat <<-END_VERSIONS > versions.yml

@@ -556,6 +556,7 @@ nextflow_pipeline {
             def versions = new org.yaml.snakeyaml.Yaml().load(file("${outputDir}/pipeline_info/software_versions.yml").text)
             assert versions.FILTER_READS.fastplong ==~ /\d+\.\d+\.\d+/
             assert versions.ALIGN_READS.minimap2 ==~ /\d+\.\d+.*/
+            assert versions.ALIGN_READS.samtools ==~ /\d+\.\d+.*/
             assert versions.RUN_VI.python.toString().startsWith('3.11.')
             ['numpy', 'pandas', 'scipy', 'pysam', 'biopython'].each { pkg ->
                 assert versions.RUN_VI[pkg] && versions.RUN_VI[pkg] != 'not installed'
@@ -583,7 +584,7 @@ nextflow_pipeline {
             assert header == ['species', 'abundance', 'genus', 'family', 'order', 'class', 'phylum', 'superkingdom',
                               'ci_lower', 'ci_upper', 'shared_read_fraction']
             assert !file("${outputDir}/consolidated_output/otu_table_counts.tsv").exists()
-            assert file("${outputDir}/sam/e2e_mock_vi_alignments.sam").exists()
+            assert file("${outputDir}/bam/e2e_mock_vi_alignments.bam").exists()
             assert file("${outputDir}/filtered/e2e_mock_filtered.fastq.gz").exists()
         }
     }

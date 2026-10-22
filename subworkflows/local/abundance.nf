@@ -33,10 +33,10 @@ workflow ABUNDANCE {
     }
 
     // Step 3: Align reads against reference
-    sam_file = ALIGN_READS(named_reads, mm2_index).sam
+    bam_file = ALIGN_READS(named_reads, mm2_index).bam
 
     // Step 4: Error profile and per-read scores, from one pass over the alignments (F24)
-    LIKELIHOOD(sam_file)
+    LIKELIHOOD(bam_file)
 
     // Step 5: Run variational inference on the per-read scores
     freq_output = RUN_VI(LIKELIHOOD.out.scores).abundance
