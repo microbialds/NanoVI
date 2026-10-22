@@ -534,3 +534,11 @@ class TestNcbiTaxonomyOrder:
         rows = pd.read_csv(tmp_path / 'taxonomy0.tsv', sep='\t', dtype=str)
         assert list(rows['tax_id']) == ['99', '287', '1001']
         assert list(rows['species']) == ['Pseudomonas fluorescens', 'Pseudomonas aeruginosa', 'Pseudomonas putida']
+
+
+def test_single_reported_species_gets_the_point_interval(tmp_path):
+    taxonomy_df = pd.DataFrame({'tax_id': ['1'], 'species': ['Escherichia coli']}).set_index('tax_id')
+    df = freq_to_lineage_df({1: 1.0}, str(tmp_path / 'out'), taxonomy_df, 10, 0, counts=True,
+                            posterior={'1': {'alpha': 11.0, 'expected_reads': 10.0, 'shared_reads': 0.0}})
+    row = df.iloc[0]
+    assert (row['ci_lower'], row['ci_upper'], row['shared_read_fraction']) == (1.0, 1.0, 0.0)

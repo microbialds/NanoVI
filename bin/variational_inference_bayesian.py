@@ -619,7 +619,11 @@ def posterior_read_summary(
         Species taxonomy IDs of the columns.
     """
     expected = phi.sum(axis=0)
-    split = (phi > 0) & (phi <= 1.0 - SHARED_READ_MIN_SPLIT)
+    # The split is judged among the reported species: a read's responsibility on
+    # species dropped by the abundance threshold does not make it shared
+    row_total = phi.sum(axis=1, keepdims=True)
+    phi_reported = np.divide(phi, row_total, out=np.zeros_like(phi), where=row_total > 0)
+    split = (phi_reported > 0) & (phi_reported <= 1.0 - SHARED_READ_MIN_SPLIT)
     shared = np.where(split, phi, 0.0).sum(axis=0)
     return {
         sid: {

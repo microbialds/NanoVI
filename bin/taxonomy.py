@@ -373,7 +373,10 @@ def add_interval_columns(results_df):
 
     is_taxon = ~results_df["species"].isin([BELOW_DETECTION_LABEL, UNASSIGNED_LABEL])
     alpha = results_df.loc[is_taxon, "alpha"].to_numpy(dtype=float)
-    lower, upper = beta_dist.ppf([[0.025], [0.975]], alpha, alpha.sum() - alpha)
+    rest = alpha.sum() - alpha
+    lower, upper = beta_dist.ppf([[0.025], [0.975]], alpha, np.where(rest > 0, rest, 1.0))
+    # A single reported species has all the mass: Beta(α, 0) is a point at 1
+    lower, upper = np.where(rest > 0, lower, 1.0), np.where(rest > 0, upper, 1.0)
     expected = results_df.loc[is_taxon, "expected_reads"].to_numpy(dtype=float)
     shared = results_df.loc[is_taxon, "shared_reads"].to_numpy(dtype=float)
     for col in INTERVAL_COLUMNS:

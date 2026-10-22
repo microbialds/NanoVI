@@ -465,3 +465,11 @@ class TestPosteriorReadSummary:
     def test_default_return_shape_is_unchanged(self):
         lp = synthetic_reads({1: 100, 2: 100}, seed=9)
         assert len(vb.bayesian_vi_iterations(lp, [1, 2])) == 4
+
+
+def test_shared_reads_ignore_species_that_are_not_reported():
+    # read 1 is split 0.5 / 0.5 with a species outside the reported columns
+    phi = np.array([[1.0], [0.5]])
+    summary = vb.posterior_read_summary(np.array([2.0]), phi, [10])
+    assert summary[10]['shared_reads'] == 0.0
+    assert summary[10]['expected_reads'] == 1.5
