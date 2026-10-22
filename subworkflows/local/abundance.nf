@@ -3,8 +3,7 @@
 include { FILTER_READS }  from '../../modules/local/filter_reads'
 include { INDEX_DB }      from '../../modules/local/index_db'
 include { ALIGN_READS }   from '../../modules/local/align_reads'
-include { GET_CIGAR }     from '../../modules/local/cigar_probs'
-include { COMPUTE_LOGP }  from '../../modules/local/log_prob_rgs'
+include { LIKELIHOOD }    from '../../modules/local/likelihood'
 include { RUN_VI }        from '../../modules/local/inference'
 include { WRITE_OUTPUT }              from '../../modules/local/write_output'
 include { GENERATE_PHYLOSEQ_TABLES }  from '../../modules/local/generate_phyloseq_tables'
@@ -13,41 +12,49 @@ workflow ABUNDANCE {
 
     take:
     input_reads     // channel: tuple(sample_id, fastq)
-    fasta_file      // path: reference FASTA
+    fasta_file      // path: reference FASTA (not used when db_index is given)
     taxonomy_tsv    // path: taxonomy TSV
+    db_index        // path: prebuilt minimap2 index (--db_index), or null to build it
 
     main:
     // Step 1: Filter reads by length
     named_reads = FILTER_READS(input_reads).filtered
 
-    // Step 2: Build minimap2 index (once)
-    db_index = INDEX_DB(fasta_file).index
+    // Step 2: minimap2 index: the prebuilt one, or built once per database, preset,
+    // k-mer size and minimap2 version and kept in the index cache (F26)
+    if (db_index) {
+        mm2_index = channel.value(db_index)
+        index_versions = channel.empty()
+    } else {
+        // A stub run's empty index gets its own name, so a later real run never reuses it
+        def stub = workflow.stubRun ? '.stub' : ''
+        def index_name = "${fasta_file.baseName}.${md5Prefix(fasta_file)}.${params.type}.k${params.kmer_size}${stub}"
+        INDEX_DB(fasta_file, index_name)
+        mm2_index = INDEX_DB.out.index
+        index_versions = INDEX_DB.out.versions
+    }
 
     // Step 3: Align reads against reference
-    sam_file = ALIGN_READS(named_reads, db_index).sam
+    bam_file = ALIGN_READS(named_reads, mm2_index).bam
 
-    // Step 4: Compute CIGAR operation log-probabilities
-    cigar_info = GET_CIGAR(sam_file).cigar_json
+    // Step 4: Error profile and per-read scores, from one pass over the alignments (F24)
+    LIKELIHOOD(bam_file)
 
-    // Step 5: Join SAM and CIGAR by sample_id, compute log-probabilities
-    sam_and_cigar = sam_file.join(cigar_info)
-    logp_data = COMPUTE_LOGP(sam_and_cigar).logp
+    // Step 5: Run variational inference on the per-read scores
+    freq_output = RUN_VI(LIKELIHOOD.out.scores).abundance
 
-    // Step 6: Run variational inference
-    freq_output = RUN_VI(logp_data).abundance
-
-    // Step 7: Join abundance with logp data and write final output
-    vi_with_counts = freq_output.join(logp_data)
+    // Step 6: Join abundance with the read counts and write final output
+    vi_with_counts = freq_output.join(LIKELIHOOD.out.counts)
     WRITE_OUTPUT(vi_with_counts, taxonomy_tsv)
 
-    // Step 8: Consolidate per-sample outputs into phyloseq-compatible tables
+    // Step 7: Consolidate per-sample outputs into phyloseq-compatible tables
     collected_tsvs = WRITE_OUTPUT.out.result_tsv.collect()
     GENERATE_PHYLOSEQ_TABLES(collected_tsvs)
 
     // Software versions reported by every step (deduplicated in main.nf)
     versions = FILTER_READS.out.versions
-        .mix(INDEX_DB.out.versions, ALIGN_READS.out.versions, GET_CIGAR.out.versions,
-             COMPUTE_LOGP.out.versions, RUN_VI.out.versions, WRITE_OUTPUT.out.versions,
+        .mix(index_versions, ALIGN_READS.out.versions, LIKELIHOOD.out.versions,
+             RUN_VI.out.versions, WRITE_OUTPUT.out.versions,
              GENERATE_PHYLOSEQ_TABLES.out.versions)
 
     emit:
@@ -57,4 +64,14 @@ workflow ABUNDANCE {
     tax_table      = GENERATE_PHYLOSEQ_TABLES.out.tax_table
     sample_metadata = GENERATE_PHYLOSEQ_TABLES.out.sample_metadata
     versions       = versions
+}
+
+// First 12 hex digits of the file's MD5, read in 1 MB blocks: identifies the
+// database in the index file name, so two databases never share a cached index
+def md5Prefix(path) {
+    def digest = java.security.MessageDigest.getInstance('MD5')
+    path.withInputStream { stream ->
+        stream.eachByte(1 << 20) { buffer, n -> digest.update(buffer, 0, n) }
+    }
+    return digest.digest().encodeHex().toString().take(12)
 }

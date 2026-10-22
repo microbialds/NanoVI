@@ -13,7 +13,7 @@ NanoVI is a Nextflow DSL2 pipeline that performs taxonomic classification of ful
 ### Pipeline Workflow
 
 ```
-Input FASTQs → Quality Filter (FastpLong) → Align (minimap2) → CIGAR Stats → Log-Probabilities → VI → Abundance Tables
+Input FASTQs → Quality Filter (FastpLong) → Align (minimap2) → Read likelihoods (CIGAR error profile and read scores) → VI → Abundance Tables
 ```
 
 **Subcommands:**
@@ -55,7 +55,7 @@ nextflow run microbialds/NanoVI \
     --db /path/to/database \
     -profile slurm
 ```
-Note for SLURM users: Before running on a cluster, review and adjust the resource allocations (CPUs, memory, and time limits) defined in conf/base.config to match your cluster's available resources and partition settings.
+Note for SLURM users: Before running on a cluster, review and adjust the resource allocations (CPUs, memory, and time limits) defined in conf/base.config to match your cluster's available resources and partition settings. `--max_cpus`, `--max_memory` and `--max_time` cap every request, retries included.
 
 ## Input Format
 
@@ -95,16 +95,18 @@ Parameters are checked against `nextflow_schema.json` at the start of every run 
 |-----------|---------|-------------|
 | `--input` | required | Path to samplesheet CSV or FASTQ directory |
 | `--db` | required | Path to NanoVI/GTDB reference database |
+| `--db_index` | none | Prebuilt minimap2 index (`.mmi`) of the database's `species_taxid.fasta`; INDEX_DB is skipped. Build it with the pipeline's minimap2 (2.24) and the same `-x <type> -k <kmer_size>`, or take it from the index cache of an earlier run |
+| `--index_cache_dir` | `<output_dir>/index_cache` | Where INDEX_DB keeps the indexes it builds. The file name records the database (the first 12 digits of the FASTA's MD5), `--type`, `--kmer_size` and the minimap2 version, e.g. `species_taxid.3f9c0a12b7de.map-ont.k21.minimap2-2.24.mmi`, so a later run with the same settings reuses the index instead of rebuilding it. Point several runs at one directory to share it, but let the first run that builds an index finish before starting others: a run reuses any file with the right name, and nothing checks that it is complete |
 | `--taxonomy_tsv` | `<db>/taxonomy.tsv` | Path to taxonomy TSV |
 | `--kmer_size` | `21` | K-mer size for minimap2 indexing |
 | `--N` | `3` | Maximum secondary alignments per read |
-| `--K` | `4000000000` | Minibatch size for minimap2 mapping (minimap2 `-K`: bases per batch; a number, optionally with `K`, `M` or `G`) |
+| `--K` | `500M` | Minibatch size for minimap2 mapping (minimap2 `-K`): the number of read **bases** (not bytes) loaded and mapped per batch, a number optionally with `K`, `M` or `G`. 500M (minimap2's default) is 500 million bases, about 330,000 reads of 1.5 kb; larger batches use more memory |
 | `--type` | `map-ont` | Minimap2 preset (`map-ont`, `map-pb`, `sr`) |
 | `--min_length` | `500` | Minimum read length filter (bp) |
 | `--max_length` | `2000` | Maximum read length filter (bp) |
 | `--min_quality` | off | Minimum mean read quality (Phred). Off: fastplong filters by length only. Set: fastplong's quality filter drops reads with a lower mean quality (its per-base rule is switched off; its limit of 5 N bases per read still applies) |
 | `--keep_counts` | `false` | Include read count column in output |
-| `--keep_files` | `false` | Retain intermediate SAM and FASTQ files |
+| `--keep_files` | `false` | Publish the alignments (`bam/<sample>_vi_alignments.bam`) and the filtered reads (`filtered/<sample>_filtered.fastq.gz`) |
 
 ### Inference
 
@@ -121,6 +123,18 @@ Parameters are checked against `nextflow_schema.json` at the start of every run 
 **Detection floor.** R is the number of reads with at least one scored alignment. With `vb`, species whose posterior mean abundance falls below the pruning threshold are removed and the rest refitted, until none is below it: the threshold is max(1/R, `min_abundance`) up to 1,000 reads and max(10/R, `min_abundance`) above. With the default, the floor is 1/R up to 1,000 reads, 10/R up to 10,000 reads and 0.1% above that: nothing below 0.1% is reported at any depth (Emu's floor of 10/R would be 0.01% at 100,000 reads). With `em`, species are pruned below 1/R (10/R above 1,000 reads), as in Emu, and if `min_abundance` is higher the species at or above it are refitted and reported. With either estimator, reads whose candidate species were all pruned are reported in the `Below detection` row.
 
 **Credible intervals (experimental).** With `--credible_intervals`, the per-sample table gains three columns for each species: `ci_lower` and `ci_upper`, the 2.5% and 97.5% quantiles of the species' mean-field posterior marginal, Beta(α_s, Σα − α_s) over the reported species (tax IDs that share a species name add their α), and `shared_read_fraction`, the share of the species' expected reads whose responsibility is split with another reported species, that is, where the other species get at least 1% of the read. The mean-field approximation treats read assignments and abundances as independent, so the intervals carry only sampling noise: they are too narrow for species that share reads with a close relative, and a high `shared_read_fraction` marks those species. Their coverage has not been measured yet. The columns are left empty on the `Below detection` and `Unassigned` rows, and `collapse-taxonomy`, `combine-outputs` and the consolidated tables leave them out.
+
+### Resources
+
+The Python steps ask for one CPU each and run on one core (`nextflow.config` sets `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and `MKL_NUM_THREADS` to 1). minimap2 asks for 8 CPUs; when a task is killed for memory or time it is retried (twice) with more memory and time but the same CPUs. No request goes above these caps (`process.resourceLimits`):
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--max_cpus` | `16` | Most CPUs any task asks for |
+| `--max_memory` | `128.GB` | Most memory any task asks for |
+| `--max_time` | `240.h` | Most time any task asks for |
+
+Give the caps on the command line or in a `-params-file`. In a custom `-c` config, `params.max_*` comes too late to change them: set `process.resourceLimits = [cpus: 32, memory: 256.GB, time: 48.h]` there instead.
 
 ### Database Build
 
@@ -222,24 +236,18 @@ python3 bin/build_gtdb_db.py \
 | `species_taxid.fasta` | Reference FASTA — one entry per unique 16S sequence, header: `taxid:db_name:n` |
 | `taxonomy.tsv` | Taxonomy table — one row per species with full lineage |
 
-### 3. Index with minimap2
-
-```bash
-minimap2 -k 21 -d /path/to/db_gtdb_r226/gtdb_index.mmi \
-    /path/to/db_gtdb_r226/species_taxid.fasta
-```
-Note: The minimap2 index (.mmi) is version-specific and may not be compatible across different minimap2 versions. To avoid conflicts, either build the index using the pipeline's container, or pass the FASTA file directly as --db and let the pipeline index it at runtime.
-
-### 4. Run NanoVI with the GTDB database
+### 3. Run NanoVI with the GTDB database
 
 ```bash
 nextflow run microbialds/NanoVI \
     --cmd abundance \
     --input samplesheet.csv \
-    --db /path/to/db_gtdb_r226/gtdb_index.mmi \
-    --taxonomy_tsv /path/to/db_gtdb_r226/taxonomy.tsv \
+    --db /path/to/db_gtdb_r226 \
+    --index_cache_dir /path/to/nanovi_index_cache \
     --output_dir results/
 ```
+
+`--db` is the database directory (with `species_taxid.fasta` and `taxonomy.tsv`), never a `.mmi` file. The first run builds the minimap2 index with the pipeline's minimap2 and the run's `--type` and `--kmer_size` and keeps it in `--index_cache_dir` (by default `<output_dir>/index_cache`); later runs with the same database and settings reuse it. To use an index built elsewhere, pass it with `--db_index`: index-time settings (k-mer size, window, homopolymer compression) are fixed in the index, and an index from another minimap2 version may not load.
 
 ## Testing
 

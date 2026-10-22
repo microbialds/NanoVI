@@ -25,4 +25,16 @@ if [ "$status" -ne 0 ]; then
 else
     echo "All version strings are ${manifest}."
 fi
+
+# The cached minimap2 index is named after ext.minimap2_version (F26), which must
+# match the minimap2 that the alignment label pins
+mm2_ext=$(sed -n "s/^ *ext.minimap2_version *= *'\([^']*\)'.*/\1/p" conf/base.config)
+mm2_conda=$(grep -o "bioconda::minimap2=[0-9.]*" conf/base.config | sed 's/.*=//' | sort -u || true)
+printf '%-48s %s\n' \
+    "ext.minimap2_version (conf/base.config)" "${mm2_ext:-MISSING}" \
+    "minimap2 in the conda line (conf/base.config)" "$(echo ${mm2_conda:-MISSING})"
+if [ -z "$mm2_ext" ] || [ "$mm2_ext" != "$mm2_conda" ]; then
+    echo "ext.minimap2_version does not match the pinned minimap2." >&2
+    status=1
+fi
 exit "$status"

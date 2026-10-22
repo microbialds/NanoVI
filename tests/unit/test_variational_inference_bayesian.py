@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'bin'))
 import variational_inference_bayesian as vb
 from taxonomy import freq_to_lineage_df
 
+from . import dense_vb_reference as dense
 from .synthetic import synthetic_reads
 
 
@@ -29,31 +30,93 @@ def quiet(monkeypatch):
     monkeypatch.setattr(vb, 'stdout', io.StringIO())
 
 
-# ─── build_likelihood_matrix ─────────────────────────────────────────────────
+def padded(L):
+    """Padded idx/logL arrays (F23) of a dense R x S matrix written by hand."""
+    L = np.asarray(L, dtype=float)
+    K = max(int(np.isfinite(L).sum(axis=1).max()), 1)
+    idx = np.zeros((L.shape[0], K), dtype=np.int32)
+    logL = np.full((L.shape[0], K), -np.inf)
+    for r in range(L.shape[0]):
+        cols = np.where(np.isfinite(L[r]))[0]
+        idx[r, :len(cols)] = cols
+        logL[r, :len(cols)] = L[r, cols]
+    return idx, logL
 
-class TestBuildLikelihoodMatrix:
+
+def densify(idx, phi, S):
+    """Dense R x S responsibilities from the padded ones."""
+    dense = np.zeros((idx.shape[0], S))
+    np.add.at(dense, (np.repeat(np.arange(idx.shape[0]), idx.shape[1]), idx.ravel()), phi.ravel())
+    return dense
+
+
+# ─── build_sparse_likelihood ─────────────────────────────────────────────────
+
+class TestBuildSparseLikelihood:
     def test_shape_and_order(self):
         lp = {'r1': ([1], [-1.0]), 'r2': ([2, 1], [-2.0, -3.0])}
-        L, names, sid_to_col = vb.build_likelihood_matrix(lp, [1, 2, 3])
-        assert L.shape == (2, 3)
+        idx, logL, names = vb.build_sparse_likelihood(lp, [1, 2, 3])
+        assert idx.shape == logL.shape == (2, 2)
         assert names == ['r1', 'r2']
-        assert sid_to_col == {1: 0, 2: 1, 3: 2}
 
-    def test_values_and_missing_are_neg_inf(self):
+    def test_values_and_padding(self):
         lp = {'r1': ([1], [-1.0]), 'r2': ([2, 1], [-2.0, -3.0])}
-        L, _, _ = vb.build_likelihood_matrix(lp, [1, 2, 3])
-        expected = np.array([[-1.0, -np.inf, -np.inf], [-3.0, -2.0, -np.inf]])
-        np.testing.assert_array_equal(L, expected)
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1, 2, 3])
+        np.testing.assert_array_equal(idx, [[0, 0], [1, 0]])
+        np.testing.assert_array_equal(logL, [[-1.0, -np.inf], [-2.0, -3.0]])
 
     def test_duplicate_species_keeps_best_score(self):
         lp = {'r1': ([1, 1], [-5.0, -2.0])}
-        L, _, _ = vb.build_likelihood_matrix(lp, [1])
-        assert L[0, 0] == -2.0
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1])
+        np.testing.assert_array_equal(logL, [[-2.0]])
 
     def test_species_not_in_list_ignored(self):
         lp = {'r1': ([7], [-1.0])}
-        L, _, _ = vb.build_likelihood_matrix(lp, [1])
-        assert np.isneginf(L[0, 0])
+        _, logL, _ = vb.build_sparse_likelihood(lp, [1])
+        assert np.isneginf(logL).all()
+
+    def test_matches_the_dense_matrix(self):
+        lp = synthetic_reads({1: 50, 2: 30, 3: 20}, seed=1)
+        lp['dup'] = ([3, 1, 3], [-9.0, -7.0, -8.0])
+        lp['elsewhere'] = ([9], [-1.0])
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [3, 1, 2])
+        L, _, _ = dense.build_likelihood_matrix(lp, [3, 1, 2])
+        rebuilt = np.full(L.shape, -np.inf)
+        finite = np.isfinite(logL)
+        rebuilt[np.nonzero(finite)[0], idx[finite]] = logL[finite]
+        np.testing.assert_array_equal(rebuilt, L)
+
+
+class TestSparseLikelihoodFromCsr:
+    def test_same_arrays_as_from_the_dict(self):
+        lp = {'r1': ([20, 10], [-2.0, -1.0]), 'r2': ([30], [-4.0]), 'r3': ([99], [-1.0]),
+              'r4': ([10, 30, 20], [-3.0, -5.0, -6.0])}
+        offsets = np.cumsum([0] + [len(v[0]) for v in lp.values()])
+        tax_ids = np.concatenate([v[0] for v in lp.values()])
+        scores = np.concatenate([v[1] for v in lp.values()])
+        species = np.array([30, 10, 20])  # any order: column j is species[j]
+        idx, logL = vb.sparse_likelihood_from_csr(offsets, tax_ids, scores, species)
+        ref_idx, ref_logL, _ = vb.build_sparse_likelihood(lp, list(species))
+        np.testing.assert_array_equal(idx, ref_idx)
+        np.testing.assert_array_equal(logL, ref_logL)
+
+    def test_duplicate_species_keeps_best_score(self):
+        idx, logL = vb.sparse_likelihood_from_csr([0, 3], [10, 20, 10], [-5.0, -4.0, -2.0], np.array([10, 20]))
+        assert dict(zip(idx[0], logL[0])) == {0: -2.0, 1: -4.0}
+
+    def test_read_without_candidates_is_an_empty_row(self):
+        idx, logL = vb.sparse_likelihood_from_csr([0, 1, 1, 2], [10, 20], [-1.0, -2.0], np.array([10, 20]))
+        assert idx.shape == (3, 1)
+        np.testing.assert_array_equal(logL[:, 0], [-1.0, -np.inf, -2.0])
+
+
+class TestRemapColumns:
+    def test_pruned_columns_become_padding(self):
+        idx = np.array([[0, 2], [1, 0]], dtype=np.int32)
+        logL = np.array([[-1.0, -2.0], [-3.0, -np.inf]])
+        new_idx, new_logL = vb.remap_columns(idx, logL, np.array([0, 2]), 3)
+        np.testing.assert_array_equal(new_idx, [[0, 1], [0, 0]])
+        np.testing.assert_array_equal(new_logL, [[-1.0, -2.0], [-np.inf, -np.inf]])
 
 
 # ─── CAVI updates ────────────────────────────────────────────────────────────
@@ -75,28 +138,40 @@ class TestComputeDirichletExpectation:
 
 class TestUpdateResponsibilities:
     def test_softmax_by_hand(self):
-        L = np.array([[math.log(0.6), math.log(0.2)]])
+        idx, logL = padded([[math.log(0.6), math.log(0.2)]])
         E_ln_pi = np.array([math.log(0.5), math.log(0.5)])
-        phi = vb.update_responsibilities(L, E_ln_pi)
-        np.testing.assert_allclose(phi, [[0.75, 0.25]])
+        phi = vb.update_responsibilities(idx, logL, E_ln_pi)
+        np.testing.assert_allclose(densify(idx, phi, 2), [[0.75, 0.25]])
 
     def test_rows_sum_to_one_and_unaligned_row_is_zero(self):
         L = np.array([[-1.0, -2.0, -np.inf], [-np.inf, -np.inf, -np.inf], [-3.0, -3.0, -3.0]])
-        phi = vb.update_responsibilities(L, np.zeros(3))
+        idx, logL = padded(L)
+        phi = vb.update_responsibilities(idx, logL, np.zeros(3))
         np.testing.assert_allclose(phi.sum(axis=1), [1.0, 0.0, 1.0])
-        assert phi[0, 2] == 0.0
+        assert densify(idx, phi, 3)[0, 2] == 0.0
+        assert np.all(phi[~np.isfinite(logL)] == 0.0)
 
     def test_stable_for_very_negative_scores(self):
-        L = np.array([[-5000.0, -5001.0]])
-        phi = vb.update_responsibilities(L, np.zeros(2))
+        idx, logL = padded([[-5000.0, -5001.0]])
+        phi = vb.update_responsibilities(idx, logL, np.zeros(2))
         np.testing.assert_allclose(phi, [[1 / (1 + math.exp(-1)), math.exp(-1) / (1 + math.exp(-1))]])
+
+    def test_matches_the_dense_reference(self):
+        lp = synthetic_reads({1: 300, 2: 150, 3: 40, 4: 10}, seed=2)
+        lp['none'] = ([9], [-1.0])
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1, 2, 3, 4])
+        L, _, _ = dense.build_likelihood_matrix(lp, [1, 2, 3, 4])
+        E = vb.compute_dirichlet_expectation(np.array([200.0, 100.0, 50.0, 20.0]))
+        np.testing.assert_allclose(densify(idx, vb.update_responsibilities(idx, logL, E), 4),
+                                   dense.update_responsibilities(L, E), rtol=0, atol=1e-12)
 
 
 class TestUpdateDirichletParameters:
     def test_prior_plus_expected_counts(self):
         alpha_0 = np.array([0.5, 0.5])
+        idx = np.array([[0, 1], [0, 0], [0, 0]], dtype=np.int32)
         phi = np.array([[0.75, 0.25], [1.0, 0.0], [0.0, 0.0]])
-        np.testing.assert_allclose(vb.update_dirichlet_parameters(alpha_0, phi), [2.25, 0.75])
+        np.testing.assert_allclose(vb.update_dirichlet_parameters(alpha_0, idx, phi), [2.25, 0.75])
 
 
 # ─── ELBO ────────────────────────────────────────────────────────────────────
@@ -118,28 +193,40 @@ def elbo_by_hand(L, phi, alpha, alpha_0):
 class TestComputeElbo:
     def test_matches_hand_calculation(self):
         L = np.array([[-1.0, -2.0], [-3.0, -np.inf], [-0.5, -0.7]])
+        idx, logL = padded(L)
         alpha_0 = np.array([0.5, 0.5])
         alpha = np.array([2.0, 1.5])
         E = vb.compute_dirichlet_expectation(alpha)
-        phi = vb.update_responsibilities(L, E)
-        alpha = vb.update_dirichlet_parameters(alpha_0, phi)
+        phi = vb.update_responsibilities(idx, logL, E)
+        alpha = vb.update_dirichlet_parameters(alpha_0, idx, phi)
         E = vb.compute_dirichlet_expectation(alpha)
-        assert vb.compute_elbo(L, phi, alpha, alpha_0, E) == pytest.approx(
-            elbo_by_hand(L, phi, alpha, alpha_0), rel=1e-12
+        assert vb.compute_elbo(idx, logL, phi, alpha, alpha_0, E) == pytest.approx(
+            elbo_by_hand(L, densify(idx, phi, 2), alpha, alpha_0), rel=1e-12
         )
 
     def test_elbo_never_decreases(self):
         lp = synthetic_reads({1: 300, 2: 150, 3: 40, 4: 10}, seed=3)
-        L, _, _ = vb.build_likelihood_matrix(lp, [1, 2, 3, 4])
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1, 2, 3, 4])
         alpha_0 = np.full(4, 0.25)
-        alpha = alpha_0 + L.shape[0] / 4
+        alpha = alpha_0 + idx.shape[0] / 4
         elbos = []
         for _ in range(50):
-            phi = vb.update_responsibilities(L, vb.compute_dirichlet_expectation(alpha))
-            alpha = vb.update_dirichlet_parameters(alpha_0, phi)
-            elbos.append(vb.compute_elbo(L, phi, alpha, alpha_0, vb.compute_dirichlet_expectation(alpha)))
+            phi = vb.update_responsibilities(idx, logL, vb.compute_dirichlet_expectation(alpha))
+            alpha = vb.update_dirichlet_parameters(alpha_0, idx, phi)
+            elbos.append(vb.compute_elbo(idx, logL, phi, alpha, alpha_0, vb.compute_dirichlet_expectation(alpha)))
         diffs = np.diff(elbos)
         assert np.all(diffs >= -1e-9 * abs(elbos[-1]))
+
+    def test_matches_the_dense_reference(self):
+        lp = synthetic_reads({1: 300, 2: 150, 3: 40, 4: 10}, seed=3)
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1, 2, 3, 4])
+        L, _, _ = dense.build_likelihood_matrix(lp, [1, 2, 3, 4])
+        alpha_0 = np.full(4, 0.25)
+        alpha = np.array([150.0, 90.0, 40.0, 20.0])
+        E = vb.compute_dirichlet_expectation(alpha)
+        phi = vb.update_responsibilities(idx, logL, E)
+        assert vb.compute_elbo(idx, logL, phi, alpha, alpha_0, E) == pytest.approx(
+            dense.compute_elbo(L, dense.update_responsibilities(L, E), alpha, alpha_0, E), rel=1e-12)
 
 
 # ─── Inner loop ──────────────────────────────────────────────────────────────
@@ -147,56 +234,69 @@ class TestComputeElbo:
 class TestCaviInnerLoop:
     def test_returns_converged_state(self):
         lp = synthetic_reads({1: 200, 2: 100}, seed=4)
-        L, _, _ = vb.build_likelihood_matrix(lp, [1, 2])
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1, 2])
         alpha_0 = np.full(2, 0.5)
         alpha, phi, E_ln_pi, elbo, n_iters = vb.cavi_inner_loop(
-            L, alpha_0, alpha_0 + 150, max_iterations=100, tolerance=1e-10, verbose=False
+            idx, logL, alpha_0, alpha_0 + 150, max_iterations=100, tolerance=1e-10, verbose=False
         )
         assert alpha.shape == (2,)
-        assert phi.shape == L.shape
-        np.testing.assert_allclose(alpha, alpha_0 + phi.sum(axis=0))
+        assert phi.shape == logL.shape
+        np.testing.assert_allclose(alpha, alpha_0 + densify(idx, phi, 2).sum(axis=0))
         np.testing.assert_allclose(E_ln_pi, vb.compute_dirichlet_expectation(alpha))
         assert np.isfinite(elbo)
         assert 1 <= n_iters <= 100
 
     def test_stops_at_max_iterations(self):
         lp = synthetic_reads({1: 200, 2: 100}, seed=4)
-        L, _, _ = vb.build_likelihood_matrix(lp, [1, 2])
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1, 2])
         alpha_0 = np.full(2, 0.5)
-        *_, n_iters = vb.cavi_inner_loop(L, alpha_0, alpha_0 + 150, max_iterations=3, tolerance=0.0, verbose=False)
+        *_, n_iters = vb.cavi_inner_loop(idx, logL, alpha_0, alpha_0 + 150, max_iterations=3, tolerance=0.0,
+                                         verbose=False)
         assert n_iters == 3
 
 
     def test_stops_on_change_in_posterior_mean(self):
         lp = synthetic_reads({1: 200, 2: 100, 3: 30}, seed=4)
-        L, _, _ = vb.build_likelihood_matrix(lp, [1, 2, 3])
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1, 2, 3])
         alpha_0 = np.full(3, 1 / 3)
-        alpha, *_, n_iters = vb.cavi_inner_loop(L, alpha_0, alpha_0 + 110, tolerance=1e-7, verbose=False)
+        alpha, *_, n_iters = vb.cavi_inner_loop(idx, logL, alpha_0, alpha_0 + 110, tolerance=1e-7, verbose=False)
         assert n_iters < 1000
         # one more update moves the posterior mean by less than the tolerance
-        phi = vb.update_responsibilities(L, vb.compute_dirichlet_expectation(alpha))
-        nxt = vb.update_dirichlet_parameters(alpha_0, phi)
+        phi = vb.update_responsibilities(idx, logL, vb.compute_dirichlet_expectation(alpha))
+        nxt = vb.update_dirichlet_parameters(alpha_0, idx, phi)
         assert np.max(np.abs(nxt / nxt.sum() - alpha / alpha.sum())) < 1e-7
 
     def test_converged_start_stops_after_one_iteration(self):
         lp = synthetic_reads({1: 200, 2: 100}, seed=4)
-        L, _, _ = vb.build_likelihood_matrix(lp, [1, 2])
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1, 2])
         alpha_0 = np.full(2, 0.5)
-        alpha, *_ = vb.cavi_inner_loop(L, alpha_0, alpha_0 + 150, tolerance=1e-12, verbose=False)
-        *_, n_iters = vb.cavi_inner_loop(L, alpha_0, alpha, tolerance=1e-7, verbose=False)
+        alpha, *_ = vb.cavi_inner_loop(idx, logL, alpha_0, alpha_0 + 150, tolerance=1e-12, verbose=False)
+        *_, n_iters = vb.cavi_inner_loop(idx, logL, alpha_0, alpha, tolerance=1e-7, verbose=False)
         assert n_iters == 1
 
     def test_warns_when_elbo_falls(self, monkeypatch, capsys):
         lp = synthetic_reads({1: 200, 2: 100}, seed=4)
-        L, _, _ = vb.build_likelihood_matrix(lp, [1, 2])
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1, 2])
         alpha_0 = np.full(2, 0.5)
         elbos = iter([-1000.0, -1000.0 - 1e-7, -1001.0])
         monkeypatch.setattr(vb, 'compute_elbo', lambda *args: next(elbos))
-        vb.cavi_inner_loop(L, alpha_0, alpha_0 + 150, max_iterations=3, tolerance=0.0, verbose=False)
+        vb.cavi_inner_loop(idx, logL, alpha_0, alpha_0 + 150, max_iterations=3, tolerance=0.0, verbose=False)
         err = capsys.readouterr().err
         # a fall of 1e-7 (1e-10 of |ELBO|) is rounding; a fall of 1 is reported once
         assert err.count('WARNING: ELBO fell') == 1
         assert 'iteration 3' in err
+
+    def test_matches_the_dense_reference(self):
+        lp = synthetic_reads({1: 400, 2: 200, 3: 60, 4: 15}, seed=5)
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1, 2, 3, 4])
+        L, _, _ = dense.build_likelihood_matrix(lp, [1, 2, 3, 4])
+        alpha_0 = np.full(4, 0.25)
+        alpha, phi, _, elbo, n = vb.cavi_inner_loop(idx, logL, alpha_0, alpha_0 + 168.75, verbose=False)
+        ref_alpha, ref_phi, _, ref_elbo, ref_n = dense.cavi_inner_loop(L, alpha_0, alpha_0 + 168.75)
+        assert n == ref_n
+        np.testing.assert_allclose(alpha / alpha.sum(), ref_alpha / ref_alpha.sum(), rtol=0, atol=1e-12)
+        np.testing.assert_allclose(densify(idx, phi, 4), ref_phi, rtol=0, atol=1e-12)
+        assert elbo == pytest.approx(ref_elbo, rel=1e-12)
 
 
 # ─── Outer loop and wrapper ──────────────────────────────────────────────────
@@ -240,12 +340,12 @@ class TestBayesianViIterations:
         }
         freq_full, _, _ = vb.variational_inference_iterations(lp, [1, 2])
 
-        L, _, _ = vb.build_likelihood_matrix(lp, [1, 2])
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1, 2])
         alpha_0 = np.full(2, 0.5)
-        alpha = alpha_0 + L.shape[0] / 2
+        alpha = alpha_0 + idx.shape[0] / 2
         for _ in range(5000):
-            phi = vb.update_responsibilities(L, vb.compute_dirichlet_expectation(alpha))
-            new_alpha = vb.update_dirichlet_parameters(alpha_0, phi)
+            phi = vb.update_responsibilities(idx, logL, vb.compute_dirichlet_expectation(alpha))
+            new_alpha = vb.update_dirichlet_parameters(alpha_0, idx, phi)
             if np.max(np.abs(new_alpha / new_alpha.sum() - alpha / alpha.sum())) < 1e-12:
                 break
             alpha = new_alpha
@@ -257,15 +357,16 @@ class TestBayesianViIterations:
         # After the first pruning, species 2 falls below the threshold and the
         # ELBO is lower (it is a different model); the loop must still prune it.
         # The fake takes the arguments the outer loop passes to cavi_inner_loop
-        # (max_iterations and tolerance by keyword) and returns its 5-tuple.
+        # (max_iterations and tolerance by keyword) and returns its 5-tuple; it
+        # picks the scripted α by the number of species, the length of alpha_0.
         # With 2,000 reads the pruning threshold is 10 / 2000 = 0.005; 8 reads is 0.004.
         scripted = {3: np.array([1800.0, 192.0, 8.0]), 2: np.array([1992.0, 8.0]), 1: np.array([2000.0])}
         elbos = iter([-100.0, -200.0, -300.0, -400.0])
 
-        def fake_inner_loop(L, alpha_0, alpha_init, max_iterations, tolerance):
-            alpha = alpha_0 + scripted[L.shape[1]]
+        def fake_inner_loop(idx, logL, alpha_0, alpha_init, max_iterations, tolerance):
+            alpha = alpha_0 + scripted[len(alpha_0)]
             E = vb.compute_dirichlet_expectation(alpha)
-            return alpha, vb.update_responsibilities(L, E), E, next(elbos), 2
+            return alpha, vb.update_responsibilities(idx, logL, E), E, next(elbos), 2
 
         monkeypatch.setattr(vb, 'cavi_inner_loop', fake_inner_loop)
         lp = {f'r{i}': ([1, 2, 3], [-1.0, -1.0, -1.0]) for i in range(2000)}
@@ -276,9 +377,9 @@ class TestBayesianViIterations:
         calls = []
         real_inner_loop = vb.cavi_inner_loop
 
-        def spy(L, alpha_0, alpha_init, **kwargs):
+        def spy(idx, logL, alpha_0, alpha_init, **kwargs):
             calls.append(np.array(alpha_init))
-            return real_inner_loop(L, alpha_0, alpha_init, **kwargs)
+            return real_inner_loop(idx, logL, alpha_0, alpha_init, **kwargs)
 
         monkeypatch.setattr(vb, 'cavi_inner_loop', spy)
         lp = synthetic_reads({1: 1500, 2: 450, 3: 5}, seed=9, max_decoys=1)
@@ -295,12 +396,12 @@ class TestBayesianViIterations:
         # twice, fits the pruned set once more and warns that one is still below.
         sizes = []
 
-        def fake_inner_loop(L, alpha_0, alpha_init, max_iterations, tolerance):
-            S = L.shape[1]
+        def fake_inner_loop(idx, logL, alpha_0, alpha_init, max_iterations, tolerance):
+            S = len(alpha_0)
             sizes.append(S)
             alpha = alpha_0 + np.array([2000.0 - 8 - 40 * (S - 2)] + [40.0] * (S - 2) + [8.0])
             E = vb.compute_dirichlet_expectation(alpha)
-            return alpha, vb.update_responsibilities(L, E), E, -1.0, 1
+            return alpha, vb.update_responsibilities(idx, logL, E), E, -1.0, 1
 
         monkeypatch.setattr(vb, 'cavi_inner_loop', fake_inner_loop)
         lp = {f'r{i}': ([1, 2, 3, 4, 5], [-1.0] * 5) for i in range(2000)}
@@ -355,9 +456,9 @@ class TestBayesianViIterations:
         calls = []
         real_inner_loop = vb.cavi_inner_loop
 
-        def spy(L, alpha_0, alpha_init, **kwargs):
+        def spy(idx, logL, alpha_0, alpha_init, **kwargs):
             calls.append((alpha_0.copy(), alpha_init.copy()))
-            return real_inner_loop(L, alpha_0, alpha_init, **kwargs)
+            return real_inner_loop(idx, logL, alpha_0, alpha_init, **kwargs)
 
         monkeypatch.setattr(vb, 'cavi_inner_loop', spy)
         lp = synthetic_reads({1: 60, 2: 40}, seed=13, max_decoys=1)
@@ -373,10 +474,10 @@ class TestBayesianViIterations:
         # 10 reads of its own must not be spread over species 1.
         scripted = {3: np.array([1980.0, 12.0, 8.0]), 2: np.array([1994.0, 6.0])}
 
-        def fake_inner_loop(L, alpha_0, alpha_init, max_iterations, tolerance):
-            alpha = alpha_0 + scripted[L.shape[1]]
+        def fake_inner_loop(idx, logL, alpha_0, alpha_init, max_iterations, tolerance):
+            alpha = alpha_0 + scripted[len(alpha_0)]
             E = vb.compute_dirichlet_expectation(alpha)
-            return alpha, vb.update_responsibilities(L, E), E, -1.0, 1
+            return alpha, vb.update_responsibilities(idx, logL, E), E, -1.0, 1
 
         monkeypatch.setattr(vb, 'cavi_inner_loop', fake_inner_loop)
         lp = {f'r{i}': ([1, 2, 3], [-1.0, -1.0, -1.0]) for i in range(1990)}
@@ -443,9 +544,10 @@ class TestPosteriorReadSummary:
     def test_expected_and_shared_reads_by_hand(self):
         # read 0 only species 10; read 1 split 0.6 / 0.4; read 2 gives 0.995 to
         # species 10, under the split cut-off of 1 %
+        idx = np.array([[0, -1], [0, 1], [0, 1]], dtype=np.int32)
         phi = np.array([[1.0, 0.0], [0.6, 0.4], [0.995, 0.005]])
         alpha = np.array([2.6, 0.9])
-        summary = vb.posterior_read_summary(alpha, phi, [10, 20])
+        summary = vb.posterior_read_summary(alpha, idx, phi, [10, 20])
         assert summary[10] == pytest.approx({'alpha': 2.6, 'expected_reads': 2.595, 'shared_reads': 0.6})
         assert summary[20] == pytest.approx({'alpha': 0.9, 'expected_reads': 0.405, 'shared_reads': 0.405})
 
@@ -468,8 +570,60 @@ class TestPosteriorReadSummary:
 
 
 def test_shared_reads_ignore_species_that_are_not_reported():
-    # read 1 is split 0.5 / 0.5 with a species outside the reported columns
-    phi = np.array([[1.0], [0.5]])
-    summary = vb.posterior_read_summary(np.array([2.0]), phi, [10])
+    # read 1 is split 0.5 / 0.5 with a species outside the reported columns (-1)
+    idx = np.array([[0, -1], [0, -1]], dtype=np.int32)
+    phi = np.array([[1.0, 0.0], [0.5, 0.5]])
+    summary = vb.posterior_read_summary(np.array([2.0]), idx, phi, [10])
     assert summary[10]['shared_reads'] == 0.0
     assert summary[10]['expected_reads'] == 1.5
+
+
+# ─── sparse vs dense reference (F23) ─────────────────────────────────────────
+
+def assert_matches_dense(lp, species, **kwargs):
+    """bayesian_vi_iterations agrees with dev's dense version within 1e-9."""
+    result = vb.bayesian_vi_iterations(lp, species, posterior_summary=True, **kwargs)
+    freq_full, freq_thresh, _, below, summary = result
+    ref_full, ref_thresh, ref_below, _, ref_summary = dense.bayesian_vi_iterations(
+        lp, species, posterior_summary=True, **kwargs)
+    assert freq_full.keys() == ref_full.keys()
+    assert freq_full == pytest.approx(ref_full, rel=0, abs=1e-9)
+    assert (freq_thresh is None) == (ref_thresh is None)
+    if freq_thresh is not None:
+        assert freq_thresh.keys() == ref_thresh.keys()
+        assert freq_thresh == pytest.approx(ref_thresh, rel=0, abs=1e-9)
+    assert below == ref_below
+    assert summary.keys() == ref_summary.keys()
+    for sid in summary:
+        for key in ('alpha', 'expected_reads', 'shared_reads'):
+            assert summary[sid][key] == pytest.approx(ref_summary[sid][key], rel=1e-9, abs=1e-9)
+    return result
+
+
+class TestSparseMatchesDense:
+    def test_known_proportions(self):
+        truth = {1: 0.40, 2: 0.30, 3: 0.15, 4: 0.10, 5: 0.05}
+        lp = synthetic_reads({s: int(p * 2000) for s, p in truth.items()}, seed=5)
+        assert_matches_dense(lp, list(truth))
+
+    def test_pruning_below_detection_and_the_floor(self):
+        lp = synthetic_reads({1: 1500, 2: 480, 3: 12, 4: 8}, seed=10, max_decoys=2)
+        lp.update({f'orphan{i}': ([5], [-40.0]) for i in range(5)})
+        lp['elsewhere'] = ([99], [-1.0])
+        lp['tie'] = ([1, 2], [-40.0, -40.0])
+        *_, below, _ = assert_matches_dense(lp, [5, 4, 3, 2, 1], abundance_threshold=0.005)
+        assert below > 0
+
+    def test_species_order_does_not_matter(self):
+        lp = synthetic_reads({1: 700, 2: 250, 3: 45, 4: 5}, seed=3)
+        a = vb.bayesian_vi_iterations(lp, [1, 2, 3, 4])
+        b = vb.bayesian_vi_iterations(lp, [4, 2, 3, 1])
+        assert a[0] == pytest.approx(b[0], rel=0, abs=1e-12)
+
+    def test_many_species(self):
+        # 5,000 reads over 100 species with log-normal abundances: 45 are pruned
+        rng = np.random.default_rng(14)
+        weights = rng.lognormal(0.0, 2.0, size=100)
+        counts = rng.multinomial(5_000, weights / weights.sum())
+        lp = synthetic_reads({s + 1: int(c) for s, c in enumerate(counts) if c}, seed=14, max_decoys=3)
+        assert_matches_dense(lp, sorted({sid for sids, _ in lp.values() for sid in sids}))

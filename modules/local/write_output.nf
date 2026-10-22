@@ -3,7 +3,7 @@ process WRITE_OUTPUT {
     label 'vi_output'
 
     input:
-    tuple val(sample_id), path(abundance_json), path(logp_json)
+    tuple val(sample_id), path(abundance_json), path(read_counts)
     path taxonomy_tsv
 
     output:
@@ -14,7 +14,7 @@ process WRITE_OUTPUT {
     """
     write_abundance_table.py \\
         --abundance "${abundance_json}" \\
-        --logp "${logp_json}" \\
+        --read-counts "${read_counts}" \\
         --taxonomy "${taxonomy_tsv}" \\
         --output-prefix "${sample_id}_rel-abundance" \\
         ${params.keep_counts ? '--counts' : ''}

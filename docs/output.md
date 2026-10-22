@@ -20,7 +20,11 @@ FastpLong quality control reports showing read length distributions, quality sco
 ### Intermediate files (with --keep_files)
 
 - `filtered/<sample>_filtered.fastq.gz`: Length-filtered reads
-- `sam/<sample>.sam`: Minimap2 alignments
+- `bam/<sample>_vi_alignments.bam`: Minimap2 alignments (BAM)
+
+### Index cache
+
+`index_cache/<fasta stem>.<md5>.<type>.k<k>.minimap2-<version>.mmi` (and its `.versions.yml`): the minimap2 index, kept so later runs with the same database and settings reuse it. It is written here unless `--index_cache_dir` points elsewhere, and not at all with `--db_index`.
 
 ## Build-Database Subcommand
 

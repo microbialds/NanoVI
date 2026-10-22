@@ -18,7 +18,8 @@ from taxonomy import freq_to_lineage_df
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--abundance", required=True, help="abundance JSON from estimate_abundance.py")
-    parser.add_argument("--logp", required=True, help="per-read scores from read_scores.py (for the read counts)")
+    parser.add_argument("--read-counts", required=True,
+                        help="assigned and unassigned read counts (JSON) from read_likelihood.py")
     parser.add_argument("--taxonomy", required=True, help="taxonomy.tsv of the database")
     parser.add_argument("--output-prefix", required=True, help="output path without .tsv (<sample>_rel-abundance)")
     parser.add_argument("--counts", action="store_true", help="add the estimated_counts column")
@@ -30,11 +31,11 @@ def main():
     freq = abundance_data["abundance"]
     below_detection_count = abundance_data["below_detection_count"]
 
-    with open(args.logp) as f:
-        logp_data = json.load(f)
+    with open(args.read_counts) as f:
+        read_counts = json.load(f)
 
-    assigned_count = logp_data["assigned_count"]
-    unassigned_count = logp_data["unassigned_count"]
+    assigned_count = read_counts["assigned_count"]
+    unassigned_count = read_counts["unassigned_count"]
 
     taxonomy_df = pd.read_csv(args.taxonomy, sep="\t", dtype=str).set_index("tax_id")
 
