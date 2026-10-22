@@ -11,7 +11,9 @@ process INDEX_DB {
 
     script:
     """
-    minimap2 -k ${params.kmer_size} -d gtdb_index.mmi ${species_fasta}
+    # k, w and homopolymer compression are fixed in the index, so it is built with
+    # the alignment preset and k-mer size (F19); minimap2 applies -x before -k
+    minimap2 -x ${params.type} -k ${params.kmer_size} -d gtdb_index.mmi ${species_fasta}
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         minimap2: "\$(minimap2 --version)"
