@@ -113,6 +113,10 @@ nextflow_pipeline {
         then {
             assert workflow.success
             assert workflow.trace.succeeded().size() == 1
+            // Published into <output_dir>/<db_name>/, not <db_name>/<db_name>/ (F41)
+            assert file("${outputDir}/db_custom/species_taxid.fasta").exists()
+            assert file("${outputDir}/db_custom/taxonomy.tsv").exists()
+            assert !file("${outputDir}/db_custom/db_custom").exists()
         }
     }
 

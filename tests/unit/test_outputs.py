@@ -512,3 +512,25 @@ class TestBuildDatabase:
 
         headers = [h for h, _ in build_gtdb_db.fasta_records(str(out / 'species_taxid.fasta'))]
         assert headers == ['>2:testdb:1', '>1:testdb:2']
+
+
+class TestNcbiTaxonomyOrder:
+    """build-database --ncbi-taxonomy writes taxonomy.tsv sorted by tax_id (F41)."""
+
+    def test_rows_sorted_numerically_and_reproducible(self, tmp_path, mock_nodes_dict, mock_names_dict):
+        nodes = dict(mock_nodes_dict)
+        names = dict(mock_names_dict)
+        for tid, name in [('1001', 'Pseudomonas putida'), ('99', 'Pseudomonas fluorescens')]:
+            nodes[tid] = ('286', 'species')
+            names[tid] = name
+        tids = {'287', '1001', '99'}
+        outputs = []
+        for i, order in enumerate([['287', '1001', '99'], ['99', '287', '1001']]):
+            path = tmp_path / f'taxonomy{i}.tsv'
+            # A set built in a different order, as from a different seq2tax file
+            taxonomy.build_ncbi_taxonomy(dict.fromkeys(order).keys() & tids, nodes, names, str(path))
+            outputs.append(path.read_bytes())
+        assert outputs[0] == outputs[1]
+        rows = pd.read_csv(tmp_path / 'taxonomy0.tsv', sep='\t', dtype=str)
+        assert list(rows['tax_id']) == ['99', '287', '1001']
+        assert list(rows['species']) == ['Pseudomonas fluorescens', 'Pseudomonas aeruginosa', 'Pseudomonas putida']

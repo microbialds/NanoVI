@@ -166,17 +166,23 @@ def create_reduced_fasta(fasta_dict, db_name):
             count += 1
     return records
 
+def tax_id_sort_key(tid):
+    """Numeric tax IDs in numeric order, then any others as text."""
+    tid = str(tid)
+    return (0, int(tid), "") if tid.isdigit() else (1, 0, tid)
+
 def build_ncbi_taxonomy(unique_tids, nodes_dict, names_dict, filepath):
     """
     Write a 'taxonomy.tsv' with columns: tax_id, species, genus, ..., superkingdom
-    for each tid in unique_tids, using NCBI nodes + names dicts.
+    for each tid in unique_tids, using NCBI nodes + names dicts. Rows are sorted by
+    tax_id (numerically), so the same database always gives the same file (F41).
     """
     with open(filepath, "w", encoding="utf8") as file:
         # Write header
         header_str = "\t".join(RANKS_PRINTOUT) + "\n"
         file.write(header_str)
 
-        for tid in unique_tids:
+        for tid in sorted(unique_tids, key=tax_id_sort_key):
             lineage_tuple = lineage_dict_from_tid(tid, nodes_dict, names_dict)
             line_str = "\t".join(lineage_tuple) + "\n"
             file.write(line_str)
