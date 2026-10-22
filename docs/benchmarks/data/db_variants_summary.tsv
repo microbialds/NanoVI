@@ -1,0 +1,4 @@
+database	sequences	species_with_sequences	species_in_taxonomy	mean	median	p95	p99	max	species_with_1
+exact	232447	59037	81173	3.94	1.0	8.0	36.0	14661	39384
+c995	98444	59037	81173	1.67	1.0	3.0	10.0	2615	48141
+reps	56861	53938	74003	1.05	1.0	1.0	2.0	111	52524

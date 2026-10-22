@@ -27,6 +27,8 @@ db_gtdb_r226/
 
 # Local analysis outputs and figures
 figures/
+# except the benchmark figures, kept with their source data (Phase 7a)
+!docs/benchmarks/figures/
 
 # temporals
 *.tmp
