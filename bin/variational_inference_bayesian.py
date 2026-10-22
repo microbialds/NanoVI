@@ -7,8 +7,6 @@ from scipy.stats import beta as beta_dist
 from sys import stdout
 from typing import Dict, Tuple, Optional, List
 
-from likelihood import read_scores_to_arrays
-
 # Largest ELBO fall between CAVI iterations, relative to |ELBO|, taken as rounding
 ELBO_DECREASE_TOLERANCE = 1e-9
 
@@ -63,8 +61,15 @@ def build_sparse_likelihood(
     read_names : list of str
         Read names in row order.
     """
-    # The same path as the read-scores npz, so both forms build identical arrays
-    offsets, tax_ids, scores = read_scores_to_arrays(log_p_rgs)
+    # Flattened as in the read-scores npz (likelihood.read_scores_to_arrays, not
+    # imported so the estimator does not need pysam), then the same CSR path
+    lengths = [len(sids) for sids, _ in log_p_rgs.values()]
+    offsets = np.zeros(len(lengths) + 1, dtype=np.int64)
+    np.cumsum(lengths, out=offsets[1:])
+    tax_ids = np.fromiter((sid for sids, _ in log_p_rgs.values() for sid in sids),
+                          dtype=np.int64, count=int(offsets[-1]))
+    scores = np.fromiter((score for _, scores in log_p_rgs.values() for score in scores),
+                         dtype=np.float64, count=int(offsets[-1]))
     idx, logL = sparse_likelihood_from_csr(offsets, tax_ids, scores, np.asarray(species_ids))
     return idx, logL, list(log_p_rgs.keys())
 

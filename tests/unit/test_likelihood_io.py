@@ -65,7 +65,7 @@ class TestGetCigarOpLogProbabilities:
             ('r1', SUPPLEMENTARY, REFS[1], '50M', 1),
             ('r1', PRIMARY, REFS[0], '100M2I', 3),
         ])
-        _, _, longest = get_cigar_op_log_probabilities(sam, 2)
+        _, _, longest = get_cigar_op_log_probabilities(sam)
         assert longest == {'r1': 150, 'r2': 81}
 
     def test_error_profile_counts_primary_alignments_only(self, tmp_path):
@@ -78,7 +78,7 @@ class TestGetCigarOpLogProbabilities:
             ('r2', SUPPLEMENTARY, REFS[2], '10S50M', 9),   # left out
             ('r3', UNMAPPED, None, None, 0),
         ])
-        log_probs, zero_locs, longest = get_cigar_op_log_probabilities(sam, 1)
+        log_probs, zero_locs, longest = get_cigar_op_log_probabilities(sam)
         assert zero_locs == []
         assert log_probs == pytest.approx(log_shares([2, 1, 4, 4]))
         assert longest == {'r1': 106, 'r2': 101, 'r3': 0}
@@ -88,38 +88,34 @@ class TestGetCigarOpLogProbabilities:
             ('r1', PRIMARY, REFS[0], '100M2I', 3),
             ('r1', SECONDARY, REFS[1], '100M2D', 2),
         ])
-        log_probs, zero_locs, _ = get_cigar_op_log_probabilities(sam, 1)
+        log_probs, zero_locs, _ = get_cigar_op_log_probabilities(sam)
         # D and S never occur in a primary alignment
         assert zero_locs == [1, 2]
         assert log_probs == pytest.approx(log_shares([2, 0, 0, 1]))
 
-    def test_more_threads_than_alignments(self, tmp_path):
-        # F04: the chunked version divided by zero when alignments < threads
+    def test_single_alignment(self, tmp_path):
+        # F04: the old chunked version divided by zero when there were fewer alignments than threads
         sam = write_sam(tmp_path / 'a.sam', [('r1', PRIMARY, REFS[0], '5S100M2I', 3)])
-        log_probs, zero_locs, longest = get_cigar_op_log_probabilities(sam, 16)
+        log_probs, zero_locs, longest = get_cigar_op_log_probabilities(sam)
         # I = 2, D = 0, S = 5, X = 3 - 2 = 1
         assert zero_locs == [1]
         assert log_probs == pytest.approx(log_shares([2, 0, 5, 1]))
         assert longest == {'r1': 107}
 
-    def test_threads_argument_is_optional(self, tmp_path):
-        sam = write_sam(tmp_path / 'a.sam', [('r1', PRIMARY, REFS[0], '100M2I', 3)])
-        assert get_cigar_op_log_probabilities(sam) == get_cigar_op_log_probabilities(sam, 4)
-
     def test_empty_sam_raises(self, tmp_path):
         sam = write_sam(tmp_path / 'empty.sam', [])
         with pytest.raises(ValueError, match='No primary mapped alignments'):
-            get_cigar_op_log_probabilities(sam, 2)
+            get_cigar_op_log_probabilities(sam)
 
     def test_only_unmapped_reads_raises(self, tmp_path):
         sam = write_sam(tmp_path / 'u.sam', [('r1', UNMAPPED, None, None, 0), ('r2', UNMAPPED, None, None, 0)])
         with pytest.raises(ValueError, match='No primary mapped alignments'):
-            get_cigar_op_log_probabilities(sam, 2)
+            get_cigar_op_log_probabilities(sam)
 
     def test_no_error_operations_raises(self, tmp_path):
         sam = write_sam(tmp_path / 'p.sam', [('r1', PRIMARY, REFS[0], '100M', 0)])
         with pytest.raises(ValueError, match='error profile'):
-            get_cigar_op_log_probabilities(sam, 1)
+            get_cigar_op_log_probabilities(sam)
 
 
 class TestLogProbRgsDict:

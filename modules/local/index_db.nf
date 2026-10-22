@@ -18,9 +18,17 @@ process INDEX_DB {
     script:
     def index = "${index_name}.minimap2-${task.ext.minimap2_version}"
     """
+    # The cached name records ext.minimap2_version (F26): stop if the minimap2 that
+    # runs is another version, so a changed container never fills the cache under it
+    case "\$(minimap2 --version)" in
+        ${task.ext.minimap2_version}|${task.ext.minimap2_version}-*) ;;
+        *) echo "ERROR: minimap2 \$(minimap2 --version) does not match ext.minimap2_version ${task.ext.minimap2_version} (conf/base.config)" >&2; exit 1 ;;
+    esac
+
     # k, w and homopolymer compression are fixed in the index, so it is built with
-    # the alignment preset and k-mer size (F19); minimap2 applies -x before -k
-    minimap2 -x ${params.type} -k ${params.kmer_size} -d ${index}.mmi ${species_fasta}
+    # the alignment preset and k-mer size (F19); minimap2 applies -x before -k. The
+    # index does not depend on the number of threads
+    minimap2 -x ${params.type} -k ${params.kmer_size} -t ${task.cpus} -d ${index}.mmi ${species_fasta}
     cat <<-END_VERSIONS > ${index}.versions.yml
     "${task.process}":
         minimap2: "\$(minimap2 --version)"

@@ -123,17 +123,15 @@ def cigar_profile(records):
     return [math.log(x) for x in np.array(cigar_stats_primary) / n_char], zero_locs, dict_longest_align
 
 
-def get_cigar_op_log_probabilities(sam_path, threads=None):
+def get_cigar_op_log_probabilities(sam_path):
     """Compute global log-probabilities for each CIGAR operation from the alignments.
 
-    Reads the SAM once, streaming. Returns (log_probs, zero_locs, dict_longest_align):
+    Reads the SAM or BAM once into AlignmentRecords (memory grows with the number
+    of alignments, about 60 bytes each). Returns (log_probs, zero_locs, dict_longest_align):
     the log share of each error operation (I, D, S, X) over the primary mapped
     alignments, with the operations of zero count removed (F03); the indices of
     those operations in CIGAR_OPS; and each read's longest alignment over all of
     its alignments, secondary and supplementary included (F04).
-
-    threads is ignored: the pass is serial (F25). It is kept so that existing
-    callers keep working.
 
     Raises ValueError when the SAM holds no primary mapped alignment or when those
     alignments have no error operation.
