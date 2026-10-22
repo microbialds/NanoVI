@@ -242,6 +242,39 @@
           ]
         }
       }
+    },
+    "resource_options": {
+      "title": "Resource limits",
+      "type": "object",
+      "description": "Caps on what any task asks for, on every retry (process.resourceLimits)",
+      "properties": {
+        "max_cpus": {
+          "type": "integer",
+          "default": 16,
+          "minimum": 1,
+          "description": "Most CPUs a task may ask for"
+        },
+        "max_memory": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "default": "128.GB",
+          "pattern": "^\\d+(\\.\\d+)?\\.?\\s*(K|M|G|T)?B$",
+          "description": "Most memory a task may ask for, e.g. 64.GB. main.nf reads it as a memory unit, which nf-schema checks as a number of bytes",
+          "minimum": 1
+        },
+        "max_time": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "default": "240.h",
+          "pattern": "^(\\d+(\\.\\d+)?\\.?\\s*(ms|s|m|h|d|day)\\s*)+$",
+          "description": "Most time a task may ask for, e.g. 24.h. main.nf reads it as a duration, which nf-schema checks as milliseconds",
+          "minimum": 1
+        }
+      }
     }
   },
   "allOf": [
@@ -259,6 +292,9 @@
     },
     {
       "$ref": "#/$defs/postprocessing_options"
+    },
+    {
+      "$ref": "#/$defs/resource_options"
     }
   ]
 }

@@ -50,6 +50,11 @@ params {
     input_tsv: String?
     input_dir: String?
     rank: String?
+
+    // Resource caps (F28)
+    max_cpus: Integer
+    max_memory: MemoryUnit
+    max_time: Duration
 }
 
 // ─── SUBWORKFLOW INCLUDES ───────────────────────────────────────────────────

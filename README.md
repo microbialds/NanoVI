@@ -55,7 +55,7 @@ nextflow run microbialds/NanoVI \
     --db /path/to/database \
     -profile slurm
 ```
-Note for SLURM users: Before running on a cluster, review and adjust the resource allocations (CPUs, memory, and time limits) defined in conf/base.config to match your cluster's available resources and partition settings.
+Note for SLURM users: Before running on a cluster, review and adjust the resource allocations (CPUs, memory, and time limits) defined in conf/base.config to match your cluster's available resources and partition settings. `--max_cpus`, `--max_memory` and `--max_time` cap every request, retries included.
 
 ## Input Format
 
@@ -123,6 +123,16 @@ Parameters are checked against `nextflow_schema.json` at the start of every run 
 **Detection floor.** R is the number of reads with at least one scored alignment. With `vb`, species whose posterior mean abundance falls below the pruning threshold are removed and the rest refitted, until none is below it: the threshold is max(1/R, `min_abundance`) up to 1,000 reads and max(10/R, `min_abundance`) above. With the default, the floor is 1/R up to 1,000 reads, 10/R up to 10,000 reads and 0.1% above that: nothing below 0.1% is reported at any depth (Emu's floor of 10/R would be 0.01% at 100,000 reads). With `em`, species are pruned below 1/R (10/R above 1,000 reads), as in Emu, and if `min_abundance` is higher the species at or above it are refitted and reported. With either estimator, reads whose candidate species were all pruned are reported in the `Below detection` row.
 
 **Credible intervals (experimental).** With `--credible_intervals`, the per-sample table gains three columns for each species: `ci_lower` and `ci_upper`, the 2.5% and 97.5% quantiles of the species' mean-field posterior marginal, Beta(α_s, Σα − α_s) over the reported species (tax IDs that share a species name add their α), and `shared_read_fraction`, the share of the species' expected reads whose responsibility is split with another reported species, that is, where the other species get at least 1% of the read. The mean-field approximation treats read assignments and abundances as independent, so the intervals carry only sampling noise: they are too narrow for species that share reads with a close relative, and a high `shared_read_fraction` marks those species. Their coverage has not been measured yet. The columns are left empty on the `Below detection` and `Unassigned` rows, and `collapse-taxonomy`, `combine-outputs` and the consolidated tables leave them out.
+
+### Resources
+
+The Python steps ask for one CPU each and run on one core (`nextflow.config` sets `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and `MKL_NUM_THREADS` to 1). minimap2 asks for 8 CPUs; when a task is killed for memory or time it is retried (twice) with more memory and time but the same CPUs. No request goes above these caps (`process.resourceLimits`):
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--max_cpus` | `16` | Most CPUs any task asks for |
+| `--max_memory` | `128.GB` | Most memory any task asks for |
+| `--max_time` | `240.h` | Most time any task asks for |
 
 ### Database Build
 
