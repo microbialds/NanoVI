@@ -10,6 +10,10 @@ from typing import Dict, Tuple, Optional, List
 # Largest ELBO fall between CAVI iterations, relative to |ELBO|, taken as rounding
 ELBO_DECREASE_TOLERANCE = 1e-9
 
+# A read's responsibility for a species counts as shared with another species when
+# the other reported species together get at least this share of it (shared_read_fraction)
+SHARED_READ_MIN_SPLIT = 0.01
+
 
 # ============================================================================
 #  DATA STRUCTURES
@@ -341,7 +345,8 @@ def bayesian_vi_iterations(
     max_outer_iterations: int = 10,
     max_inner_iterations: int = 1000,
     inner_tolerance: float = 1e-7,
-) -> Tuple[Dict[int, float], Optional[Dict[int, float]], Dict[int, Tuple[float, float]], int]:
+    posterior_summary: bool = False,
+):
     """
     Outer optimization loop with iterative species pruning.
 
@@ -380,6 +385,9 @@ def bayesian_vi_iterations(
     inner_tolerance : float
         Convergence tolerance for the inner CAVI loop: the largest change in
         posterior mean abundance between iterations (F05).
+    posterior_summary : bool
+        If True, also return a fifth value, the per-species summary that the
+        experimental interval columns are built from (see posterior_read_summary).
 
     Returns
     -------
@@ -395,6 +403,9 @@ def bayesian_vi_iterations(
         reported species: every species they align to was pruned (F06). They
         are not part of the abundances and should not be counted as assigned to
         the reported species.
+    summary : dict, only with posterior_summary=True
+        Species ID → {"alpha", "expected_reads", "shared_reads"} for the
+        reported species (posterior_read_summary).
 
     Raises
     ------
@@ -568,7 +579,60 @@ def bayesian_vi_iterations(
         f"(CAVI iterations: {', '.join(map(str, inner_iterations))})\n"
     )
 
+    if posterior_summary:
+        summary = posterior_read_summary(
+            alpha[reported_cols], phi[:, reported_cols],
+            [current_species[i] for i in reported_cols],
+        )
+        return freq_full, freq_thresholded, credible_intervals, below_detection_count, summary
     return freq_full, freq_thresholded, credible_intervals, below_detection_count
+
+
+def posterior_read_summary(
+    alpha: np.ndarray,
+    phi: np.ndarray,
+    species_ids: List[int],
+) -> Dict[int, Dict[str, float]]:
+    """
+    Per-species quantities for the experimental interval columns (D7).
+
+    For each reported species s:
+      - alpha: its variational Dirichlet parameter α_s. Over the reported set,
+        q(π_s) is Beta(α_s, Σ_j α_j − α_s), and the q-marginal of a group of
+        species is Beta(Σ_group α, Σ_j α_j − Σ_group α).
+      - expected_reads: Σ_r φ_{r,s}.
+      - shared_reads: Σ_r φ_{r,s} over the reads whose responsibility is split
+        with another reported species, that is, where the other species get at
+        least SHARED_READ_MIN_SPLIT of it (φ_{r,s} ≤ 1 − SHARED_READ_MIN_SPLIT).
+
+    The mean-field intervals ignore the uncertainty in how shared reads are
+    split between species, so they are too narrow when shared_reads /
+    expected_reads is large (M2).
+
+    Parameters
+    ----------
+    alpha : np.ndarray, shape (S,)
+        Variational Dirichlet parameters of the reported species.
+    phi : np.ndarray, shape (R, S)
+        Responsibilities of the reported species.
+    species_ids : list of int
+        Species taxonomy IDs of the columns.
+    """
+    expected = phi.sum(axis=0)
+    # The split is judged among the reported species: a read's responsibility on
+    # species dropped by the abundance threshold does not make it shared
+    row_total = phi.sum(axis=1, keepdims=True)
+    phi_reported = np.divide(phi, row_total, out=np.zeros_like(phi), where=row_total > 0)
+    split = (phi_reported > 0) & (phi_reported <= 1.0 - SHARED_READ_MIN_SPLIT)
+    shared = np.where(split, phi, 0.0).sum(axis=0)
+    return {
+        sid: {
+            "alpha": float(alpha[i]),
+            "expected_reads": float(expected[i]),
+            "shared_reads": float(shared[i]),
+        }
+        for i, sid in enumerate(species_ids)
+    }
 
 
 # ============================================================================

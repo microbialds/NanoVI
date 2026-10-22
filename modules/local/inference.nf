@@ -4,7 +4,6 @@ process RUN_VI {
 
     input:
     tuple val(sample_id), path(logp_json)
-    path bin_dir
 
     output:
     tuple val(sample_id), path("${sample_id}_abundance.json"), emit: abundance
@@ -12,31 +11,17 @@ process RUN_VI {
 
     script:
     """
-    python3 -c '
-import sys, json
-sys.path.insert(0, "${bin_dir}")
-from variational_inference_bayesian import variational_inference_iterations
-
-with open("${logp_json}") as f:
-    data = json.load(f)
-
-log_p_rgs = data["log_p_rgs"]
-assigned_count = data["assigned_count"]
-unassigned_count = data["unassigned_count"]
-
-db_ids = list({tid for read in log_p_rgs.values() for tid in read[0]})
-
-freq_full, freq_thresh, below_detection_count = variational_inference_iterations(
-    log_p_rgs, db_ids, lli_thresh=0.0001, input_threshold=0.001
-)
-
-with open("${sample_id}_abundance.json", "w") as f:
-    json.dump({
-        "abundance": freq_thresh if freq_thresh else freq_full,
-        "below_detection_count": below_detection_count
-    }, f)
-'
-    python3 ${bin_dir}/python_versions.py "${task.process}" > versions.yml
+    estimate_abundance.py \\
+        --logp "${logp_json}" \\
+        --output "${sample_id}_abundance.json" \\
+        --estimator ${params.estimator} \\
+        --min-abundance ${params.min_abundance} \\
+        --tolerance ${params.vi_tolerance} \\
+        --max-iterations ${params.vi_max_iterations} \\
+        --alpha-prior ${params.alpha_prior} \\
+        --elbo-threshold ${params.vi_elbo_threshold} \\
+        ${params.credible_intervals ? '--credible-intervals' : ''}
+    python_versions.py "${task.process}" > versions.yml
     """
 
     stub:

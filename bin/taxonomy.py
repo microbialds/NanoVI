@@ -39,6 +39,11 @@ UNKNOWN_TAXID_LABEL = "Unknown taxid"
 BELOW_DETECTION_ID = "below_detection"
 BELOW_DETECTION_LABEL = "Below detection"
 
+# Per-tax_id posterior quantities from estimate_abundance.py --credible-intervals,
+# summed over the tax_ids that share a species name, and the columns built from them
+POSTERIOR_COLUMNS = ["alpha", "expected_reads", "shared_reads"]
+INTERVAL_COLUMNS = ["ci_lower", "ci_upper", "shared_read_fraction"]
+
 def lineage_dict_from_tid(taxid, nodes_dict, names_dict):
     """
     Given a taxid, walk up the tree (using nodes_dict, names_dict) and produce
@@ -161,17 +166,23 @@ def create_reduced_fasta(fasta_dict, db_name):
             count += 1
     return records
 
+def tax_id_sort_key(tid):
+    """Numeric tax IDs in numeric order, then any others as text."""
+    tid = str(tid)
+    return (0, int(tid), "") if tid.isdigit() else (1, 0, tid)
+
 def build_ncbi_taxonomy(unique_tids, nodes_dict, names_dict, filepath):
     """
     Write a 'taxonomy.tsv' with columns: tax_id, species, genus, ..., superkingdom
-    for each tid in unique_tids, using NCBI nodes + names dicts.
+    for each tid in unique_tids, using NCBI nodes + names dicts. Rows are sorted by
+    tax_id (numerically), so the same database always gives the same file (F41).
     """
     with open(filepath, "w", encoding="utf8") as file:
         # Write header
         header_str = "\t".join(RANKS_PRINTOUT) + "\n"
         file.write(header_str)
 
-        for tid in unique_tids:
+        for tid in sorted(unique_tids, key=tax_id_sort_key):
             lineage_tuple = lineage_dict_from_tid(tid, nodes_dict, names_dict)
             line_str = "\t".join(lineage_tuple) + "\n"
             file.write(line_str)
@@ -219,7 +230,9 @@ def unify_species_abundance(df):
     truncated = df['species'].str.split(' ').str[:2].str.join(' ')
     df['species'] = df['species'].where(is_placeholder, truncated)
 
-    df_grouped = df.groupby(group_columns, as_index=False, sort=True).agg({'abundance': 'sum'})
+    # Summed with abundance: the posterior quantities behind the interval columns
+    summed = ['abundance'] + [c for c in POSTERIOR_COLUMNS if c in df.columns]
+    df_grouped = df.groupby(group_columns, as_index=False, sort=True).agg({c: 'sum' for c in summed})
     return df_grouped
 
 def largest_remainder(weights, total):
@@ -240,7 +253,7 @@ def largest_remainder(weights, total):
     return floors
 
 def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unassigned_count, counts=False,
-                       below_detection_count=0):
+                       below_detection_count=0, posterior=None):
     """
     Convert frequency dict (taxid -> freq) to a DataFrame, unify taxonomy, and write to .tsv.
     freq: dict { tax_id: freq_val }
@@ -251,6 +264,10 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     below_detection_count: assigned reads whose species were all pruned (F06);
         they get their own 'Below detection' row and are not spread over the
         reported species
+    posterior: optional { tax_id: {"alpha", "expected_reads", "shared_reads"} }
+        from the Bayesian VI (experimental, D7); adds ci_lower and ci_upper (95%
+        interval of the mean-field Beta marginal) and shared_read_fraction, left
+        empty on the Below detection and Unassigned rows
     The 'Below detection' and 'Unassigned' rows (abundance 0) are always written,
     in that order, as the last two rows.
     """
@@ -262,6 +279,12 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     )
     results_df["tax_id"] = results_df["tax_id"].astype(str)
     results_df = results_df.set_index('tax_id')
+
+    if posterior is not None:
+        posterior = {str(k): v for k, v in posterior.items()}
+        for col in POSTERIOR_COLUMNS:
+            results_df[col] = [float(posterior[tid][col]) if tid in posterior else 0.0
+                               for tid in results_df.index]
 
     # Join with the full taxonomy info
     results_df = results_df.join(taxonomy_df, how='left').reset_index()
@@ -310,6 +333,9 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
         results_df.loc[is_below, "estimated_counts"] = below_detection_count
         results_df.loc[is_unassigned, "estimated_counts"] = unassigned_count
 
+    if posterior is not None:
+        add_interval_columns(results_df)
+
     # Reorder columns
     column_order = [
         "species", "abundance", "genus", "family", "order", "class", "phylum",
@@ -317,6 +343,8 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     ]
     if counts:
         column_order.append("estimated_counts")
+    if posterior is not None:
+        column_order += INTERVAL_COLUMNS
     for col in column_order:
         if col not in results_df.columns:
             results_df[col] = ""
@@ -329,6 +357,35 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     print(f"Final taxonomy report saved as {out_file}")
 
     return results_df
+
+def add_interval_columns(results_df):
+    """Add ci_lower, ci_upper and shared_read_fraction from the summed posterior columns.
+
+    A species row whose tax_ids sum to α_g gets the 2.5% and 97.5% quantiles of
+    Beta(α_g, A − α_g), A being the sum over the reported species: the
+    mean-field marginal of their total abundance, whose mean is the reported
+    abundance. These intervals ignore the uncertainty in how reads shared by
+    several species are split, so they are too narrow for such species (M2);
+    shared_read_fraction = shared_reads / expected_reads flags them. The
+    Below detection and Unassigned rows are left empty.
+    """
+    from scipy.stats import beta as beta_dist
+
+    is_taxon = ~results_df["species"].isin([BELOW_DETECTION_LABEL, UNASSIGNED_LABEL])
+    alpha = results_df.loc[is_taxon, "alpha"].to_numpy(dtype=float)
+    rest = alpha.sum() - alpha
+    lower, upper = beta_dist.ppf([[0.025], [0.975]], alpha, np.where(rest > 0, rest, 1.0))
+    # A single reported species has all the mass: Beta(α, 0) is a point at 1
+    lower, upper = np.where(rest > 0, lower, 1.0), np.where(rest > 0, upper, 1.0)
+    expected = results_df.loc[is_taxon, "expected_reads"].to_numpy(dtype=float)
+    shared = results_df.loc[is_taxon, "shared_reads"].to_numpy(dtype=float)
+    for col in INTERVAL_COLUMNS:
+        results_df[col] = np.nan
+    results_df.loc[is_taxon, "ci_lower"] = lower
+    results_df.loc[is_taxon, "ci_upper"] = upper
+    results_df.loc[is_taxon, "shared_read_fraction"] = np.divide(
+        shared, expected, out=np.zeros_like(shared), where=expected > 0)
+
 
 def collapse_rank(path, rank):
     """

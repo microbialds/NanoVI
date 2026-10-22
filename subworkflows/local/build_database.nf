@@ -9,10 +9,9 @@ workflow BUILD_DATABASE {
     seq2tax         // path: seq2tax mapping
     taxonomy        // path: taxonomy list file or NCBI taxonomy directory
     taxonomy_flag   // val: '--taxonomy-list' or '--ncbi-taxonomy'
-    bin_dir         // path: bin/ directory
 
     main:
-    BUILD_DB(sequences, seq2tax, taxonomy, taxonomy_flag, bin_dir)
+    BUILD_DB(sequences, seq2tax, taxonomy, taxonomy_flag)
 
     emit:
     versions = BUILD_DB.out.versions

@@ -113,6 +113,10 @@ nextflow_pipeline {
         then {
             assert workflow.success
             assert workflow.trace.succeeded().size() == 1
+            // Published into <output_dir>/<db_name>/, not <db_name>/<db_name>/ (F41)
+            assert file("${outputDir}/db_custom/species_taxid.fasta").exists()
+            assert file("${outputDir}/db_custom/taxonomy.tsv").exists()
+            assert !file("${outputDir}/db_custom/db_custom").exists()
         }
     }
 
@@ -149,7 +153,7 @@ nextflow_pipeline {
 
         then {
             assert workflow.failed
-            assert (workflow.stdout + workflow.stderr).any { it.contains("Invalid --rank 'strain' for collapse-taxonomy. Use one of: species, genus, family, order, class, phylum, superkingdom") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("* --rank (strain): Expected any of [species, genus, family, order, class, phylum, superkingdom]") }
         }
     }
 
@@ -168,7 +172,7 @@ nextflow_pipeline {
 
         then {
             assert workflow.failed
-            assert (workflow.stdout + workflow.stderr).any { it.contains("Invalid --rank 'Genus' for combine-outputs. Use one of: species, genus, family, order, class, phylum, superkingdom") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("* --rank (Genus): Expected any of [species, genus, family, order, class, phylum, superkingdom]") }
         }
     }
 
@@ -231,6 +235,160 @@ nextflow_pipeline {
             assert workflow.failed
             assert (workflow.stdout + workflow.stderr).any { it.contains("Sample IDs from FASTQ file names may only use letters, digits, '.', '_' and '-'; rename these files or use a samplesheet:") }
             assert (workflow.stdout + workflow.stderr).any { it.contains("${projectDir}/tests/test_data/bad_id_reads/S1+run.fastq") }
+        }
+    }
+
+    test("Credible intervals need the VB estimator") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                input              = "${projectDir}/tests/test_data/stub_reads"
+                output_dir         = "${outputDir}"
+                db                 = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                estimator          = "em"
+                credible_intervals = true
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("--credible_intervals needs --estimator vb") }
+        }
+    }
+
+    // Parameter and samplesheet validation (F40, F15)
+
+    test("A value of the wrong type on the command line is rejected") {
+        tag "stub"
+        options "-profile test -stub-run --N abc"
+
+        when {
+            params {
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Parameter `N` with type Integer cannot be assigned to abc") }
+        }
+    }
+
+    test("A parameter outside its schema range is rejected") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                input         = "${projectDir}/tests/test_data/stub_reads"
+                output_dir    = "${outputDir}"
+                db            = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv  = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                min_abundance = 1.5
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Validation of pipeline parameters failed!") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("* --min_abundance (1.5)") }
+        }
+    }
+
+    test("Samplesheet input runs") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            def sheet = new File("${outputDir}/samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,fastq\nmock_A,${projectDir}/tests/test_data/stub_reads/mock_run.fastq\n"
+            params {
+                input        = "${outputDir}/samplesheet.csv"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/sample_outputs/mock_A_rel-abundance.tsv").exists()
+        }
+    }
+
+    test("Samplesheet with a duplicate sample ID is rejected") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            def fq = "${projectDir}/tests/test_data/stub_reads/mock_run.fastq"
+            def sheet = new File("${outputDir}/samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,fastq\nS1,${fq}\nS1,${fq}\n"
+            params {
+                input        = "${outputDir}/samplesheet.csv"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Validation of samplesheet failed!") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("-> Entry 2: Detected duplicate entries: [sample:S1]") }
+        }
+    }
+
+    test("Samplesheet with a bad sample name or a missing FASTQ is rejected") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            def sheet = new File("${outputDir}/samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,fastq\nS1.run1,${projectDir}/tests/test_data/stub_reads/mock_run.fastq\nS2,${projectDir}/tests/test_data/stub_reads/missing.fastq\n"
+            params {
+                input        = "${outputDir}/samplesheet.csv"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("-> Entry 1: Error for field 'sample' (S1.run1)") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("-> Entry 2: Error for field 'fastq'") && it.contains("missing.fastq' does not exist") }
+        }
+    }
+
+    test("Samplesheet without data rows is rejected") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            def sheet = new File("${outputDir}/samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,fastq\n"
+            params {
+                input        = "${outputDir}/samplesheet.csv"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Samplesheet has no data rows:") }
         }
     }
 
@@ -315,6 +473,31 @@ nextflow_pipeline {
             ['numpy', 'pandas', 'scipy', 'pysam', 'biopython'].each { pkg ->
                 assert versions.RUN_VI[pkg] && versions.RUN_VI[pkg] != 'not installed'
             }
+        }
+    }
+
+    // Boolean parameters given on the command line arrive as strings on Nextflow
+    // 26.04+, so `--keep_counts false` used to keep the counts; the typed params
+    // block in main.nf converts them (F40). This needs the real RUN_VI and
+    // WRITE_OUTPUT scripts; the interval columns are experimental (F20)
+    test("--keep_counts false, --keep_files true and --credible_intervals true on the command line") {
+        tag "e2e"
+        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --keep_counts false --keep_files true --credible_intervals true"
+
+        when {
+            params {
+                output_dir = "${outputDir}"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def header = file("${outputDir}/sample_outputs/e2e_mock_rel-abundance.tsv").readLines()[0].split('\t') as List
+            assert header == ['species', 'abundance', 'genus', 'family', 'order', 'class', 'phylum', 'superkingdom',
+                              'ci_lower', 'ci_upper', 'shared_read_fraction']
+            assert !file("${outputDir}/consolidated_output/otu_table_counts.tsv").exists()
+            assert file("${outputDir}/sam/e2e_mock_vi_alignments.sam").exists()
+            assert file("${outputDir}/filtered/e2e_mock_filtered.fastq.gz").exists()
         }
     }
 }

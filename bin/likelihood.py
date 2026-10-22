@@ -4,24 +4,17 @@
 # see THIRD_PARTY_LICENSES for the full text.
 # Adapted here: get_align_stats, get_align_len,
 # get_cigar_op_log_probabilities, compute_log_prob_rgs and log_prob_rgs_dict (Emu's
-# CIGAR-based read score); variational_inference, update_q_distribution,
-# maximize_elbo and variational_inference_iterations (Emu's EM loop,
-# expectation_maximization and expectation_maximization_iterations);
-# output_read_assignments.
+# CIGAR-based read score).
 
 """
-Variational inference engine for NanoVI taxonomic classification.
+Read likelihoods for NanoVI.
 
-This module implements the core statistical inference algorithm:
-1. CIGAR operation log-probability estimation from alignment statistics
-2. Per-read log-likelihood computation for each candidate species
-3. Iterative EM/VI optimization of species frequency estimates
-4. Frequency thresholding and convergence monitoring via ELBO
+1. CIGAR operation log-probabilities estimated from the sample's primary alignments
+2. Per-read log-likelihood of each candidate species
 
-Functions are called by Nextflow processes via inline Python scripts.
+The estimators (em_estimator.py, variational_inference_bayesian.py) take the
+per-read scores that log_prob_rgs_dict returns.
 """
-
-# inference.py
 
 import math
 import numpy as np
@@ -135,93 +128,3 @@ def log_prob_rgs_dict(sam_path, log_p_cigar_op, dict_longest_align, p_cigar_op_z
     stdout.write(f"Unassigned read count: {unassigned_count}\n")
 
     return log_p_rgs, unassigned_count, len(assigned_reads)
-
-def variational_inference(log_p_rgs, freq, max_iterations=20, tolerance=5e-4):
-    """Run inner VI/EM loop: update q(s|r) and frequencies until convergence."""
-    for iteration in range(max_iterations):
-        q_dist, elbo = update_q_distribution(log_p_rgs, freq)
-        new_freq = maximize_elbo(q_dist)
-        for key in freq:
-            if key not in new_freq:
-                new_freq[key] = 0.0
-        diff = sum(abs(new_freq[key] - freq.get(key, 0.0)) for key in new_freq)
-        if diff < tolerance:
-            print(f"Converged at iteration {iteration + 1} with ELBO = {elbo}")
-            break
-        freq = new_freq
-        print(f"Iteration {iteration + 1}: ELBO = {elbo}")
-    return freq, elbo
-
-def update_q_distribution(log_p_rgs, freq):
-    q_dist = {}
-    elbo = 0
-    for read in log_p_rgs:
-        valid_seqs, log_p_rns = [], []
-        for seq in range(len(log_p_rgs[read][0])):
-            s_val = log_p_rgs[read][0][seq]
-            if s_val in freq and freq[s_val] != 0:
-                logprns_val = log_p_rgs[read][1][seq] + math.log(freq[s_val])
-                valid_seqs.append(s_val)
-                log_p_rns.append(logprns_val)
-        if len(valid_seqs) != 0:
-            logc = -np.max(log_p_rns)
-            prnsc = np.exp(log_p_rns + logc)
-            prc = np.sum(prnsc)
-            elbo += (np.log(prc) - logc)
-            for seq in enumerate(valid_seqs):
-                tax_id, prob = seq[1], prnsc[seq[0]] / prc
-                if tax_id not in q_dist:
-                    q_dist[tax_id] = {}
-                q_dist[tax_id][read] = prob
-    return q_dist, elbo
-
-def maximize_elbo(q_dist):
-    """M-step: re-estimate species frequencies from q(s|r) assignments."""
-    freq = {}
-    for tax_id, read_id in q_dist.items():
-        freq[tax_id] = sum(read_id.values())
-    total = sum(freq.values())
-    for tax_id in freq:
-        freq[tax_id] /= total
-    return freq
-
-def variational_inference_iterations(log_p_rgs, db_ids, lli_thresh, input_threshold):
-    n_db = len(db_ids)
-    n_reads = len(log_p_rgs)
-    stdout.write(f"Assigned read count: {n_reads}\n")
-    if n_reads == 0:
-        raise ValueError(
-            "0 reads were assigned to any reference taxon. "
-            "Check that input reads overlap with the reference database "
-            "and that filtering parameters (--min_length, --max_length) are appropriate."
-        )
-    freq, counter = dict.fromkeys(db_ids, 1 / n_db), 1
-    freq_thresh = 1 / n_reads
-    if n_reads > 1000:
-        freq_thresh = 10 / n_reads
-    total_elbo = -math.inf
-    while True:
-        freq, _ = variational_inference(log_p_rgs, freq)
-        _, new_elbo = update_q_distribution(log_p_rgs, freq)
-        elbo_diff = new_elbo - total_elbo
-        total_elbo = new_elbo
-        if elbo_diff < 0:
-            raise ValueError(
-                f"ELBO decreased by {elbo_diff:.6f} from prior iteration, "
-                "indicating numerical instability. Check input data quality."
-            )
-        if elbo_diff < lli_thresh:
-            stdout.write(f"Number of VI iterations: {counter}\n")
-            freq = {k: v for k, v in freq.items() if v >= freq_thresh}
-            freq_full, _ = variational_inference(log_p_rgs, freq)
-            freq_set_thresh = None
-            if freq_thresh < input_threshold:
-                freq = {k: v for k, v in freq_full.items() if v >= input_threshold}
-                freq_set_thresh, _ = variational_inference(log_p_rgs, freq)
-            return freq_full, freq_set_thresh, None
-        counter += 1
-
-def output_read_assignments(p_sgr, tsv_output_path):
-    dist_df = pd.DataFrame(p_sgr)
-    dist_df.to_csv("{}.tsv".format(tsv_output_path), sep='\t')
-    return dist_df

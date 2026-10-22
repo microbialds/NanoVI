@@ -6,7 +6,6 @@ process COMBINE {
     input:
       path input_dir
       val  rank
-      path bin_dir     // staged bin/ directory from bin_ch
 
     output:
       path "vi-combined-${rank}*.tsv", emit: combined
@@ -16,11 +15,11 @@ process COMBINE {
     """
     mkdir -p input_data
     cp -v ${input_dir}/*_rel-abundance.tsv input_data/ || cp -v ${input_dir}/*_abundance.tsv input_data/
-    python3 ${bin_dir}/main.py combine-outputs \\
+    main.py combine-outputs \\
         input_data \\
         ${rank}
     mv input_data/vi-combined-${rank}*.tsv ./
-    python3 ${bin_dir}/python_versions.py "${task.process}" > versions.yml
+    python_versions.py "${task.process}" > versions.yml
     """
 
     stub:

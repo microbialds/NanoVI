@@ -20,35 +20,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'bin'))
 import variational_inference_bayesian as vb
 from taxonomy import freq_to_lineage_df
 
+from .synthetic import synthetic_reads
+
 
 @pytest.fixture(autouse=True)
 def quiet(monkeypatch):
     """The module writes progress to sys.stdout bound at import; silence it."""
     monkeypatch.setattr(vb, 'stdout', io.StringIO())
-
-
-def synthetic_reads(counts, seed=0, base=-40.0, max_decoys=2, mean_gap=3.0):
-    """Reads with a known source species and lower-scoring decoy alignments.
-
-    counts: {species_id: number of reads drawn from it}. Each read aligns to its
-    source with score base + noise and to up to max_decoys other species with a
-    score lower by an exponential gap.
-    """
-    rng = np.random.default_rng(seed)
-    species = sorted(counts)
-    log_p_rgs = {}
-    n = 0
-    for sid in species:
-        for _ in range(counts[sid]):
-            own = base + rng.normal(0.0, 2.0)
-            others = [s for s in species if s != sid]
-            k = min(int(rng.integers(0, max_decoys + 1)), len(others))
-            decoys = list(rng.choice(others, size=k, replace=False)) if k else []
-            sids = [sid] + [int(d) for d in decoys]
-            scores = [own] + [own - float(rng.exponential(mean_gap)) for _ in decoys]
-            log_p_rgs[f'read{n}'] = (sids, scores)
-            n += 1
-    return log_p_rgs
 
 
 # ─── build_likelihood_matrix ─────────────────────────────────────────────────
@@ -457,3 +435,41 @@ class TestPosteriorUtilities:
     def test_expected_effective_species(self):
         assert vb.expected_effective_species(np.full(4, 10.0)) == pytest.approx(4.0)
         assert vb.expected_effective_species(np.array([1000.0, 1e-9])) == pytest.approx(1.0, abs=1e-6)
+
+
+# ─── posterior summary for the interval columns (F20, D7) ────────────────────
+
+class TestPosteriorReadSummary:
+    def test_expected_and_shared_reads_by_hand(self):
+        # read 0 only species 10; read 1 split 0.6 / 0.4; read 2 gives 0.995 to
+        # species 10, under the split cut-off of 1 %
+        phi = np.array([[1.0, 0.0], [0.6, 0.4], [0.995, 0.005]])
+        alpha = np.array([2.6, 0.9])
+        summary = vb.posterior_read_summary(alpha, phi, [10, 20])
+        assert summary[10] == pytest.approx({'alpha': 2.6, 'expected_reads': 2.595, 'shared_reads': 0.6})
+        assert summary[20] == pytest.approx({'alpha': 0.9, 'expected_reads': 0.405, 'shared_reads': 0.405})
+
+    def test_summary_matches_the_reported_abundances(self):
+        lp = synthetic_reads({1: 800, 2: 150, 3: 50}, seed=8)
+        lp['tie'] = ([1, 2], [-40.0, -40.0])
+        freq_full, freq_thresh, _, _, summary = vb.bayesian_vi_iterations(
+            lp, [1, 2, 3], posterior_summary=True)
+        reported = freq_thresh or freq_full
+        assert set(summary) == set(reported)
+        total = sum(v['alpha'] for v in summary.values())
+        for sid, value in reported.items():
+            assert summary[sid]['alpha'] / total == pytest.approx(value, rel=1e-12)
+            assert 0 < summary[sid]['shared_reads'] <= summary[sid]['expected_reads']
+        assert sum(v['expected_reads'] for v in summary.values()) == pytest.approx(len(lp))
+
+    def test_default_return_shape_is_unchanged(self):
+        lp = synthetic_reads({1: 100, 2: 100}, seed=9)
+        assert len(vb.bayesian_vi_iterations(lp, [1, 2])) == 4
+
+
+def test_shared_reads_ignore_species_that_are_not_reported():
+    # read 1 is split 0.5 / 0.5 with a species outside the reported columns
+    phi = np.array([[1.0], [0.5]])
+    summary = vb.posterior_read_summary(np.array([2.0]), phi, [10])
+    assert summary[10]['shared_reads'] == 0.0
+    assert summary[10]['expected_reads'] == 1.5

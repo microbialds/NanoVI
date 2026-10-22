@@ -4,7 +4,6 @@ process COLLAPSE {
     input:
       path input_path
       val  rank
-      path bin_dir     // staged bin/ directory from bin_ch
 
     output:
       path "*-${rank}.tsv", emit: collapsed
@@ -12,8 +11,8 @@ process COLLAPSE {
 
     script:
     """
-    python3 ${bin_dir}/main.py collapse-taxonomy ${input_path} ${rank}
-    python3 ${bin_dir}/python_versions.py "${task.process}" > versions.yml
+    main.py collapse-taxonomy ${input_path} ${rank}
+    python_versions.py "${task.process}" > versions.yml
     """
 
     stub:

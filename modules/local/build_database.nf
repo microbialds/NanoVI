@@ -8,7 +8,6 @@ process BUILD_DB {
     path seq2tax         // staged from seq2tax_ch
     path taxonomy        // --taxonomy_list file or --ncbi_taxonomy directory
     val  taxonomy_flag   // '--taxonomy-list' or '--ncbi-taxonomy', matching taxonomy
-    path bin_dir         // staged bin/ directory from bin_ch
 
     output:
     path "${params.db_name}/**"
@@ -16,12 +15,12 @@ process BUILD_DB {
 
     script:
     """
-    python3 ${bin_dir}/main.py build-database \\
+    main.py build-database \\
         --sequences      ${sequences} \\
         --seq2tax        ${seq2tax} \\
         ${taxonomy_flag} ${taxonomy} \\
         ${params.db_name}
-    python3 ${bin_dir}/python_versions.py "${task.process}" > versions.yml
+    python_versions.py "${task.process}" > versions.yml
     """
 
     stub:
