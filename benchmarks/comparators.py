@@ -9,8 +9,10 @@
   kraken2      Kraken2 2.1.3 + Bracken 3.1 on EPI2ME's ncbi_16s_18s database
                (the one wf-16s downloads; Bracken's 1000-mer distribution, species
                level, threshold 10 reads, as wf-16s)
-  wf16s        EPI2ME wf-16s v1.6.1 with --classifier minimap2 or kraken2 and its
-               default database (ncbi_16s_18s), run by Nextflow with Docker
+  wf16s        EPI2ME wf-16s v1.6.1 with --classifier minimap2 or kraken2, its
+               default database (ncbi_16s_18s) and settings (minimap2 mode: identity
+               >= 95%, reference coverage >= 90%; reads 800-2,000 bp), species rank
+               (--taxonomic_rank S; the default is genus), Nextflow 25.04.8 and Docker
 
 Names are mapped to GTDB r226 (benchmarks/names.py) before comparison; the
 unclassified and unassigned rows are left out of the abundances.
@@ -88,10 +90,12 @@ def run_wf16s(fastq_dir, out_dir, classifier, threads=8):
     env = {**os.environ, "NXF_VER": os.environ.get("WF16S_NXF_VER", "25.04.8")}
     subprocess.run(["nextflow", "-q", "run", WF16S[0], "-r", WF16S[1], "-profile", "standard",
                     "-w", str(work), "--fastq", str(fastq_dir), "--classifier", classifier,
-                    "--database_set", "ncbi_16s_18s", "--threads", str(threads),
+                    "--database_set", "ncbi_16s_18s", "--taxonomic_rank", "S", "--threads", str(threads),
                     "--store_dir", str(BENCH / "downloads" / "comparator_db" / "wf16s_store"),
                     "--out_dir", str(out_dir), "--include_read_assignments"],
                    check=True, env=env, stdout=open(str(out_dir) + ".log", "w"), stderr=subprocess.STDOUT)
+    if not done.exists():
+        raise RuntimeError(f"wf-16s wrote no species table in {out_dir}")
     return done
 
 
