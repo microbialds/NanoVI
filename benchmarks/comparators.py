@@ -13,12 +13,20 @@
                default database (ncbi_16s_18s) and settings (minimap2 mode: identity
                >= 95%, reference coverage >= 90%; reads 800-2,000 bp), species rank
                (--taxonomic_rank S; the default is genus), Nextflow 25.04.8 and Docker
+  nanoclust    NanoCLUST (genomicsITER/NanoCLUST, commit 9364ddc, DSL1, Nextflow 22.10.8,
+               its Docker images), defaults (fastp -q 8, reads 1,400-1,700 bp, UMAP +
+               HDBSCAN, min_cluster_size 50, canu/racon/medaka consensus, BLAST against
+               NCBI 16S_ribosomal_RNA + taxdb, downloaded 2026-10-23); abundances are the
+               clusters' read shares by BLAST top-hit species (<sample>.nanoclust_out.txt,
+               so the unipept lookup of its last step is not needed). Real Zymo mocks only (D20)
 
 Names are mapped to GTDB r226 (benchmarks/names.py) before comparison; the
 unclassified and unassigned rows are left out of the abundances.
 """
 import argparse
+import gzip
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -34,6 +42,7 @@ BRACKEN_IMAGE = "quay.io/biocontainers/bracken:3.1--h9948957_0"
 WF16S = ("epi2me-labs/wf-16s", "v1.6.1")
 EMU_DBS = {"emu_default": BENCH / "downloads" / "comparator_db" / "emu_default", "nanovi_exact": BENCH / "db" / "exact"}
 KRAKEN_DB = BENCH / "downloads" / "comparator_db" / "ncbi_16s_18s" / "kraken2"
+NANOCLUST = BENCH / "downloads" / "nanoclust"
 
 
 def run_emu(reads, db, out_dir, threads=4, N=None):
@@ -108,6 +117,43 @@ def parse_wf16s(path, sample, ncbi_names):
         if not n or sp.lower() in ("unknown", "unclassified", "") or sp.startswith("Unknown"):
             continue
         name = to_gtdb(sp, ncbi_names)
+        est[name] = est.get(name, 0.0) + float(n)
+    total = sum(est.values())
+    return {k: v / total for k, v in est.items()} if total else {}
+
+
+def run_nanoclust(reads, out_dir, cpus=16):
+    """One NanoCLUST run on one sample (gzipped FASTQ; NanoCLUST names it after the file)."""
+    out_dir = Path(out_dir)
+    name = Path(reads).name.replace(".fastq.gz", "")
+    table = out_dir / name / f"{name}.nanoclust_out.txt"
+    if table.exists():
+        return table
+    out_dir.mkdir(parents=True, exist_ok=True)
+    fastq = out_dir / f"{name}.fastq"
+    with gzip.open(reads, "rb") as fin, open(fastq, "wb") as fout:
+        shutil.copyfileobj(fin, fout)
+    config = out_dir / "local.config"
+    config.write_text(f"executor {{ cpus = {cpus} }}\n")
+    env = {**os.environ, "NXF_VER": "22.10.8"}
+    with open(out_dir / f"{name}.log", "w") as log:
+        # its last steps look names up online (unipept); the table before them is all we parse
+        subprocess.run(["nextflow", "run", str(NANOCLUST / "src" / "main.nf"), "-dsl1", "-profile", "docker",
+                        "-c", str(config), "-w", str(out_dir / "work"), "--reads", str(fastq),
+                        "--db", str(NANOCLUST / "db" / "16S" / "16S_ribosomal_RNA"),
+                        "--tax", str(NANOCLUST / "db" / "taxdb"), "--outdir", str(out_dir)],
+                       env=env, stdout=log, stderr=subprocess.STDOUT, cwd=out_dir)
+    fastq.unlink()
+    if not table.exists():
+        raise RuntimeError(f"NanoCLUST wrote no cluster table for {name} (see {out_dir}/{name}.log)")
+    return table
+
+
+def parse_nanoclust(path, ncbi_names):
+    t = pd.read_csv(path, sep=";")
+    est = {}
+    for sp, n in zip(t["sciname"], t["reads_in_cluster"]):
+        name = to_gtdb(" ".join(str(sp).split()[:2]), ncbi_names) if isinstance(sp, str) else "unclassified"
         est[name] = est.get(name, 0.0) + float(n)
     total = sum(est.values())
     return {k: v / total for k, v in est.items()} if total else {}

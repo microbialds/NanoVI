@@ -99,8 +99,10 @@ def align(reads, index, out, N, threads=4, version="2.24"):
 def subset_bam(bam, reads, out):
     """Alignments of the reads in a FASTQ, taken from a BAM of a superset of those reads.
 
-    minimap2 maps each read independently, so this equals aligning the subset (checked on
-    250 of 500 reads: identical records). Used for filters that only drop reads (--min_quality).
+    minimap2 maps each read independently, so this equals aligning the subset (checked:
+    identical records for 250 of 500 reads on the reps index, and for 100 reads at -t 1
+    against a 10k-read -t 4 alignment on the exact index). Used for filters that only
+    drop reads (--min_quality).
     """
     out = Path(out)
     if out.exists():
