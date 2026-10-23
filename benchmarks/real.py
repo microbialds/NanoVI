@@ -11,10 +11,12 @@ Zymo mock (SRR23636353), each subsampled to 10,000 reads (seqkit shuffle, seed
   per-base       per-base score                em           EM estimator
   noprune        pruning off, floor 0          unk0.02      unknown component, δ 0.02
   pid<x>         alignments below x% identity skipped
-  q10 / q15      fastplong mean quality filter (--min_quality; M8)
+  q10 / q15      fastplong mean quality filter (--min_quality; M8); alignments are the
+                 reference alignments of the reads that pass (harness.subset_bam)
   tools_new      fastplong 0.7.0 and minimap2 2.31 (D16)
   emudb          NanoVI on Emu's default database (the 'both ways' comparison)
 
+The hac basecalls (an extra arm, D20) run the reference and q10/q15 only.
 Writes <bench>/results/real/<sample>.tsv per sample and real_nanovi.tsv.
 """
 import argparse
@@ -51,6 +53,10 @@ ARMS = {
     "emudb_pid97": ({}, "emu_default", 3, {"min_identity": 97}, {}),
 }
 ALIGN_VERSION = {"tools_new": "2.31"}
+# Filters that only drop reads: their alignments are taken from the reference BAM
+SUBSET_OF_REFERENCE = {"q10", "q15"}
+# The hac basecalls are an extra arm (D20): the reference and the quality filters only
+HAC_ARMS = ["reference", "q10", "q15"]
 
 
 def db_dir(db):
@@ -86,6 +92,8 @@ def arm_paths(name, arm):
 
 def run_sample(name, arms, align_threads):
     reads = subsample(name)
+    if "_hac_" in name:
+        arms = [a for a in arms if a in HAC_ARMS]
     rows = []
     for arm in arms:
         filt_opts, db, N, lik_opts, est_opts = ARMS[arm]
@@ -93,9 +101,13 @@ def run_sample(name, arms, align_threads):
         harness.filter_reads(reads, filt, **filt_opts)
         version = ALIGN_VERSION.get(arm, "2.24")
         index = harness.index_path(db, version)
-        if not index.exists():
-            harness.build_index(db_dir(db), index, threads=align_threads, version=version)
-        harness.align(filt, index, aln, N, threads=align_threads, version=version)
+        if arm in SUBSET_OF_REFERENCE:
+            ref_filt, ref_aln, _, _ = arm_paths(name, "reference")
+            harness.filter_reads(reads, ref_filt)
+            harness.align(ref_filt, index, ref_aln, N, threads=align_threads)
+            harness.subset_bam(ref_aln, filt, aln)
+        else:
+            harness.align(filt, index, aln, N, threads=align_threads, version=version)
         harness.likelihood(aln, npz, **lik_opts)
         harness.estimate(npz, est, **est_opts)
         abund, below = load_estimate(est, db_dir(db))
@@ -119,6 +131,11 @@ def main():
     args = ap.parse_args()
     names = args.samples.split(",") if args.samples else samples()
     arms = args.arms.split(",")
+    # Indexes first, one at a time: two workers must not build the same one
+    for arm in arms:
+        db, version = ARMS[arm][1], ALIGN_VERSION.get(arm, "2.24")
+        harness.build_index(db_dir(db), harness.index_path(db, version), threads=args.workers * args.align_threads,
+                            version=version)
     with ProcessPoolExecutor(args.workers) as pool:
         futures = {pool.submit(run_sample, n, arms, args.align_threads): n for n in names}
         for f in as_completed(futures):

@@ -14,6 +14,7 @@ name (tmp_ prefix) and renamed when complete, so an interrupted run never leaves
 and a step whose output exists is skipped. Each step writes <output>.time with its
 wall time in seconds.
 """
+import gzip
 import json
 import os
 import subprocess
@@ -92,6 +93,24 @@ def align(reads, index, out, N, threads=4, version="2.24"):
                      [Path(reads).parent, Path(index).parent, out.parent]))
     _run(out, docker(ALIGN_IMAGE["2.24"], f"samtools view -b -@ 2 -o {{OUT}} {sam}", [out.parent]))
     sam.unlink()
+    return out
+
+
+def subset_bam(bam, reads, out):
+    """Alignments of the reads in a FASTQ, taken from a BAM of a superset of those reads.
+
+    minimap2 maps each read independently, so this equals aligning the subset (checked on
+    250 of 500 reads: identical records). Used for filters that only drop reads (--min_quality).
+    """
+    out = Path(out)
+    if out.exists():
+        return out
+    names = out.with_name(out.name + ".names")
+    with gzip.open(reads, "rt") as fq:
+        names.write_text("".join(line[1:].split()[0] + "\n" for i, line in enumerate(fq) if i % 4 == 0))
+    _run(out, docker(ALIGN_IMAGE["2.24"], f"samtools view -b -N {names} -o {{OUT}} {bam}",
+                     [Path(bam).parent, out.parent]))
+    names.unlink()
     return out
 
 
