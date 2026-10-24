@@ -139,6 +139,10 @@ def estimate(npz, out, estimator="vb", min_abundance=0.001, no_pruning=False, un
         argv.append("--unknown-component")
     if credible_intervals:
         argv.append("--credible-intervals")
+    if read_counts(npz)["assigned_count"] == 0:
+        # a filter that keeps no reads: the pipeline stops here; record an empty estimate
+        Path(out).write_text(json.dumps({"abundance": {}, "below_detection_count": 0}))
+        return Path(out)
     return _run(out, argv, env={**os.environ, "OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1",
                                 "MKL_NUM_THREADS": "1"})
 
