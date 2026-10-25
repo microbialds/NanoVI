@@ -42,6 +42,7 @@ WF16S = ("epi2me-labs/wf-16s", "v1.6.1")
 EMU_DBS = {"emu_default": BENCH / "downloads" / "comparator_db" / "emu_default", "nanovi_exact": BENCH / "db" / "exact"}
 KRAKEN_DB = BENCH / "downloads" / "comparator_db" / "ncbi_16s_18s" / "kraken2"
 NANOCLUST = BENCH / "downloads" / "nanoclust"
+BLAST_IMAGE = "quay.io/biocontainers/blast:2.17.0--h66d330f_0"
 
 
 def run_emu(reads, db, out_dir, threads=4, N=None):
@@ -137,7 +138,11 @@ def run_nanoclust(reads, out_dir, cpus=16):
         for i, line in enumerate(fin):
             fout.write(line.split(maxsplit=1)[0] + "\n" if i % 4 == 0 else line)
     config = out_dir / "local.config"
-    config.write_text(f"executor {{ cpus = {cpus} }}\n")
+    # its BLAST 2.10 cannot read the current NCBI 16S database (GI overflow): a newer BLAST
+    # runs the same command; the samples share the output folder, so its reports are rewritten
+    config.write_text(f"executor {{ cpus = {cpus} }}\n"
+                      f"process {{ withName: consensus_classification {{ container = '{BLAST_IMAGE}' }} }}\n"
+                      + "".join(f"{r} {{ overwrite = true }}\n" for r in ("trace", "timeline", "report", "dag")))
     env = {**os.environ, "NXF_VER": "22.10.8"}
     with open(out_dir / f"{name}.log", "w") as log:
         # its last steps look names up online (unipept); the table before them is all we parse
@@ -156,7 +161,8 @@ def parse_nanoclust(path, ncbi_names):
     t = pd.read_csv(path, sep=";")
     est = {}
     for sp, n in zip(t["sciname"], t["reads_in_cluster"]):
-        name = to_gtdb(" ".join(str(sp).split()[:2]), ncbi_names) if isinstance(sp, str) else "unclassified"
+        # BLAST 2.17 quotes the names in -outfmt 10
+        name = to_gtdb(" ".join(sp.strip('"').split()[:2]), ncbi_names) if isinstance(sp, str) else "unclassified"
         est[name] = est.get(name, 0.0) + float(n)
     total = sum(est.values())
     return {k: v / total for k, v in est.items()} if total else {}
