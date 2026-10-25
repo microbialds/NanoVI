@@ -19,8 +19,8 @@ from pathlib import Path
 import pandas as pd
 
 from common import BENCH, read_taxonomy
+from estimate_abundance import UNKNOWN_TAX_ID
 
-UNKNOWN_TAX_ID = 0
 UNKNOWN = "Unknown (not in database)"
 
 

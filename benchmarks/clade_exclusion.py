@@ -32,7 +32,7 @@ import pandas as pd
 import harness
 from common import BENCH, write_tsv
 from evaluate import UNKNOWN, UNKNOWN_TAX_ID, compare, load_estimate, load_truth, taxonomy
-from likelihood import score_reads
+from likelihood import read_alignment_records, score_reads
 from simulate import PAIRS, community_species
 
 SAMPLES = [f"even_{c}_10k_s{s:02d}" for c in ("r941", "r1041") for s in (1, 2, 3)]
@@ -86,6 +86,12 @@ def filtered_reads(sample):
         return frozenset(line[1:].split(maxsplit=1)[0] for i, line in enumerate(f) if i % 4 == 0)
 
 
+@lru_cache(maxsize=1)
+def records(sample, sp):
+    """The alignments of one reduced database, parsed once for its 14 arms."""
+    return read_alignment_records(str(paths(sample, sp, "none")[0]))
+
+
 def read_destinations(sample, sp, arm):
     """Share of the excluded species' reads by destination, from the final abundances.
 
@@ -99,7 +105,7 @@ def read_destinations(sample, sp, arm):
     bam, _, est_path = paths(sample, sp, arm)
     tax = taxonomy(str(BENCH / "db" / db_name(sp)))
     pi = {int(k): v for k, v in json.loads(est_path.read_text())["abundance"].items()}
-    result = score_reads(str(bam), **ARMS[arm])
+    result = score_reads(str(bam), **ARMS[arm], records=records(sample, sp))
     log_p_rgs = result[0]
     floors = dict(zip(log_p_rgs, result[3])) if len(result) > 3 else {}
     reads = pd.read_csv(BENCH / "sims" / sample / "read_truth.tsv.gz", sep="\t")
@@ -161,7 +167,8 @@ def main():
     with ProcessPoolExecutor(args.threads) as pool:
         list(pool.map(run_one, [j for j in jobs if j[2] != "none"]))
     with ProcessPoolExecutor(args.threads) as pool:
-        rows = list(pool.map(evaluate, *zip(*[(s, sp, arm) for s, sp, arm, _ in jobs])))
+        # one chunk per (sample, species), so that a worker parses each BAM once
+        rows = list(pool.map(evaluate, *zip(*[(s, sp, arm) for s, sp, arm, _ in jobs]), chunksize=len(ARMS)))
     write_tsv(pd.DataFrame(rows), BENCH / "results" / "clade_exclusion.tsv")
 
 

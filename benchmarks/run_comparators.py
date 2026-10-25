@@ -80,17 +80,24 @@ def run_nanovi(filt, sample, threads):
     return harness.estimate(npz, est)
 
 
-def run_job(tool, db, sample, threads):
+def stage(sample):
+    """The filtered reads, hard-linked under the sample's name (each tool names its
+    output after the reads file). Called once per sample before the jobs start, so
+    that two jobs of one sample never filter or link at the same time."""
     _, filt = inputs(sample)
-    if tool == "nanovi":
-        return run_nanovi(filt, sample, threads)
-    out_dir = OUT / tool / db
-    out_dir.mkdir(parents=True, exist_ok=True)
-    # each tool names its output after the reads file, so stage it under the sample's name
     reads = OUT / "reads" / f"{sample}.fastq.gz"
     if not reads.exists():
         reads.parent.mkdir(parents=True, exist_ok=True)
         os.link(filt, reads)
+    return filt, reads
+
+
+def run_job(tool, db, sample, threads):
+    filt, reads = stage(sample)
+    if tool == "nanovi":
+        return run_nanovi(filt, sample, threads)
+    out_dir = OUT / tool / db
+    out_dir.mkdir(parents=True, exist_ok=True)
     if tool == "emu":
         return cmp.run_emu(reads, db, out_dir, threads)
     return cmp.run_kraken_bracken(reads, out_dir, threads)
@@ -171,6 +178,8 @@ def main():
         todo = [j for j in jobs() if j[0] not in skip]
         # Emu on NanoVI's database first: it is the slowest and the 'both ways' comparison needs it
         todo.sort(key=lambda j: (j[1] != "nanovi_exact", j[0] != "emu"))
+        for sample in dict.fromkeys(j[2] for j in todo):
+            stage(sample)
         with ProcessPoolExecutor(args.workers) as pool:
             futures = {pool.submit(run_job, *j, args.threads): j for j in todo}
             for f in as_completed(futures):

@@ -143,7 +143,11 @@ def estimate(npz, out, estimator="vb", min_abundance=0.001, no_pruning=False, un
         argv.append("--credible-intervals")
     if not Path(out).exists() and read_counts(npz)["assigned_count"] == 0:
         # a filter that keeps no reads: the pipeline stops here; record an empty estimate
-        Path(out).write_text(json.dumps({"abundance": {}, "below_detection_count": 0}))
+        # (tmp_ and rename as in _run, with a .time file as every other step has)
+        tmp = Path(out).with_name("tmp_" + Path(out).name)
+        tmp.write_text(json.dumps({"abundance": {}, "below_detection_count": 0}))
+        Path(str(out) + ".time").write_text("0.00\n")
+        tmp.rename(out)
         return Path(out)
     return _run(out, argv, env={**os.environ, "OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1",
                                 "MKL_NUM_THREADS": "1"})
