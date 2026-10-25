@@ -9,7 +9,7 @@ tax_ids[offsets[r]:offsets[r + 1]]) for estimate_abundance.py, and the numbers
 of assigned and unassigned reads as a small JSON for write_abundance_table.py.
 
 The options after --counts are experimental (Phase 7a benchmark, off by default):
-they change the error profile, the score and which alignments are scored.
+they change the error profile and the score.
 """
 import argparse
 import json
@@ -28,15 +28,10 @@ def main():
                         help="experimental: alignments the error profile is estimated from (default primary)")
     parser.add_argument("--score", choices=["emu", "per-base"], default="emu",
                         help="experimental: Emu's score (default) or a per-base score with matches")
-    parser.add_argument("--min-identity", type=float,
-                        help="experimental: skip alignments below this percent identity (Emu's --min-pid)")
-    parser.add_argument("--min-aligned-length", type=int,
-                        help="experimental: skip alignments with fewer aligned query bases (Emu's --min-align-len)")
     args = parser.parse_args()
 
     log_p_rgs, unassigned_count, assigned_count = score_reads(
-        args.alignments, error_profile=args.error_profile, score=args.score,
-        min_identity=args.min_identity, min_aligned_length=args.min_aligned_length)
+        args.alignments, error_profile=args.error_profile, score=args.score)
 
     offsets, tax_ids, scores = read_scores_to_arrays(log_p_rgs)
     with open(args.scores, "wb") as f:

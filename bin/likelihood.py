@@ -110,21 +110,6 @@ class AlignmentRecords:
         return np.column_stack([cols[:, 0] - stats[:, 3], stats[:, 0], stats[:, 1],
                                 stats[:, 2] + cols[:, 1], stats[:, 3]])
 
-    def identity(self):
-        """Per alignment: Emu's percent identity, 100 x (1 - NM / aligned query bases).
-
-        Aligned query bases are M, =, X and I columns (clips excluded); 0 when there are none.
-        """
-        stats = np.frombuffer(self.stats, dtype=np.int64).reshape(-1, len(CIGAR_OPS))
-        aligned_query = self.columns()[:, 0] + stats[:, 0]
-        nm = stats[:, 0] + stats[:, 1] + stats[:, 3]
-        return np.where(aligned_query > 0, 100.0 * (1 - nm / np.maximum(aligned_query, 1)), 0.0)
-
-    def aligned_query_length(self):
-        """Per alignment: aligned query bases (M, =, X and I; clips excluded), as Emu's --min-align-len."""
-        stats = np.frombuffer(self.stats, dtype=np.int64).reshape(-1, len(CIGAR_OPS))
-        return self.columns()[:, 0] + stats[:, 0]
-
 
 def read_alignment_records(sam_path):
     """Read a SAM or BAM file once into AlignmentRecords."""
@@ -196,14 +181,12 @@ def per_base_log_probabilities(records, error_profile="primary", pseudocount=0.5
 
 
 def read_scores_from_records(records, log_p_cigar_op, dict_longest_align, p_cigar_op_zero_locs=None,
-                             per_base_log_p=None, keep=None):
+                             per_base_log_p=None):
     """log_prob_rgs_dict on AlignmentRecords: the same scores, in the same order.
 
     Experimental (Phase 7a): with per_base_log_p (from per_base_log_probabilities)
     the score is Σ count_op × ln p_op over match, I, D, S and X, with no length
-    scaling (clips count as S, so every alignment covers the whole read); keep
-    is a boolean array over the alignments, and an alignment outside it is
-    skipped like one that uses a zero-count operation.
+    scaling (clips count as S, so every alignment covers the whole read).
     """
     zero_locs = sorted(p_cigar_op_zero_locs or [], reverse=True)
     log_p_rgs, unassigned_set = {}, set()
@@ -216,9 +199,6 @@ def read_scores_from_records(records, log_p_cigar_op, dict_longest_align, p_ciga
         align_len = records.length[i]
         ref = records.ref[i]
         if not (ref >= 0 and align_len):
-            unassigned_set.add(query_name)
-            continue
-        if keep is not None and not keep[i]:
             unassigned_set.add(query_name)
             continue
         if per_base_log_p is not None:
@@ -263,8 +243,7 @@ def log_prob_rgs_dict(sam_path, log_p_cigar_op, dict_longest_align, p_cigar_op_z
         read_alignment_records(sam_path), log_p_cigar_op, dict_longest_align, p_cigar_op_zero_locs
     )
 
-def score_reads(sam_path, error_profile="primary", score="emu", min_identity=None, min_aligned_length=None,
-                records=None):
+def score_reads(sam_path, error_profile="primary", score="emu", records=None):
     """Error profile and read scores from one pass over a SAM or BAM file (F24).
 
     Returns (log_p_rgs, unassigned_count, assigned_count), as log_prob_rgs_dict
@@ -272,9 +251,7 @@ def score_reads(sam_path, error_profile="primary", score="emu", min_identity=Non
 
     The other arguments are experimental (Phase 7a benchmark; defaults give the
     pipeline's scores): error_profile 'all' estimates the error mix from every
-    mapped alignment; score 'per-base' uses per_base_log_probabilities;
-    min_identity (percent) and min_aligned_length skip alignments below them,
-    as Emu's --min-pid and --min-align-len.
+    mapped alignment; score 'per-base' uses per_base_log_probabilities.
     """
     if records is None:
         records = read_alignment_records(sam_path)
@@ -282,15 +259,8 @@ def score_reads(sam_path, error_profile="primary", score="emu", min_identity=Non
     per_base = per_base_log_probabilities(records, error_profile) if score == "per-base" else None
     if score not in ("emu", "per-base"):
         raise ValueError(f"score must be 'emu' or 'per-base', not {score!r}")
-    keep = None
-    if min_identity is not None or min_aligned_length is not None:
-        keep = np.ones(len(records), dtype=bool)
-        if min_identity is not None:
-            keep &= records.identity() >= min_identity
-        if min_aligned_length is not None:
-            keep &= records.aligned_query_length() >= min_aligned_length
     return read_scores_from_records(records, log_probs, dict_longest_align, zero_locs,
-                                    per_base_log_p=per_base, keep=keep)
+                                    per_base_log_p=per_base)
 
 
 

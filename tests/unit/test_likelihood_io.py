@@ -242,8 +242,6 @@ def test_per_base_score_counts_matches_and_clips(tmp_path):
     from likelihood import per_base_log_probabilities, read_alignment_records
     records = read_alignment_records(path)
     assert records.op_counts().tolist() == [[95, 2, 0, 10, 3], [98, 0, 0, 10, 2]]
-    np.testing.assert_allclose(records.identity(), [100 * (1 - 5 / 100), 100 * (1 - 2 / 100)])
-    assert records.aligned_query_length().tolist() == [100, 100]
     log_p = per_base_log_probabilities(records)  # primary only, pseudocount 0.5
     counts = np.array([95, 2, 0, 10, 3]) + 0.5
     np.testing.assert_allclose(log_p, np.log(counts / counts.sum()))
@@ -254,20 +252,15 @@ def test_per_base_score_counts_matches_and_clips(tmp_path):
     np.testing.assert_allclose(log_p_rgs['r1'][1], [np.dot([95, 2, 0, 10, 3], log_p), np.dot([98, 0, 0, 10, 2], log_p)])
 
 
-def test_identity_and_length_filters_skip_alignments(tmp_path):
-    records_in = [
-        ('r1', PRIMARY, REFS[0], '100M', 2),       # 98% identity, 100 aligned bases
-        ('r1', SECONDARY, REFS[1], '100M', 10),    # 90%
-        ('r2', PRIMARY, REFS[1], '50M50S', 1),     # 98%, 50 aligned bases
-    ]
-    path = write_sam(tmp_path / 'a.sam', records_in)
-    log_p_rgs, unassigned, assigned = score_reads(path, min_identity=95)
-    assert {r: v[0] for r, v in log_p_rgs.items()} == {'r1': [1], 'r2': [2]}
-    log_p_rgs, unassigned, assigned = score_reads(path, min_aligned_length=60)
-    assert {r: v[0] for r, v in log_p_rgs.items()} == {'r1': [1, 2]}
-    assert (assigned, unassigned) == (1, 1)
-    # Defaults: nothing filtered, the same scores as before
-    assert score_reads(path, min_identity=None) == score_reads(path)
+def test_identity_and_length_filters_are_removed(tmp_path):
+    # Identity and aligned-length filters lost in the Phase 7a benchmark (D25)
+    path = write_sam(tmp_path / 'a.bam', MIXED, 'wb')
+    argv = [sys.executable, os.path.join(BIN, 'read_likelihood.py'), '--alignments', path,
+            '--scores', 'scores.npz', '--counts', 'counts.json']
+    for option, value in (('--min-identity', '95'), ('--min-aligned-length', '1000')):
+        result = subprocess.run(argv + [option, value], cwd=tmp_path, capture_output=True, text=True)
+        assert result.returncode == 2
+        assert f'unrecognized arguments: {option}' in result.stderr
 
 
 def test_read_likelihood_script_has_no_unknown_component(tmp_path):
