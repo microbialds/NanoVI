@@ -56,7 +56,7 @@ pandas 3.0.6, pysam 0.24.1, numba 0.68.0). Lock files are kept beside the data
 | Emu | 3.6.2 (minimap2 2.30) | quay.io/biocontainers/emu:3.6.2--hdfd78af_0 |
 | Kraken2 / Bracken | 2.1.3 / 3.1 | quay.io/biocontainers |
 | EPI2ME wf-16s | v1.6.1, Nextflow 25.04.8 | epi2me-labs/wf-16s |
-| NanoCLUST | commit 9364ddc, Nextflow 22.10.8 (DSL1) | genomicsITER/NanoCLUST |
+| NanoCLUST | commit 9364ddc, Nextflow 22.10.8 (DSL1); consensus BLAST in BLAST 2.17.0 (its own 2.10 cannot read the current database); NCBI 16S_ribosomal_RNA of 22 Oct 2026 (27,646 type-strain sequences) | genomicsITER/NanoCLUST; quay.io/biocontainers/blast:2.17.0--h66d330f_0 |
 
 **Stages and scripts** (run in this order by `run_phase.sh`, `run_phase2.sh` and
 `run_phase3.sh` beside the data):
@@ -410,6 +410,7 @@ Real mocks (13 samples; Emu on NanoVI's database on 5):
 | Kraken2 + Bracken / ncbi_16s_18s | 0.824 | 0.811 | 0.862 | 25.0 | 0.349 |
 | wf-16s v1.6.1 minimap2 / ncbi_16s_18s | 0.711 | 0.494 | 0.934 | 16.0 | 0.200 |
 | wf-16s v1.6.1 kraken2 / ncbi_16s_18s | 0.831 | 0.818 | 0.852 | 24.9 | 0.355 |
+| NanoCLUST / NCBI 16S type strains (12 Zymo mocks) | 1.045 | 0.543 | 0.857 | 2.9 | 0.188 |
 
 Simulations (12 samples, 10k reads, seeds 1-3; Emu on the 4 seed-1 samples):
 
@@ -424,7 +425,10 @@ Simulations (12 samples, 10k reads, seeds 1-3; Emu on the 4 seed-1 samples):
 | wf-16s v1.6.1 minimap2 / ncbi_16s_18s | 0.846 | 0.177 | 1.000 | 6.2 |
 | wf-16s v1.6.1 kraken2 / ncbi_16s_18s | 1.137 | 1.065 | 0.805 | 75.3 |
 
-<!-- pending: NanoCLUST -->
+NanoCLUST ran on the 12 Zymo mocks (all within the 8-hour budget, 7-23 minutes each
+on 16 CPUs; not on the simulations). It clusters the reads, builds a consensus per
+cluster and names it by its best BLAST hit among NCBI type strains, so every read in a
+cluster gets one species.
 
 Paired on the same samples (`comparators_paired.tsv`):
 
@@ -450,6 +454,12 @@ Paired on the same samples (`comparators_paired.tsv`):
 - **Kraken2 + Bracken**: worse than NanoVI on every sample (group L1 +0.48 real, +1.04
   simulated; 21 and 72 more false-positive groups). wf-16s in kraken2 mode gives the
   same results (it runs the same tools on the same database).
+- **NanoCLUST** (12 Zymo mocks): group L1 higher than NanoVI's on 11 of 12 (mean
+  +0.20), group recall 0.11 lower, about as many false-positive groups (0.4 fewer).
+  Its genus L1 equals NanoVI's (+0.003): the error is in the species name the
+  consensus' best hit gives, a near neighbour of the type strain (*S. roterodami* for
+  *S. aureus*, *B. rugosus* for *B. spizizenii*, *L. cossartiae* for
+  *L. monocytogenes*), which no identical-16S group absorbs.
 - **wf-16s, minimap2 mode** (best hit per read, identity ≥ 95%, coverage ≥ 90%): group
   L1 higher than NanoVI's on 10 of 13 real mocks (mean +0.16) and on all 12
   simulations (+0.17), with 12 and 6 more false-positive groups; it detects more of
