@@ -374,6 +374,27 @@ def real():
                 rows.append({"arm": arm, "group": group, "metric": m, "n": len(dd), "mean_diff": dd.mean(),
                              "min_diff": dd.min(), "max_diff": dd.max()})
     write_tsv(pd.DataFrame(rows), DOCS_DATA / "real_arms_paired.tsv")
+
+    # per species: estimate against the expected 16S share (reference, N50, emudb)
+    from evaluate import load_real_truth
+    from names import load as load_crosswalk, to_gtdb
+    from real import EMU_DB
+    table = load_crosswalk()
+    rows = []
+    for sample in sorted(d["sample"].unique()):
+        truth = load_real_truth(sample)
+        for arm, db in (("reference", BENCH / "db" / "exact"), ("N50", BENCH / "db" / "exact"), ("emudb", EMU_DB)):
+            path = BENCH / "real" / "runs" / sample / "est" / f"{arm}.json"
+            if not path.exists():
+                continue
+            est = {}
+            for k, v in load_estimate(path, db)[0].items():
+                k = to_gtdb(k, table) if arm == "emudb" else k
+                est[k] = est.get(k, 0.0) + v
+            for sp in sorted(set(est) | set(truth)):
+                rows.append({"sample": sample, "arm": arm, "species": sp, "estimate": est.get(sp, 0.0),
+                             "expected": truth.get(sp), "in_truth": sp in truth})
+    write_tsv(pd.DataFrame(rows), DOCS_DATA / "real_species.tsv")
     return t
 
 
