@@ -2,7 +2,7 @@ process IDENTICAL_16S {
 
     label 'vi_database'
 
-    // Built once per database FASTA and taxonomy (D24), when the database directory
+    // Built once per database FASTA, taxonomy and identical_16s.py (D24), when the database directory
     // has no identical_16s.tsv; kept beside the cached indexes, so a later run finds
     // it and skips this step. Every output goes into the shared cache, so the
     // versions file carries the table's name

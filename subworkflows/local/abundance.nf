@@ -46,7 +46,10 @@ workflow ABUNDANCE {
         identical_table = channel.value(identical_16s)
         identical_versions = channel.empty()
     } else if (fasta_md5) {
-        def table_name = "${fasta_file.baseName}.${fasta_md5}.${md5Prefix(taxonomy_tsv)}.identical_16s${stub}"
+        // Named after the FASTA, the taxonomy and the script that groups them, so a
+        // changed grouping rule builds a new table instead of reusing a cached one
+        def script_md5 = md5Prefix(file("${projectDir}/bin/identical_16s.py"))
+        def table_name = "${fasta_file.baseName}.${fasta_md5}.${md5Prefix(taxonomy_tsv)}.identical_16s-${script_md5}${stub}"
         IDENTICAL_16S(fasta_file, taxonomy_tsv, table_name)
         identical_table = IDENTICAL_16S.out.table
         identical_versions = IDENTICAL_16S.out.versions

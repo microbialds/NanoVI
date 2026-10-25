@@ -139,9 +139,10 @@ nextflow_pipeline {
         then {
             assert workflow.success
             assert workflow.trace.tasks().count { it.name == 'ABUNDANCE:IDENTICAL_16S' } == 1
-            def tables = file("${outputDir}/index_cache").listFiles().findAll { it.name.endsWith('.identical_16s.stub.tsv') }
+            def tables = file("${outputDir}/index_cache").listFiles().findAll { it.name.endsWith('.stub.tsv') }
             assert tables.size() == 1
-            assert tables[0].name ==~ /species_taxid\.[0-9a-f]{12}\.[0-9a-f]{12}\.identical_16s\.stub\.tsv/
+            // FASTA, taxonomy and bin/identical_16s.py MD5s
+            assert tables[0].name ==~ /species_taxid\.[0-9a-f]{12}\.[0-9a-f]{12}\.identical_16s-[0-9a-f]{12}\.stub\.tsv/
         }
     }
 
