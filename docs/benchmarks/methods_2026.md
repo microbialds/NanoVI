@@ -122,8 +122,12 @@ from all of its 16S copies of at least 1,400 bp, so intragenomic variation is in
 Badread 0.4.2: R9.4.1-like (nanopore2020 error and quality models, identity 94,98,3;
 mean read identity 93.9%) and R10.4.1-like (nanopore2023, 99,100,0.5; 99.0%). Even (5%
 each) and log-staggered (four orders of magnitude, pair members ranked apart)
-communities; 1k, 10k and 50k reads; 10 seeds (1k and 10k) or 3 (50k); counts are a
-multinomial draw from the design. 120 samples.
+communities; 1k, 10k and 50k reads; 10 seeds each, 120 samples (the grids use all 10
+at 1k and 10k and seeds 1-3 at 50k, 92 samples). Species counts are a multinomial draw
+from the design. Within a chemistry, each species' reads come from one Badread stream
+per seed (seed × 1000 + species index) whatever the depth or shape, so a species' reads
+at 1k are a prefix of its reads at 10k and 50k with the same seed: replicates within a
+condition are independent, but conditions that share a seed share reads.
 
 Two pairs are not identifiable from 16S in GTDB r226: the chosen *S. argenteus* and
 *E. fergusonii* genomes carry 16S copies identical to *S. aureus* and *E. coli* copies
@@ -472,3 +476,5 @@ alignment or from the estimator.
 - Wall times from the grid were measured on a loaded shared host and are not used;
   Section 11 uses CPU time from pinned runs.
 - The clade exclusion removes species, not genera.
+- Simulated depths and shapes with the same seed share each species' reads (Section 3),
+  so differences between depths are paired, not independent, comparisons.
