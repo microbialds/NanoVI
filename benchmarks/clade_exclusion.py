@@ -18,10 +18,12 @@ below detection), false positives created, and the error on the species that are
 in the database. Writes <bench>/results/clade_exclusion.tsv.
 """
 import argparse
+import gzip
 import json
 import subprocess
 import sys
 from concurrent.futures import ProcessPoolExecutor
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -77,13 +79,22 @@ def run_one(job):
     return job
 
 
+@lru_cache(maxsize=None)
+def filtered_reads(sample):
+    """Names of the reads that passed the length filter, the reads that were aligned."""
+    with gzip.open(BENCH / "runs" / sample / "filtered.fastq.gz", "rt") as f:
+        return frozenset(line[1:].split(maxsplit=1)[0] for i, line in enumerate(f) if i % 4 == 0)
+
+
 def read_destinations(sample, sp, arm):
     """Share of the excluded species' reads by destination, from the final abundances.
 
-    The reads are scored again through the Python API (the same function and options
-    as read_likelihood.py), which keeps their names; each read is split over its
-    reported candidates (and the unknown component) in proportion to
-    exp(score) x abundance, as the responsibilities at the final abundances.
+    Only reads that passed the length filter count, as in the read counts that the
+    in-database removal rate is computed from (analyse.py clade). The reads are scored
+    again through the Python API (the same function and options as read_likelihood.py),
+    which keeps their names; each read is split over its reported candidates (and the
+    unknown component) in proportion to exp(score) x abundance, as the responsibilities
+    at the final abundances.
     """
     bam, _, est_path = paths(sample, sp, arm)
     tax = taxonomy(str(BENCH / "db" / db_name(sp)))
@@ -92,7 +103,7 @@ def read_destinations(sample, sp, arm):
     log_p_rgs = result[0]
     floors = dict(zip(log_p_rgs, result[3])) if len(result) > 3 else {}
     reads = pd.read_csv(BENCH / "sims" / sample / "read_truth.tsv.gz", sep="\t")
-    ours = set(reads.loc[reads["species"] == sp, "read"])
+    ours = set(reads.loc[reads["species"] == sp, "read"]) & filtered_reads(sample)
     community = set(community_species())
     dest = dict.fromkeys(["unknown", "sibling", "other community", "absent species", "below detection"], 0.0)
     for read in ours & set(log_p_rgs):

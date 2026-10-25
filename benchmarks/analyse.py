@@ -25,7 +25,6 @@ docs/benchmarks/data/ under the same name.
 """
 import argparse
 import hashlib
-import json
 from collections import Counter
 from functools import lru_cache
 
@@ -314,15 +313,15 @@ def clade():
     """Removal rates: an excluded species' reads that end up unassigned (filters) or in
     the unknown component, against the same for the reads of the other 19 species. A
     useful novelty signal removes the first far more often than the second."""
-    from clade_exclusion import db_name
+    from clade_exclusion import paths
+    from harness import read_counts
     d = pd.read_csv(RESULTS / "clade_exclusion.tsv", sep="\t")
     d["chemistry"] = d["sample"].str.split("_").str[1]
     d["sibling_present"] = d["sibling_in_sample"].notna()
     d["family"] = d["arm"].str.extract(r"^(none|pid|len|unk)")[0]
     indb = []
     for r in d.itertuples():
-        npz = r.arm if not r.arm.startswith("unk") else "unk" + r.arm[3:]
-        c = json.loads((BENCH / "runs" / r.sample / "clade" / db_name(r.excluded) / f"{npz}.counts.json").read_text())
+        c = read_counts(paths(r.sample, r.excluded, r.arm)[1])
         total = c["assigned_count"] + c["unassigned_count"]
         others = total - r.excluded_reads
         unassigned = c["unassigned_count"] - r.to_unassigned * r.excluded_reads
