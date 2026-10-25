@@ -660,9 +660,9 @@ nextflow_pipeline {
     // 26.04+, so `--keep_counts false` used to keep the counts; the typed params
     // block in main.nf converts them (F40). This needs the real RUN_VI and
     // WRITE_OUTPUT scripts; the interval columns are experimental (F20)
-    test("--keep_counts false, --keep_files true and --credible_intervals true on the command line") {
+    test("--keep_counts false, --keep_files true, --credible_intervals true and --binomial_names true on the command line") {
         tag "e2e"
-        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --keep_counts false --keep_files true --credible_intervals true"
+        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --keep_counts false --keep_files true --credible_intervals true --binomial_names true"
 
         when {
             params {
@@ -678,6 +678,14 @@ nextflow_pipeline {
             assert !file("${outputDir}/consolidated_output/otu_table_counts.tsv").exists()
             assert file("${outputDir}/bam/e2e_mock_vi_alignments.bam").exists()
             assert file("${outputDir}/filtered/e2e_mock_filtered.fastq.gz").exists()
+            // The fixture's names are already binomials, so check that WRITE_OUTPUT got the option (F17)
+            def lines = file("${metaDir}/trace.csv").readLines()
+            def fields = lines[0].split('\t') as List
+            def task = lines.drop(1).collect { [fields, it.split('\t') as List].transpose().collectEntries { it } }
+                .find { it.name.startsWith('ABUNDANCE:WRITE_OUTPUT') }
+            def (prefix, rest) = task.hash.split('/')
+            def taskDir = new File("${metaDir}/../work/${prefix}").listFiles().find { it.name.startsWith(rest) }
+            assert new File(taskDir, '.command.sh').text.contains('--binomial-names')
         }
     }
 }

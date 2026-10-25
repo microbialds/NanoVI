@@ -2,7 +2,8 @@
 """Write a sample's abundance table with its lineages (WRITE_OUTPUT).
 
 Joins the abundances from estimate_abundance.py with taxonomy.tsv and writes
-<prefix>.tsv: one row per species, then the 'Below detection' and 'Unassigned'
+<prefix>.tsv: one row per species name (cut to genus and epithet with
+--binomial-names, 'Candidatus' names kept whole), then the 'Below detection' and 'Unassigned'
 rows, with an estimated_counts column when --counts is given, the
 identical_16s_species column when --identical-16s is given (the species of the
 same genus that share an identical 16S with each species, from the database's
@@ -34,6 +35,9 @@ def main():
     parser.add_argument("--taxonomy", required=True, help="taxonomy.tsv of the database")
     parser.add_argument("--output-prefix", required=True, help="output path without .tsv (<sample>_rel-abundance)")
     parser.add_argument("--counts", action="store_true", help="add the estimated_counts column")
+    parser.add_argument("--binomial-names", action="store_true",
+                        help="cut species names to genus and epithet ('Candidatus' names keep three words) "
+                             "and sum the species that then share a name")
     parser.add_argument("--identical-16s", metavar="FILE",
                         help="identical_16s.tsv of the database: add the identical_16s_species column "
                              "('' writes the column empty)")
@@ -63,6 +67,7 @@ def main():
         below_detection_count=below_detection_count,
         posterior=abundance_data.get("posterior"),
         identical=read_identical(args.identical_16s) if args.identical_16s is not None else None,
+        binomial=args.binomial_names,
     )
 
 

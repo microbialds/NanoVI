@@ -107,6 +107,7 @@ Parameters are checked against `nextflow_schema.json` at the start of every run 
 | `--min_quality` | off | Minimum mean read quality (Phred). Off: fastplong filters by length only. Set: fastplong's quality filter drops reads with a lower mean quality (its per-base rule is switched off; its limit of 5 N bases per read still applies) |
 | `--keep_counts` | `false` | Include read count column in output |
 | `--keep_files` | `false` | Publish the alignments (`bam/<sample>_vi_alignments.bam`) and the filtered reads (`filtered/<sample>_filtered.fastq.gz`) |
+| `--binomial_names` | `false` | Cut species names in the output tables to genus and epithet (`Escherichia coli O157` → `Escherichia coli`; `Candidatus` names keep three words) and sum the species that then share a name. Off: names are kept as the database's `taxonomy.tsv` gives them |
 
 ### Inference
 

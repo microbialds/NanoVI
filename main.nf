@@ -29,6 +29,7 @@ params {
     min_quality: Integer?
     keep_counts: Boolean
     keep_files: Boolean
+    binomial_names: Boolean
 
     // Abundance estimation (RUN_VI)
     estimator: String

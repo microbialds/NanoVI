@@ -21,6 +21,7 @@ process WRITE_OUTPUT {
         --taxonomy "${taxonomy_tsv}" \\
         --output-prefix "${sample_id}_rel-abundance" \\
         --identical-16s ${identical} \\
+        ${params.binomial_names ? '--binomial-names' : ''} \\
         ${params.keep_counts ? '--counts' : ''}
     python_versions.py "${task.process}" > versions.yml
     """

@@ -66,8 +66,16 @@ class TestFreqToLineageDf:
         df = freq_to_lineage_df({'1': 1.0}, str(tmp_path / 's'), taxonomy_df, 100, 0, counts=False)
         assert 'estimated_counts' not in df.columns
 
-    def test_strains_merge_into_two_word_species(self, tmp_path, taxonomy_df):
+    def test_full_species_names_by_default(self, tmp_path, taxonomy_df):
+        # 'Escherichia coli O157' is no longer cut to 'Escherichia coli' (F17)
         df = freq_to_lineage_df({'1': 0.3, '2': 0.2, '3': 0.5}, str(tmp_path / 's'), taxonomy_df, 100, 0)
+        abundance = dict(zip(df['species'], df['abundance']))
+        assert abundance['Escherichia coli'] == pytest.approx(0.3)
+        assert abundance['Escherichia coli O157'] == pytest.approx(0.2)
+
+    def test_strains_merge_into_two_word_species_with_binomial(self, tmp_path, taxonomy_df):
+        df = freq_to_lineage_df({'1': 0.3, '2': 0.2, '3': 0.5}, str(tmp_path / 's'), taxonomy_df, 100, 0,
+                                binomial=True)
         ecoli = df[df['species'] == 'Escherichia coli']
         assert len(ecoli) == 1
         assert ecoli['abundance'].iloc[0] == pytest.approx(0.5)
@@ -162,7 +170,7 @@ class TestIntervalColumns:
 
     def write(self, tmp_path, taxonomy_df, freq, posterior):
         return freq_to_lineage_df(freq, str(tmp_path / 'out'), taxonomy_df, 100, 7, counts=True,
-                                  posterior=posterior)
+                                  posterior=posterior, binomial=True)
 
     def test_columns_and_beta_quantiles(self, tmp_path):
         from scipy.stats import beta
@@ -225,10 +233,10 @@ class TestIdenticalColumn:
         assert list(written['identical_16s_species'])[:2] == [col['Escherichia coli'], col['Staphylococcus aureus']]
 
     def test_tax_ids_sharing_a_name_take_the_union_without_themselves(self, tmp_path, taxonomy_df):
-        # Tax IDs 1 and 2 both become 'Escherichia coli' (two words, as today); 2 lists 1's name
+        # With binomial names tax IDs 1 and 2 both become 'Escherichia coli'; 2 lists 1's name
         identical = {'1': 'Escherichia fergusonii', '2': 'Escherichia coli; Escherichia ruysiae'}
         df = freq_to_lineage_df({'1': 0.3, '2': 0.2, '3': 0.5}, str(tmp_path / 's'), taxonomy_df, 100, 0,
-                                identical=identical)
+                                identical=identical, binomial=True)
         col = dict(zip(df['species'], df['identical_16s_species']))
         assert col['Escherichia coli'] == 'Escherichia fergusonii; Escherichia ruysiae'
         assert col['Staphylococcus aureus'] == ''

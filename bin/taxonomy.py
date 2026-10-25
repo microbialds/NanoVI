@@ -208,13 +208,24 @@ def build_direct_taxonomy(tid_set, lineage_path, taxonomy_file):
                 if tax_id in tid_set:
                     tax_output_file.write(line)
 
-def unify_species_abundance(df):
+def binomial_name(name):
+    """Genus and epithet of a species name; 'Candidatus' names keep three words (F17).
+
+    'Escherichia coli O157' -> 'Escherichia coli';
+    'Candidatus Pelagibacter ubique HTCC1062' -> 'Candidatus Pelagibacter ubique'.
     """
-    Merges strain-level or subspecies-level entries so that 'species' is only 2 words.
-    E.g., 'Escherichia coli O157' -> 'Escherichia coli'.
-    Summarizes total 'abundance' by species, then retains genus, family, order, etc.
-    The placeholder labels 'Unassigned', 'Below detection' and 'Unknown taxid <id>'
-    are kept as they are. Empty ranks are kept as '' (F01).
+    words = name.split(' ')
+    return ' '.join(words[:3] if words[0] == 'Candidatus' else words[:2])
+
+
+def unify_species_abundance(df, binomial=False):
+    """
+    Sums the rows that share a species name and lineage. Names are kept whole
+    (F17); with binomial=True they are first cut to genus and epithet
+    (binomial_name), so 'Escherichia coli O157' joins 'Escherichia coli'.
+    Retains genus, family, order, etc. The placeholder labels 'Unassigned',
+    'Below detection' and 'Unknown taxid <id>' are kept as they are. Empty
+    ranks are kept as '' (F01).
     """
     if 'species' not in df.columns:
         raise ValueError("Column 'species' not found in DataFrame. Check input format.")
@@ -227,10 +238,10 @@ def unify_species_abundance(df):
     group_columns = ['species'] + taxonomic_levels
     df[group_columns] = df[group_columns].fillna('')
 
-    is_placeholder = (df['species'].isin([UNASSIGNED_LABEL, BELOW_DETECTION_LABEL])
-                      | df['species'].str.startswith(UNKNOWN_TAXID_LABEL + " "))
-    truncated = df['species'].str.split(' ').str[:2].str.join(' ')
-    df['species'] = df['species'].where(is_placeholder, truncated)
+    if binomial:
+        is_placeholder = (df['species'].isin([UNASSIGNED_LABEL, BELOW_DETECTION_LABEL])
+                          | df['species'].str.startswith(UNKNOWN_TAXID_LABEL + " "))
+        df['species'] = df['species'].where(is_placeholder, df['species'].map(binomial_name))
 
     # Summed with abundance: the posterior quantities behind the interval columns
     summed = ['abundance'] + [c for c in POSTERIOR_COLUMNS if c in df.columns]
@@ -240,7 +251,7 @@ def unify_species_abundance(df):
         agg[IDENTICAL_COLUMN] = lambda names: "; ".join(sorted({n for v in names for n in v.split("; ") if n}))
     df_grouped = df.groupby(group_columns, as_index=False, sort=True).agg(agg)
     if IDENTICAL_COLUMN in df_grouped.columns:
-        # A species never lists itself (names cut to two words can meet)
+        # A species never lists itself (names cut by binomial can meet)
         df_grouped[IDENTICAL_COLUMN] = [
             "; ".join(n for n in names.split("; ") if n and n != sp)
             for sp, names in zip(df_grouped['species'], df_grouped[IDENTICAL_COLUMN])
@@ -265,7 +276,7 @@ def largest_remainder(weights, total):
     return floors
 
 def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unassigned_count, counts=False,
-                       below_detection_count=0, posterior=None, identical=None):
+                       below_detection_count=0, posterior=None, identical=None, binomial=False):
     """
     Convert frequency dict (taxid -> freq) to a DataFrame, unify taxonomy, and write to .tsv.
     freq: dict { tax_id: freq_val }
@@ -283,6 +294,9 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     identical: optional { tax_id: "name; name" }, the species of the same genus
         that share an identical 16S with each tax ID (identical_16s.tsv, D24);
         adds the identical_16s_species column (empty for tax IDs not listed)
+    binomial: cut species names to genus and epithet, keeping 'Candidatus'
+        names whole, and sum the rows that then share a name (F17); off, names
+        are kept as taxonomy.tsv gives them
     The 'Below detection' and 'Unassigned' rows (abundance 0) are always written,
     in that order, as the last two rows.
     """
@@ -331,7 +345,7 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
             blank = results_df[rank].isna() | (results_df[rank].astype(str).str.strip() == "")
             results_df.loc[placeholder & blank, rank] = results_df.loc[placeholder & blank, "species"]
 
-    results_df = unify_species_abundance(results_df)
+    results_df = unify_species_abundance(results_df, binomial)
     # Below detection, then Unassigned, go last
     is_below = results_df["species"] == BELOW_DETECTION_LABEL
     is_unassigned = results_df["species"] == UNASSIGNED_LABEL
