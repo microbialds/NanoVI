@@ -597,6 +597,10 @@ nextflow_pipeline {
             def expected = readTsv("${projectDir}/tests/test_data/e2e/expected.tsv")
             // The fixture's 11 species share no identical 16S (D24): the column is there, empty
             assert rows.every { it.containsKey('identical_16s_species') && it.identical_16s_species == '' }
+            // shared_read_fraction by default (D27); the interval columns only with --credible_intervals
+            assert rows.every { it.containsKey('shared_read_fraction') && !it.containsKey('ci_lower') }
+            def flexneri = rows.find { it.species == 'Shigella flexneri' }
+            assert (flexneri.shared_read_fraction as double) > 0.1
 
             // Assigned abundances sum to 1
             def assigned = rows.findAll { it.species && it.species.toLowerCase() != 'unassigned' }
@@ -674,7 +678,7 @@ nextflow_pipeline {
             assert workflow.success
             def header = file("${outputDir}/sample_outputs/e2e_mock_rel-abundance.tsv").readLines()[0].split('\t') as List
             assert header == ['species', 'abundance', 'genus', 'family', 'order', 'class', 'phylum', 'superkingdom',
-                              'identical_16s_species', 'ci_lower', 'ci_upper', 'shared_read_fraction']
+                              'identical_16s_species', 'shared_read_fraction', 'ci_lower', 'ci_upper']
             assert !file("${outputDir}/consolidated_output/otu_table_counts.tsv").exists()
             assert file("${outputDir}/bam/e2e_mock_vi_alignments.bam").exists()
             assert file("${outputDir}/filtered/e2e_mock_filtered.fastq.gz").exists()

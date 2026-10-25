@@ -160,7 +160,7 @@ class TestFreqToLineageDf:
 
 
 class TestIntervalColumns:
-    """Experimental ci_lower, ci_upper and shared_read_fraction columns (F20, D7)."""
+    """shared_read_fraction (always, D27) and the opt-in ci_lower and ci_upper columns (F20, D7)."""
 
     POSTERIOR = {
         '1': {'alpha': 60.2, 'expected_reads': 60.0, 'shared_reads': 6.0},
@@ -170,7 +170,7 @@ class TestIntervalColumns:
 
     def write(self, tmp_path, taxonomy_df, freq, posterior):
         return freq_to_lineage_df(freq, str(tmp_path / 'out'), taxonomy_df, 100, 7, counts=True,
-                                  posterior=posterior, binomial=True)
+                                  posterior=posterior, binomial=True, intervals=True)
 
     def test_columns_and_beta_quantiles(self, tmp_path):
         from scipy.stats import beta
@@ -182,7 +182,7 @@ class TestIntervalColumns:
         total = 100.6
         freq = {int(k): v['alpha'] / total for k, v in self.POSTERIOR.items()}
         df = self.write(tmp_path, taxonomy_df, freq, self.POSTERIOR)
-        assert list(df.columns)[-4:] == ['estimated_counts', 'ci_lower', 'ci_upper', 'shared_read_fraction']
+        assert list(df.columns)[-4:] == ['estimated_counts', 'shared_read_fraction', 'ci_lower', 'ci_upper']
         row = df.set_index('species').loc['Escherichia coli']
         lower, upper = beta.ppf([0.025, 0.975], 60.2, total - 60.2)
         assert row['ci_lower'] == pytest.approx(lower)
@@ -210,6 +210,20 @@ class TestIntervalColumns:
         assert df.loc['Escherichia coli', 'ci_lower'] == pytest.approx(lower)
         assert df.loc['Escherichia coli', 'ci_upper'] == pytest.approx(upper)
         assert df.loc['Escherichia coli', 'shared_read_fraction'] == pytest.approx(6.0 / 90.0)
+
+    def test_shared_read_fraction_without_intervals(self, tmp_path):
+        # The read summary of either estimator, without alpha: no interval columns (D27)
+        taxonomy_df = pd.DataFrame({'tax_id': ['1', '3'], 'species': ['Escherichia coli', 'Bacillus subtilis']}
+                                   ).set_index('tax_id')
+        summary = {k: {c: v[c] for c in ('expected_reads', 'shared_reads')} for k, v in self.POSTERIOR.items()
+                   if k != '2'}
+        df = freq_to_lineage_df({1: 0.85, 3: 0.15}, str(tmp_path / 'out'), taxonomy_df, 100, 0, counts=True,
+                                posterior=summary)
+        assert list(df.columns)[-2:] == ['estimated_counts', 'shared_read_fraction']
+        assert df.set_index('species').loc['Bacillus subtilis', 'shared_read_fraction'] == pytest.approx(0.5)
+        with pytest.raises(ValueError, match='alpha'):
+            freq_to_lineage_df({1: 0.85, 3: 0.15}, str(tmp_path / 'out'), taxonomy_df, 100, 0,
+                               posterior=summary, intervals=True)
 
     def test_no_interval_columns_without_posterior(self, tmp_path):
         taxonomy_df = pd.DataFrame({'tax_id': ['1'], 'species': ['Escherichia coli']}).set_index('tax_id')
@@ -620,6 +634,7 @@ class TestNcbiTaxonomyOrder:
 def test_single_reported_species_gets_the_point_interval(tmp_path):
     taxonomy_df = pd.DataFrame({'tax_id': ['1'], 'species': ['Escherichia coli']}).set_index('tax_id')
     df = freq_to_lineage_df({1: 1.0}, str(tmp_path / 'out'), taxonomy_df, 10, 0, counts=True,
-                            posterior={'1': {'alpha': 11.0, 'expected_reads': 10.0, 'shared_reads': 0.0}})
+                            posterior={'1': {'alpha': 11.0, 'expected_reads': 10.0, 'shared_reads': 0.0}},
+                            intervals=True)
     row = df.iloc[0]
     assert (row['ci_lower'], row['ci_upper'], row['shared_read_fraction']) == (1.0, 1.0, 0.0)

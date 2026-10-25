@@ -177,7 +177,7 @@
         "credible_intervals": {
           "type": "boolean",
           "default": false,
-          "description": "Experimental, VB only: add ci_lower, ci_upper (95% mean-field interval) and shared_read_fraction columns. The intervals are too narrow for species that share reads"
+          "description": "VB only: add ci_lower and ci_upper, 95% sampling intervals of the mean-field posterior. They are not calibrated: they ignore how reads shared by close relatives are split (shared_read_fraction, always written, flags those species)"
         }
       }
     },

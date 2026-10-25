@@ -39,10 +39,12 @@ UNKNOWN_TAXID_LABEL = "Unknown taxid"
 BELOW_DETECTION_ID = "below_detection"
 BELOW_DETECTION_LABEL = "Below detection"
 
-# Per-tax_id posterior quantities from estimate_abundance.py --credible-intervals,
-# summed over the tax_ids that share a species name, and the columns built from them
+# Per-tax_id read summary from estimate_abundance.py ("alpha" from VB only),
+# summed over the tax_ids that share a species name, and the columns built from
+# it: shared_read_fraction always (D27), the interval columns on request
 POSTERIOR_COLUMNS = ["alpha", "expected_reads", "shared_reads"]
-INTERVAL_COLUMNS = ["ci_lower", "ci_upper", "shared_read_fraction"]
+SHARED_COLUMN = "shared_read_fraction"
+INTERVAL_COLUMNS = ["ci_lower", "ci_upper"]
 # Species of the same genus that share an identical 16S with the row's species (D24)
 IDENTICAL_COLUMN = "identical_16s_species"
 
@@ -276,7 +278,8 @@ def largest_remainder(weights, total):
     return floors
 
 def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unassigned_count, counts=False,
-                       below_detection_count=0, posterior=None, identical=None, binomial=False):
+                       below_detection_count=0, posterior=None, identical=None, binomial=False,
+                       intervals=False):
     """
     Convert frequency dict (taxid -> freq) to a DataFrame, unify taxonomy, and write to .tsv.
     freq: dict { tax_id: freq_val }
@@ -287,10 +290,12 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     below_detection_count: assigned reads whose species were all pruned (F06);
         they get their own 'Below detection' row and are not spread over the
         reported species
-    posterior: optional { tax_id: {"alpha", "expected_reads", "shared_reads"} }
-        from the Bayesian VI (experimental, D7); adds ci_lower and ci_upper (95%
-        interval of the mean-field Beta marginal) and shared_read_fraction, left
-        empty on the Below detection and Unassigned rows
+    posterior: optional { tax_id: {"expected_reads", "shared_reads"[, "alpha"]} },
+        the read summary of estimate_abundance.py; adds shared_read_fraction
+        (D27), left empty on the Below detection and Unassigned rows
+    intervals: also add ci_lower and ci_upper (95% interval of the mean-field
+        Beta marginal; needs "alpha", from the Bayesian VI), sampling intervals
+        that ignore how shared reads are split (D7, D27)
     identical: optional { tax_id: "name; name" }, the species of the same genus
         that share an identical 16S with each tax ID (identical_16s.tsv, D24);
         adds the identical_16s_species column (empty for tax IDs not listed)
@@ -311,7 +316,11 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
 
     if posterior is not None:
         posterior = {str(k): v for k, v in posterior.items()}
+        if intervals and not all("alpha" in v for v in posterior.values()):
+            raise ValueError("The interval columns need the Bayesian VI's alpha (--estimator vb)")
         for col in POSTERIOR_COLUMNS:
+            if col == "alpha" and not intervals:
+                continue
             results_df[col] = [float(posterior[tid][col]) if tid in posterior else 0.0
                                for tid in results_df.index]
 
@@ -367,7 +376,9 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
         results_df.loc[is_unassigned, "estimated_counts"] = unassigned_count
 
     if posterior is not None:
-        add_interval_columns(results_df)
+        add_shared_read_fraction(results_df)
+        if intervals:
+            add_interval_columns(results_df)
 
     # Reorder columns
     column_order = [
@@ -379,7 +390,9 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     if identical is not None:
         column_order.append(IDENTICAL_COLUMN)
     if posterior is not None:
-        column_order += INTERVAL_COLUMNS
+        column_order.append(SHARED_COLUMN)
+        if intervals:
+            column_order += INTERVAL_COLUMNS
     for col in column_order:
         if col not in results_df.columns:
             results_df[col] = ""
@@ -393,16 +406,33 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
 
     return results_df
 
+def add_shared_read_fraction(results_df):
+    """Add shared_read_fraction = shared_reads / expected_reads (D27).
+
+    The share of a species' expected reads whose responsibility it splits with
+    another reported species: a per-species flag of ambiguity. In the Phase 7a
+    benchmark it flagged the species whose interval missed the truth (AUC
+    0.75-0.84). The Below detection and Unassigned rows are left empty.
+    """
+    is_taxon = ~results_df["species"].isin([BELOW_DETECTION_LABEL, UNASSIGNED_LABEL])
+    expected = results_df.loc[is_taxon, "expected_reads"].to_numpy(dtype=float)
+    shared = results_df.loc[is_taxon, "shared_reads"].to_numpy(dtype=float)
+    results_df[SHARED_COLUMN] = np.nan
+    results_df.loc[is_taxon, SHARED_COLUMN] = np.divide(
+        shared, expected, out=np.zeros_like(shared), where=expected > 0)
+
+
 def add_interval_columns(results_df):
-    """Add ci_lower, ci_upper and shared_read_fraction from the summed posterior columns.
+    """Add ci_lower and ci_upper from the summed α of the Bayesian VI.
 
     A species row whose tax_ids sum to α_g gets the 2.5% and 97.5% quantiles of
     Beta(α_g, A − α_g), A being the sum over the reported species: the
     mean-field marginal of their total abundance, whose mean is the reported
-    abundance. These intervals ignore the uncertainty in how reads shared by
-    several species are split, so they are too narrow for such species (M2);
-    shared_read_fraction = shared_reads / expected_reads flags them. The
-    Below detection and Unassigned rows are left empty.
+    abundance. These are sampling intervals: they ignore the uncertainty in how
+    reads shared by several species are split, and the read-assignment error
+    that does not shrink with depth (95% coverage 93% / 81% / 38% at 1k / 10k /
+    50k reads in the Phase 7a benchmark; M2, D27). The Below detection and
+    Unassigned rows are left empty.
     """
     from scipy.stats import beta as beta_dist
 
@@ -412,14 +442,10 @@ def add_interval_columns(results_df):
     lower, upper = beta_dist.ppf([[0.025], [0.975]], alpha, np.where(rest > 0, rest, 1.0))
     # A single reported species has all the mass: Beta(α, 0) is a point at 1
     lower, upper = np.where(rest > 0, lower, 1.0), np.where(rest > 0, upper, 1.0)
-    expected = results_df.loc[is_taxon, "expected_reads"].to_numpy(dtype=float)
-    shared = results_df.loc[is_taxon, "shared_reads"].to_numpy(dtype=float)
     for col in INTERVAL_COLUMNS:
         results_df[col] = np.nan
     results_df.loc[is_taxon, "ci_lower"] = lower
     results_df.loc[is_taxon, "ci_upper"] = upper
-    results_df.loc[is_taxon, "shared_read_fraction"] = np.divide(
-        shared, expected, out=np.zeros_like(shared), where=expected > 0)
 
 
 def collapse_rank(path, rank):

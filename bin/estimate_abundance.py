@@ -4,11 +4,12 @@
 Reads the per-read scores that read_likelihood.py writes (an npz with
 "offsets", "tax_ids" and "scores").
 
-Writes a JSON with the reported abundances ("abundance": {tax_id: value}) and
-the number of reads whose species were all pruned ("below_detection_count").
-With --credible-intervals it also writes "posterior": {tax_id: {"alpha",
-"expected_reads", "shared_reads"}}, from which write_abundance_table.py builds
-the experimental ci_lower, ci_upper and shared_read_fraction columns.
+Writes a JSON with the reported abundances ("abundance": {tax_id: value}), the
+number of reads whose species were all pruned ("below_detection_count") and a
+per-species read summary ("read_summary": {tax_id: {"expected_reads",
+"shared_reads"}}, plus "alpha" with --estimator vb), from which
+write_abundance_table.py builds the shared_read_fraction column and, with its
+--credible-intervals, the ci_lower and ci_upper columns (D27).
 """
 import argparse
 import json
@@ -35,11 +36,7 @@ def main():
                         help="VB: total concentration of the symmetric Dirichlet prior (default 1.0)")
     parser.add_argument("--elbo-threshold", type=float, default=1e-4,
                         help="EM: stop when the log-likelihood rises by less (default 1e-4)")
-    parser.add_argument("--credible-intervals", action="store_true",
-                        help="VB only, experimental: write the posterior summary for the interval columns")
     args = parser.parse_args()
-    if args.credible_intervals and args.estimator != "vb":
-        parser.error("--credible-intervals needs --estimator vb")
 
     with np.load(args.scores) as data:
         offsets, tax_ids, scores = data["offsets"], data["tax_ids"], data["scores"]
@@ -48,7 +45,6 @@ def main():
     # so the columns (and the floating-point sums) are in the same order as before
     db_ids = list({int(tid) for tid in tax_ids})
 
-    posterior = None
     if args.estimator == "em":
         tax_id_lists, score_lists = tax_ids.tolist(), scores.tolist()
         log_p_rgs = {
@@ -58,6 +54,10 @@ def main():
         freq_full, freq_thresh, below_detection_count = em_estimator.variational_inference_iterations(
             log_p_rgs, db_ids, lli_thresh=args.elbo_threshold, input_threshold=args.min_abundance
         )
+        reported = freq_thresh if freq_thresh else freq_full
+        reported_ids = list(reported)
+        idx, logL = sparse_likelihood_from_csr(offsets, tax_ids, scores, np.array(reported_ids, dtype=np.int64))
+        read_summary = em_estimator.read_summary(idx, logL, [reported[t] for t in reported_ids], reported_ids)
     else:
         idx, logL = sparse_likelihood_from_csr(offsets, tax_ids, scores, np.array(db_ids, dtype=np.int64))
         result = bayesian_vi(
@@ -67,18 +67,15 @@ def main():
             max_outer_iterations=10,
             max_inner_iterations=args.max_iterations,
             inner_tolerance=args.tolerance,
-            posterior_summary=args.credible_intervals,
+            posterior_summary=True,
         )
-        freq_full, freq_thresh, _, below_detection_count = result[:4]
-        if args.credible_intervals:
-            posterior = result[4]
+        freq_full, freq_thresh, _, below_detection_count, read_summary = result
 
     output = {
         "abundance": freq_thresh if freq_thresh else freq_full,
-        "below_detection_count": below_detection_count
+        "below_detection_count": below_detection_count,
+        "read_summary": read_summary,
     }
-    if posterior is not None:
-        output["posterior"] = posterior
     with open(args.output, "w") as f:
         json.dump(output, f)
 

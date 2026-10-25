@@ -78,7 +78,7 @@ def test_estimate_abundance_defaults_match_the_bayesian_wrapper(tmp_path):
     from variational_inference_bayesian import variational_inference_iterations
     result, data, lp = run_estimate(tmp_path)
     assert result.returncode == 0, result.stderr
-    assert set(data) == {'abundance', 'below_detection_count'}
+    assert set(data) == {'abundance', 'below_detection_count', 'read_summary'}
     lp = json.loads(json.dumps(lp))  # integer IDs as the JSON round trip gives them
     db_ids = list({tid for read in lp.values() for tid in read[0]})
     freq_full, freq_thresh, below = variational_inference_iterations(lp, db_ids, 0.0001, 0.001)
@@ -95,17 +95,21 @@ def test_estimate_abundance_em_and_floor(tmp_path):
     assert data['below_detection_count'] > 0
 
 
-def test_estimate_abundance_credible_intervals(tmp_path):
-    result, data, _ = run_estimate(tmp_path, '--credible-intervals')
+@pytest.mark.parametrize('estimator,keys', [('vb', {'alpha', 'expected_reads', 'shared_reads'}),
+                                            ('em', {'expected_reads', 'shared_reads'})])
+def test_estimate_abundance_writes_the_read_summary(tmp_path, estimator, keys):
+    # Always written, for shared_read_fraction (D27); alpha only from VB, for the intervals
+    result, data, _ = run_estimate(tmp_path, '--estimator', estimator)
     assert result.returncode == 0, result.stderr
-    assert set(data['posterior']) == set(data['abundance'])
-    assert set(data['posterior']['1']) == {'alpha', 'expected_reads', 'shared_reads'}
+    assert set(data['read_summary']) == set(data['abundance'])
+    assert set(data['read_summary']['1']) == keys
 
 
-def test_estimate_abundance_rejects_intervals_with_em(tmp_path):
-    result, data, _ = run_estimate(tmp_path, '--estimator', 'em', '--credible-intervals')
+def test_estimate_abundance_no_longer_takes_credible_intervals(tmp_path):
+    # The interval columns are chosen in write_abundance_table.py (WRITE_OUTPUT)
+    result, data, _ = run_estimate(tmp_path, '--credible-intervals')
     assert result.returncode == 2
-    assert '--credible-intervals needs --estimator vb' in result.stderr
+    assert 'unrecognized arguments: --credible-intervals' in result.stderr
 
 
 # ─── Estimator options removed after the Phase 7a benchmark ─────────────────
@@ -181,3 +185,52 @@ def test_write_abundance_table_identical_column(tmp_path):
         assert lines[0][-1] == 'identical_16s_species'
         # rows in name order: S. argenteus, then S. aureus
         assert [line[-1] for line in lines[1:3]] == expected
+
+
+# ─── shared_read_fraction by default (D27) ──────────────────────────────────
+
+def test_vb_and_em_give_the_same_shared_read_fraction(tmp_path):
+    # Species 1 and 2 have 400 reads of their own each and tie on 200 more: each
+    # gets about 100 of the tied reads, a shared fraction of 100 / 500
+    per_read = {f'a{i}': ([1], [-1.0]) for i in range(400)}
+    per_read.update({f'b{i}': ([2], [-1.0]) for i in range(400)})
+    per_read.update({f't{i}': ([1, 2], [-1.0, -1.0]) for i in range(200)})
+    npz = write_npz(tmp_path / 's.npz', per_read)
+    fractions = {}
+    for estimator in ('vb', 'em'):
+        data = estimate(tmp_path, npz, '--estimator', estimator)
+        fractions[estimator] = {t: v['shared_reads'] / v['expected_reads'] for t, v in data['read_summary'].items()}
+    assert fractions['vb'] == pytest.approx({'1': 0.2, '2': 0.2}, abs=1e-3)
+    assert fractions['em'] == pytest.approx(fractions['vb'], abs=1e-3)
+
+
+def write_table(tmp_path, data, *options):
+    (tmp_path / 'abundance.json').write_text(json.dumps(data))
+    (tmp_path / 'counts.json').write_text(json.dumps({'assigned_count': 1000, 'unassigned_count': 0}))
+    (tmp_path / 'taxonomy.tsv').write_text(
+        'tax_id\tspecies\tgenus\n1\tAlpha one\tAlpha\n2\tAlpha two\tAlpha\n')
+    return subprocess.run(
+        [sys.executable, os.path.join(BIN, 'write_abundance_table.py'), '--abundance', 'abundance.json',
+         '--read-counts', 'counts.json', '--taxonomy', 'taxonomy.tsv', '--output-prefix', 'out', *options],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+
+
+@pytest.mark.parametrize('estimator', ['vb', 'em'])
+def test_write_abundance_table_interval_columns_only_on_request(tmp_path, estimator):
+    per_read = {f'a{i}': ([1], [-1.0]) for i in range(600)}
+    per_read.update({f't{i}': ([1, 2], [-1.0, -1.0]) for i in range(100)})
+    per_read.update({f'b{i}': ([2], [-1.0]) for i in range(300)})
+    data = estimate(tmp_path, write_npz(tmp_path / 's.npz', per_read), '--estimator', estimator)
+    result = write_table(tmp_path, data)
+    assert result.returncode == 0, result.stderr
+    header = (tmp_path / 'out.tsv').read_text().splitlines()[0].split('\t')
+    assert header[-1] == 'shared_read_fraction' and 'ci_lower' not in header
+    result = write_table(tmp_path, data, '--credible-intervals')
+    if estimator == 'vb':
+        assert result.returncode == 0, result.stderr
+        header = (tmp_path / 'out.tsv').read_text().splitlines()[0].split('\t')
+        assert header[-3:] == ['shared_read_fraction', 'ci_lower', 'ci_upper']
+    else:
+        assert result.returncode == 2
+        assert '--credible-intervals needs abundances from estimate_abundance.py --estimator vb' in result.stderr

@@ -22,6 +22,7 @@ process WRITE_OUTPUT {
         --output-prefix "${sample_id}_rel-abundance" \\
         --identical-16s ${identical} \\
         ${params.binomial_names ? '--binomial-names' : ''} \\
+        ${params.credible_intervals ? '--credible-intervals' : ''} \\
         ${params.keep_counts ? '--counts' : ''}
     python_versions.py "${task.process}" > versions.yml
     """

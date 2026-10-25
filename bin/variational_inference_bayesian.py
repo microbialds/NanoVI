@@ -696,16 +696,17 @@ def bayesian_vi(
 
 
 def posterior_read_summary(
-    alpha: np.ndarray,
+    alpha: Optional[np.ndarray],
     idx: np.ndarray,
     phi: np.ndarray,
     species_ids: List[int],
 ) -> Dict[int, Dict[str, float]]:
     """
-    Per-species quantities for the experimental interval columns (D7).
+    Per-species quantities for shared_read_fraction (D27) and the interval columns (D7).
 
     For each reported species s:
-      - alpha: its variational Dirichlet parameter α_s. Over the reported set,
+      - alpha: its variational Dirichlet parameter α_s (left out when alpha is
+        None, as for EM's responsibilities). Over the reported set,
         q(π_s) is Beta(α_s, Σ_j α_j − α_s), and the q-marginal of a group of
         species is Beta(Σ_group α, Σ_j α_j − Σ_group α).
       - expected_reads: Σ_r φ_{r,s}.
@@ -719,7 +720,7 @@ def posterior_read_summary(
 
     Parameters
     ----------
-    alpha : np.ndarray, shape (S,)
+    alpha : np.ndarray, shape (S,), or None
         Variational Dirichlet parameters of the reported species.
     idx : np.ndarray, shape (R, K)
         Column of each entry among the reported species, -1 for entries
@@ -741,7 +742,7 @@ def posterior_read_summary(
     shared = np.bincount(idx[split], weights=phi[split], minlength=S)
     return {
         sid: {
-            "alpha": float(alpha[i]),
+            **({"alpha": float(alpha[i])} if alpha is not None else {}),
             "expected_reads": float(expected[i]),
             "shared_reads": float(shared[i]),
         }

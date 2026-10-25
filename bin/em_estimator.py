@@ -18,6 +18,8 @@ import math
 import numpy as np
 from sys import stdout
 
+from variational_inference_bayesian import posterior_read_summary
+
 
 def variational_inference(log_p_rgs, freq, max_iterations=20, tolerance=5e-4):
     """Run inner VI/EM loop: update q(s|r) and frequencies until convergence."""
@@ -74,6 +76,27 @@ def count_below_detection(log_p_rgs, reported):
         1 for sids, _ in log_p_rgs.values()
         if not any(reported.get(sid, 0) > 0 for sid in sids)
     )
+
+def read_summary(idx, logL, freq, species_ids):
+    """Expected and shared reads of each reported species under EM's responsibilities (D27).
+
+    idx/logL are the padded likelihood over the reported species (columns in the
+    order of species_ids, as sparse_likelihood_from_csr gives them) and freq their
+    reported frequencies. A read's responsibility is ∝ freq_s × p(read | s) over
+    its reported candidates; expected and shared reads are then counted as for
+    the Bayesian VI (posterior_read_summary), without alpha.
+    """
+    finite = np.isfinite(logL)
+    with np.errstate(divide="ignore"):
+        log_w = np.log(np.asarray(freq, dtype=np.float64))
+    score = np.where(finite, logL + log_w[idx], -np.inf)
+    top = score.max(axis=1, keepdims=True)
+    phi = np.exp(score - np.where(np.isfinite(top), top, 0.0))
+    total = phi.sum(axis=1, keepdims=True)
+    phi = np.divide(phi, total, out=np.zeros_like(phi), where=total > 0)
+    on = np.isfinite(score)
+    return posterior_read_summary(None, np.where(on, idx, -1), np.where(on, phi, 0.0), list(species_ids))
+
 
 def variational_inference_iterations(log_p_rgs, db_ids, lli_thresh, input_threshold):
     """EM with pruning, as in Emu.
