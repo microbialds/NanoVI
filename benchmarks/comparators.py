@@ -26,7 +26,6 @@ unclassified and unassigned rows are left out of the abundances.
 import argparse
 import gzip
 import os
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -132,8 +131,11 @@ def run_nanoclust(reads, out_dir, cpus=16):
         return table
     out_dir.mkdir(parents=True, exist_ok=True)
     fastq = out_dir / f"{name}.fastq"
-    with gzip.open(reads, "rb") as fin, open(fastq, "wb") as fout:
-        shutil.copyfileobj(fin, fout)
+    # header lines keep the read ID only: its k-mer table splits on tabs, and Dorado's
+    # header tags (BC:Z:..., qs:f:...) become extra columns that break the clustering step
+    with gzip.open(reads, "rt") as fin, open(fastq, "w") as fout:
+        for i, line in enumerate(fin):
+            fout.write(line.split(maxsplit=1)[0] + "\n" if i % 4 == 0 else line)
     config = out_dir / "local.config"
     config.write_text(f"executor {{ cpus = {cpus} }}\n")
     env = {**os.environ, "NXF_VER": "22.10.8"}
