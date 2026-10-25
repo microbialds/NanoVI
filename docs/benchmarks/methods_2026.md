@@ -387,9 +387,9 @@ Emu's *Ruminococcus gnavus* and *Paeniclostridium sordellii*, NCBI synonyms
 different names (Zymo's *Bacillus* is *B. subtilis* in NCBI and *B. spizizenii* in
 GTDB, 17% of the MSPlus mock). The comparison therefore uses the identical-16S group
 level (species whose 16S sequences are identical in GTDB merged) and reports species
-level alongside. All tools already drop species below 0.1% at this depth, so the
-false-positive counts are not inflated by long tails (`fp_count_ge_0.1pct` equals the
-raw count for every tool).
+level alongside. Every tool except wf-16s in minimap2 mode already drops species
+below 0.1% at this depth; wf-16s minimap2 reports a tail (25.5 false-positive species
+per real sample, 13.6 at 0.1% or more; `fp_count_ge_0.1pct`).
 
 Real mocks (13 samples; Emu on NanoVI's database on 5):
 
@@ -401,6 +401,8 @@ Real mocks (13 samples; Emu on NanoVI's database on 5):
 | Emu 3.6.2 / Emu's database | 0.568 | 0.415 | 0.967 | 1.2 | 0.096 |
 | Emu 3.6.2 / exact GTDB (5) | 0.355 | 0.321 | 0.964 | 2.6 | 0.033 |
 | Kraken2 + Bracken / ncbi_16s_18s | 0.824 | 0.811 | 0.862 | 25.0 | 0.349 |
+| wf-16s v1.6.1 minimap2 / ncbi_16s_18s | 0.711 | 0.494 | 0.934 | 16.0 | 0.200 |
+| wf-16s v1.6.1 kraken2 / ncbi_16s_18s | 0.831 | 0.818 | 0.852 | 24.9 | 0.355 |
 
 Simulations (12 samples, 10k reads, seeds 1-3; Emu on the 4 seed-1 samples):
 
@@ -410,10 +412,12 @@ Simulations (12 samples, 10k reads, seeds 1-3; Emu on the 4 seed-1 samples):
 | NanoVI (EM) / exact GTDB | 0.131 | 0.010 | 0.869 | 0.4 |
 | Emu 3.6.2 / Emu's database (4) | 0.222 | 0.011 | 0.845 | 0 |
 | Emu 3.6.2 / exact GTDB (4) | 0.229 | 0.088 | 0.845 | 0 |
+| NanoVI (VB) / Emu's database (4) | 0.202 | 0.010 | 0.845 | 1.0 |
 | Kraken2 + Bracken / ncbi_16s_18s | 1.130 | 1.049 | 0.805 | 72.1 |
+| wf-16s v1.6.1 minimap2 / ncbi_16s_18s | 0.846 | 0.177 | 1.000 | 6.2 |
+| wf-16s v1.6.1 kraken2 / ncbi_16s_18s | 1.137 | 1.065 | 0.805 | 75.3 |
 
-<!-- pending: NanoVI on Emu's database for the 4 seed-1 simulations; wf-16s (minimap2,
-kraken2); NanoCLUST -->
+<!-- pending: NanoCLUST -->
 
 Paired on the same samples (`comparators_paired.tsv`):
 
@@ -425,7 +429,9 @@ Paired on the same samples (`comparators_paired.tsv`):
   lower with NanoVI on all 4 (mean 0.089), species recall 0.10 higher with NanoVI.
 - **Same database, both ways.** On Emu's database NanoVI and Emu give the same group L1
   (within 0.013 on every sample) and the same recall; NanoVI reports 1.8 more
-  false-positive groups (more on all 13). On NanoVI's database (5 real samples) group
+  false-positive groups (more on all 13). On the simulations, on Emu's database,
+  group L1 is equal (within 0.018), species L1 is lower with NanoVI on all 4 (mean
+  0.021) and NanoVI reports 1 more false-positive group. On NanoVI's database (5 real samples) group
   L1 differs by -0.011 to +0.037 (mean 0.009 in NanoVI's favour) and Emu reports 1.4
   fewer false-positive groups; on the simulations Emu's group L1 is 0.076 higher. The
   difference on the simulations comes from Emu's -N 50: with -N 50 the GTDB
@@ -435,7 +441,13 @@ Paired on the same samples (`comparators_paired.tsv`):
 - **VB vs EM in NanoVI's code**: no difference (group L1 within 0.002, 0-1 false-positive
   group).
 - **Kraken2 + Bracken**: worse than NanoVI on every sample (group L1 +0.48 real, +1.04
-  simulated; 21 and 72 more false-positive groups).
+  simulated; 21 and 72 more false-positive groups). wf-16s in kraken2 mode gives the
+  same results (it runs the same tools on the same database).
+- **wf-16s, minimap2 mode** (best hit per read, identity ≥ 95%, coverage ≥ 90%): group
+  L1 higher than NanoVI's on 10 of 13 real mocks (mean +0.16) and on all 12
+  simulations (+0.17), with 12 and 6 more false-positive groups; it detects more of
+  the rare simulated species (group recall 1.00 vs 0.87), since it applies no
+  abundance threshold.
 
 What this supports: NanoVI's lower error than Emu-as-shipped comes from the database
 (exact GTDB r226 vs Emu's rrnDB + NCBI RefSeq), not from the estimator. With the same
