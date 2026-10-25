@@ -87,3 +87,22 @@ def test_no_shared_sequences_gives_header_only(tmp_path):
     identical_16s.write_reports(fasta, tax, str(tmp_path / 'g.tsv'), str(tmp_path / 'c.tsv'))
     assert (tmp_path / 'g.tsv').read_text() == '\t'.join(identical_16s.GROUP_COLUMNS) + '\n'
     assert read_tsv(tmp_path / 'c.tsv') == []
+
+
+def test_a_contaminant_in_another_genus_does_not_hide_an_identity(tmp_path):
+    # Alpha one and Alpha two share S1; a Beta species carries S1 too (a contaminant contig)
+    fasta, tax = write_db(tmp_path, [('1', S1), ('2', S1), ('3', S1)], {
+        '1': ('Alpha one', 'Alpha', 'F1', 'P1'),
+        '2': ('Alpha two', 'Alpha_B', 'F1', 'P1'),
+        '3': ('Beta one', 'Beta', 'F2', 'P2'),
+    })
+    rows, cross = identical_16s.identical_reports(fasta, tax)
+    assert {r['species']: r['identical_16s_species'] for r in rows} == {
+        'Alpha one': 'Alpha two', 'Alpha two': 'Alpha one'}
+    assert [c['species'] for c in cross] == ['Alpha one;Alpha two;Beta one']
+
+
+def test_strip_gtdb_suffixes_matches_the_builder():
+    import build_gtdb_db
+    for name in ('Pseudomonas_E aeruginosa', 'Listeria monocytogenes_B', 'Escherichia coli'):
+        assert build_gtdb_db.normalize_gtdb_name(name) == identical_16s.strip_gtdb_suffixes(name)

@@ -19,7 +19,6 @@ contaminant contigs; D23), from identical_16s.py.
 """
 
 import os
-import re
 import sys
 import gzip
 import hashlib
@@ -61,8 +60,15 @@ def normalize_gtdb_name(name: str) -> str:
       'Listeria monocytogenes_B'     → 'Listeria monocytogenes'
       'Methanobrevibacter_A smithii' → 'Methanobrevibacter smithii'
       'Escherichia coli'             → 'Escherichia coli'   (unchanged)
+
+    The same rule groups genera in identical_16s.py.
     """
-    return re.sub(r'_[A-Z]+', '', name).strip()
+    return identical_16s.strip_gtdb_suffixes(name)
+
+
+def merged_lineage(lineage: dict) -> dict:
+    """A rank dictionary with GTDB's clade suffixes stripped from every name (--merge-gtdb-suffixes)."""
+    return {rank: normalize_gtdb_name(name) for rank, name in lineage.items()}
 
 
 def parse_gtdb_lineage(lineage_str: str, merge_suffixes: bool = False) -> dict:
@@ -83,10 +89,9 @@ def parse_gtdb_lineage(lineage_str: str, merge_suffixes: bool = False) -> dict:
         part = part.strip()
         for prefix, rank in GTDB_PREFIX_TO_RANK.items():
             if part.startswith(prefix):
-                name = part[len(prefix):]
-                result[rank] = normalize_gtdb_name(name) if merge_suffixes else name
+                result[rank] = part[len(prefix):]
                 break
-    return result
+    return merged_lineage(result) if merge_suffixes else result
 
 
 def parse_ssu_header(header: str, merge_suffixes: bool = False):
@@ -174,7 +179,7 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
         if raw is None or not raw.get("species"):
             n_skipped += 1
             continue
-        lineage = {rank: normalize_gtdb_name(name) for rank, name in raw.items()} if merge_suffixes else raw
+        lineage = merged_lineage(raw) if merge_suffixes else raw
         sp = lineage["species"]
         if sp not in species_to_lineage:
             species_to_lineage[sp] = lineage
@@ -198,7 +203,9 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
     seq_counter = 0
 
     for header, seq in fasta_records(ssu_path):
-        _, lineage = parse_ssu_header(header, merge_suffixes)
+        _, lineage = parse_ssu_header(header)
+        if lineage is not None and merge_suffixes:
+            lineage = merged_lineage(lineage)
         if lineage is None or not lineage.get("species"):
             continue
         sp = lineage["species"]

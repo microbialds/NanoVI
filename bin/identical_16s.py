@@ -11,8 +11,9 @@ taxonomy.tsv and writes:
                              shares a sequence with. 16S cannot separate them.
   cross_genus_identical.tsv  one row per sequence found in species of more than
                              one genus. In GTDB these are almost always
-                             contaminant contigs in an assembly; they are left
-                             out of the groups.
+                             contaminant contigs in an assembly; such a
+                             sequence links only the species of each genus
+                             that carry it, never species across genera.
 
 Genera are compared with GTDB's clade suffixes stripped ('Pseudomonas_E' is
 'Pseudomonas'), so a GTDB database gives the same groups whether or not it was
@@ -29,16 +30,17 @@ import hashlib
 import re
 from collections import defaultdict
 
-# GTDB clade suffix, as build_gtdb_db.normalize_gtdb_name strips it
+# GTDB clade suffix ('Pseudomonas_E', 'Listeria monocytogenes_B'); build_gtdb_db.py
+# strips it with strip_gtdb_suffixes too
 GTDB_SUFFIX = re.compile(r"_[A-Z]+")
 
 GROUP_COLUMNS = ["tax_id", "species", "genus", "group", "group_size", "identical_16s_species"]
 CROSS_GENUS_COLUMNS = ["md5", "species_count", "sequence_ids", "tax_ids", "species", "genera", "families", "phyla"]
 
 
-def genus_key(genus):
-    """A genus name without GTDB's clade suffixes."""
-    return GTDB_SUFFIX.sub("", genus).strip()
+def strip_gtdb_suffixes(name):
+    """A taxon name without GTDB's clade suffixes ('Pseudomonas_E aeruginosa' -> 'Pseudomonas aeruginosa')."""
+    return GTDB_SUFFIX.sub("", name).strip()
 
 
 def fasta_records(path):
@@ -110,10 +112,13 @@ def identical_reports(fasta_path, taxonomy_path):
     taxonomy = read_taxonomy(taxonomy_path)
     within, cross = [], []
     for md5, (tax_ids, seq_ids) in carriers_items(fasta_path, taxonomy):
-        genera = {genus_key(taxonomy[t]["genus"]) for t in tax_ids}
-        if len(genera) == 1:
-            within.append(tax_ids)
-        else:
+        by_genus = defaultdict(list)
+        for t in tax_ids:
+            by_genus[strip_gtdb_suffixes(taxonomy[t]["genus"])].append(t)
+        # Species of one genus that carry the sequence are linked, even when a
+        # species of another genus (a contaminant contig) carries it too
+        within.extend(members for members in by_genus.values() if len(members) > 1)
+        if len(by_genus) > 1:
             cross.append({
                 "md5": md5, "species_count": len(tax_ids), "sequence_ids": ";".join(seq_ids),
                 "tax_ids": ";".join(tax_ids),
