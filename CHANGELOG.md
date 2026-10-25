@@ -15,6 +15,8 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 - `--min_quality` (off by default) turns on fastplong's quality filter on mean read quality; without it reads are filtered by length only, as before (F20, D5).
 - Parameters are validated against `nextflow_schema.json` (now JSON Schema draft 2020-12, with `$defs`) by the nf-schema plugin (2.8.0) at the start of every run: types, allowed values, ranges and that input paths exist. `main.nf` declares each parameter's type, so values given on the command line, which Nextflow 26.04 passes as strings, are converted: `--keep_counts false` and `--keep_files false` now turn those options off (before, the string "false" counted as true), `--min_length 400` no longer stops the run with a type error, and `--N abc` is rejected (F40).
 
+- Methods benchmark: the scripts in `benchmarks/` and the results in `docs/benchmarks/` (`methods_2026.md`, `m10_claims.md`, tables and figures with their source data) on simulated and real mock communities, against Emu, EPI2ME wf-16s, NanoCLUST and Kraken2 + Bracken. Experimental options used by the benchmark, not exposed as pipeline parameters and off by default: `read_likelihood.py --error-profile`, `--score per-base`, `--min-identity`, `--min-aligned-length` and `--unknown-delta` (per-read floors of the unknown-taxon component), and `estimate_abundance.py --no-pruning`, `--unknown-component` and `--unknown-delta`. Pipeline outputs are unchanged (M1-M9, F18).
+
 ### Changed
 
 - NanoVI needs Nextflow 26.04.0 or later (was 24.0.0): the typed parameter declarations and nf-schema 2.8.0 need it. `--K` is a string, so it also takes minimap2's suffixes (`500M`) (F40).
