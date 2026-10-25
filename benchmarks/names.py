@@ -9,13 +9,38 @@ r226 metadata (ncbi_taxonomy and gtdb_taxonomy of every genome, bacteria and
 archaea). The share of genomes behind the majority is kept, so that species
 split across several GTDB species can be reported.
 
+GTDB's metadata has current NCBI names; Emu's database has older ones ('Ruminococcus
+gnavus', now Mediterraneibacter gnavus). Binomial synonyms and equivalent names from
+the NCBI taxdump that wf-16s downloads (2025-01-01) are added for species already in
+the table, unless the name is in the table already or belongs to more than one taxon.
+
 Writes <bench>/names/ncbi_to_gtdb.tsv: ncbi_species, gtdb_species (stripped),
-genomes, majority_share, n_gtdb_species.
+genomes, majority_share, n_gtdb_species, source (genomes or ncbi_synonym).
 """
+import re
+from collections import defaultdict
+
 import pandas as pd
 
 from common import BENCH, GTDB, write_tsv
 from build_gtdb_db import parse_gtdb_lineage
+
+TAXDUMP_NAMES = (BENCH / "downloads" / "comparator_db" / "wf16s_store" / "ncbi_16s_18s"
+                 / "new_taxdump_2025-01-01_db" / "names.dmp")
+BINOMIAL = re.compile(r"^[A-Z][a-z]+ [a-z][a-z-]+$")
+
+
+def synonyms(path=TAXDUMP_NAMES):
+    """{taxid: scientific name} and {binomial synonym: set of taxids}."""
+    scientific, other = {}, defaultdict(set)
+    with open(path) as f:
+        for line in f:
+            tid, name, _, cls = line.rstrip("\t|\n").split("\t|\t")[:4]
+            if cls == "scientific name":
+                scientific[tid] = name
+            elif cls in ("synonym", "equivalent name") and BINOMIAL.match(name):
+                other[name].add(tid)
+    return scientific, other
 
 
 def crosswalk():
@@ -37,7 +62,16 @@ def crosswalk():
         "majority_share": (best["n"] / totals["sum"]).round(4),
         "n_gtdb_species": totals["size"],
     }).reset_index()
-    return out
+    out["source"] = "genomes"
+    scientific, other = synonyms()
+    known = dict(zip(out["ncbi_species"], out.index))
+    rows = []
+    for name, tids in other.items():
+        current = scientific.get(next(iter(tids)))
+        if name in known or len(tids) > 1 or current not in known:
+            continue
+        rows.append({**out.loc[known[current]].to_dict(), "ncbi_species": name, "source": "ncbi_synonym"})
+    return pd.concat([out, pd.DataFrame(rows)], ignore_index=True)
 
 
 def load():
@@ -57,7 +91,8 @@ def to_gtdb(name, table):
 def main():
     out = crosswalk()
     write_tsv(out, BENCH / "names" / "ncbi_to_gtdb.tsv")
-    print(f"{len(out)} NCBI species; {int((out['n_gtdb_species'] > 1).sum())} placed in more than one GTDB species")
+    print(f"{int((out['source'] == 'genomes').sum())} NCBI species, {int((out['source'] != 'genomes').sum())} synonyms; "
+          f"{int((out['n_gtdb_species'] > 1).sum())} placed in more than one GTDB species")
 
 
 if __name__ == "__main__":
