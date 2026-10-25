@@ -177,7 +177,9 @@ def test_write_abundance_table_identical_column(tmp_path):
         '1\tStaphylococcus aureus\tStaphylococcus\tG1\t2\tStaphylococcus argenteus\n')
     argv = [sys.executable, os.path.join(BIN, 'write_abundance_table.py'), '--abundance', 'abundance.json',
             '--read-counts', 'counts.json', '--taxonomy', 'taxonomy.tsv']
-    for table, expected in (('identical_16s.tsv', ['Staphylococcus aureus', 'Staphylococcus argenteus']), ('', ['', ''])):
+    (tmp_path / 'empty.tsv').write_text('')
+    for table, expected in (('identical_16s.tsv', ['Staphylococcus aureus', 'Staphylococcus argenteus']), ('', ['', '']),
+                            ('empty.tsv', ['', ''])):
         result = subprocess.run(argv + ['--output-prefix', 'out', '--identical-16s', table],
                                 cwd=tmp_path, capture_output=True, text=True)
         assert result.returncode == 0, result.stderr

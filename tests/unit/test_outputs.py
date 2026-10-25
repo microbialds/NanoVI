@@ -255,6 +255,15 @@ class TestIdenticalColumn:
         assert col['Escherichia coli'] == 'Escherichia fergusonii; Escherichia ruysiae'
         assert col['Staphylococcus aureus'] == ''
 
+    def test_binomial_names_never_list_the_row_itself(self, tmp_path, taxonomy_df):
+        # Two strains of E. coli share a 16S; cut to binomials they are one row, which lists nothing
+        taxonomy_df.loc['1', 'species'] = 'Escherichia coli K-12'
+        identical = {'1': 'Escherichia coli O157', '2': 'Escherichia coli K-12; Escherichia fergusonii ATCC'}
+        df = freq_to_lineage_df({'1': 0.3, '2': 0.2, '3': 0.5}, str(tmp_path / 's'), taxonomy_df, 100, 0,
+                                identical=identical, binomial=True)
+        col = dict(zip(df['species'], df['identical_16s_species']))
+        assert col['Escherichia coli'] == 'Escherichia fergusonii'
+
     def test_no_column_without_table(self, tmp_path, taxonomy_df):
         df = freq_to_lineage_df({'1': 1.0}, str(tmp_path / 's'), taxonomy_df, 100, 0)
         assert 'identical_16s_species' not in df.columns

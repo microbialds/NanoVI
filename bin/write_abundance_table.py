@@ -14,6 +14,7 @@ mean-field posterior, which ignore how shared reads are split; D7, D27).
 """
 import argparse
 import json
+import sys
 
 import pandas as pd
 
@@ -24,7 +25,15 @@ def read_identical(path):
     """tax_id -> the species it shares an identical 16S with, from identical_16s.tsv ('' gives none)."""
     if not path:
         return {}
-    df = pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False)
+    try:
+        df = pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False)
+    except pd.errors.EmptyDataError:
+        df = pd.DataFrame()
+    if not {"tax_id", IDENTICAL_COLUMN} <= set(df.columns):
+        # An empty or truncated table must not fail every sample: the column stays empty
+        print(f"Warning: {path} has no tax_id and {IDENTICAL_COLUMN} columns; "
+              f"the {IDENTICAL_COLUMN} column is left empty", file=sys.stderr)
+        return {}
     return dict(zip(df["tax_id"], df[IDENTICAL_COLUMN]))
 
 

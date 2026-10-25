@@ -244,6 +244,10 @@ def unify_species_abundance(df, binomial=False):
         is_placeholder = (df['species'].isin([UNASSIGNED_LABEL, BELOW_DETECTION_LABEL])
                           | df['species'].str.startswith(UNKNOWN_TAXID_LABEL + " "))
         df['species'] = df['species'].where(is_placeholder, df['species'].map(binomial_name))
+        if IDENTICAL_COLUMN in df.columns:
+            # The sharing species are named the same way, so a row's own strains drop out below
+            df[IDENTICAL_COLUMN] = ["; ".join(binomial_name(n) for n in v.split("; ") if n)
+                                    for v in df[IDENTICAL_COLUMN]]
 
     # Summed with abundance: the posterior quantities behind the interval columns
     summed = ['abundance'] + [c for c in POSTERIOR_COLUMNS if c in df.columns]
@@ -253,7 +257,7 @@ def unify_species_abundance(df, binomial=False):
         agg[IDENTICAL_COLUMN] = lambda names: "; ".join(sorted({n for v in names for n in v.split("; ") if n}))
     df_grouped = df.groupby(group_columns, as_index=False, sort=True).agg(agg)
     if IDENTICAL_COLUMN in df_grouped.columns:
-        # A species never lists itself (names cut by binomial can meet)
+        # A species never lists itself (names cut by binomial can meet, as can strains of one species)
         df_grouped[IDENTICAL_COLUMN] = [
             "; ".join(n for n in names.split("; ") if n and n != sp)
             for sp, names in zip(df_grouped['species'], df_grouped[IDENTICAL_COLUMN])
