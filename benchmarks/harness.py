@@ -120,11 +120,15 @@ def subset_bam(bam, reads, out):
 
 def likelihood(bam, out, error_profile="primary", score="emu", min_identity=None, min_aligned_length=None,
                unknown_delta=None):
+    # Only options that differ from the defaults are passed: Phase 7b removed the
+    # experimental ones from bin/, so those arms need bin/ at commit 34d0411, while
+    # the reference arm runs with the current bin/ too
     out = Path(out)
     argv = [PYTHON, str(BIN / "read_likelihood.py"), "--alignments", str(bam), "--scores", "{OUT}",
-            "--counts", str(out.with_suffix(".counts.json")),
-            "--error-profile", error_profile, "--score", score]
-    for flag, value in (("--min-identity", min_identity), ("--min-aligned-length", min_aligned_length),
+            "--counts", str(out.with_suffix(".counts.json"))]
+    for flag, value in (("--error-profile", None if error_profile == "primary" else error_profile),
+                        ("--score", None if score == "emu" else score),
+                        ("--min-identity", min_identity), ("--min-aligned-length", min_aligned_length),
                         ("--unknown-delta", unknown_delta)):
         if value is not None:
             argv += [flag, str(value)]
