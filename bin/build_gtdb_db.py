@@ -11,6 +11,11 @@ monocytogenes_B', 'Pseudomonas_E'): GTDB treats such species as distinct (F16,
 D4). --merge-gtdb-suffixes strips the suffixes, merging those species into one
 tax ID, and writes merged_species.tsv, which lists what was merged.
 
+Besides species_taxid.fasta and taxonomy.tsv, the output directory gets
+identical_16s.tsv (species of one genus that share an identical 16S, D24) and
+cross_genus_identical.tsv (sequences found in more than one genus, likely
+contaminant contigs; D23), from identical_16s.py.
+
 """
 
 import os
@@ -20,6 +25,8 @@ import gzip
 import hashlib
 import argparse
 from collections import defaultdict
+
+import identical_16s
 
 
 # ─── Taxonomy ranks expected by NanoVI ───────────────────────────────────────
@@ -243,6 +250,11 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
             ]
             fh.write("\t".join(row) + "\n")
     print(f"  Done. ({n_species:,} species)")
+
+    # Species that 16S cannot separate, and sequences shared across genera (D23, D24)
+    print()
+    identical_16s.write_reports(fasta_out, tax_out, os.path.join(output_dir, "identical_16s.tsv"),
+                                os.path.join(output_dir, "cross_genus_identical.tsv"))
 
     if merge_suffixes:
         n_merged = write_merged_species(merged_sources, species_to_taxid,

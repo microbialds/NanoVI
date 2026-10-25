@@ -234,6 +234,9 @@ nextflow_pipeline {
             // Published into <output_dir>/<db_name>/, not <db_name>/<db_name>/ (F41)
             assert file("${outputDir}/db_custom/species_taxid.fasta").exists()
             assert file("${outputDir}/db_custom/taxonomy.tsv").exists()
+            // Species sharing an identical 16S and sequences shared across genera (D23, D24)
+            assert file("${outputDir}/db_custom/identical_16s.tsv").exists()
+            assert file("${outputDir}/db_custom/cross_genus_identical.tsv").exists()
             assert !file("${outputDir}/db_custom/db_custom").exists()
         }
     }

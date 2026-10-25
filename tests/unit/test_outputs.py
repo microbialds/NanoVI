@@ -522,6 +522,9 @@ class TestBuildDatabase:
         headers = [h for h, _ in build_gtdb_db.fasta_records(str(out / 'species_taxid.fasta'))]
         assert headers == ['>2:testdb:1', '>1:testdb:2']
         assert not (out / 'merged_species.tsv').exists()
+        # Identical-16S reports (D23, D24); the two species share no sequence
+        assert (out / 'identical_16s.tsv').read_text().startswith('tax_id\tspecies\tgenus\tgroup')
+        assert (out / 'cross_genus_identical.tsv').exists()
 
     def test_merge_gtdb_suffixes_merges_and_reports(self, tmp_path):
         # Two GTDB species become 'Alpha beta' (from genera Alpha and Alpha_A, in

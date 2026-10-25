@@ -22,6 +22,7 @@ SCRIPTS = {
     'write_abundance_table.py': '--read-counts',
     'generate_phyloseq_tables.py': '--output-dir',
     'main.py': 'build-database',
+    'identical_16s.py': '--cross-genus',
 }
 
 

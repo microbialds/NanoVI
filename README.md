@@ -236,6 +236,8 @@ python3 bin/build_gtdb_db.py \
 |------|-------------|
 | `species_taxid.fasta` | Reference FASTA — one entry per unique 16S sequence, header: `taxid:db_name:n` |
 | `taxonomy.tsv` | Taxonomy table — one row per species with full lineage |
+| `identical_16s.tsv` | Species that share an identical 16S sequence with another species of their genus (genera compared without GTDB's suffixes), one row each: its group (the species of the genus linked through shared sequences) and the species it shares a sequence with. 16S cannot tell these species apart; the pipeline names them in the `identical_16s_species` column. `--cmd build-database` writes it too |
+| `cross_genus_identical.tsv` | Sequences found in species of more than one genus, with their species, genera, families and phyla. In GTDB these are almost always contaminant contigs in an assembly (1,360 sequences in r226); they stay in the database and are left out of `identical_16s.tsv` |
 | `merged_species.tsv` | With `--merge-gtdb-suffixes` only: each merged name with the GTDB species and genera merged into it, the ranks at which their lineages differ, and the GTDB species whose lineage `taxonomy.tsv` keeps (the first in the input) |
 
 ### 3. Run NanoVI with the GTDB database
