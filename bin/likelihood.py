@@ -264,7 +264,7 @@ def log_prob_rgs_dict(sam_path, log_p_cigar_op, dict_longest_align, p_cigar_op_z
     )
 
 def score_reads(sam_path, error_profile="primary", score="emu", min_identity=None, min_aligned_length=None,
-                unknown_delta=None, records=None):
+                records=None):
     """Error profile and read scores from one pass over a SAM or BAM file (F24).
 
     Returns (log_p_rgs, unassigned_count, assigned_count), as log_prob_rgs_dict
@@ -274,9 +274,7 @@ def score_reads(sam_path, error_profile="primary", score="emu", min_identity=Non
     pipeline's scores): error_profile 'all' estimates the error mix from every
     mapped alignment; score 'per-base' uses per_base_log_probabilities;
     min_identity (percent) and min_aligned_length skip alignments below them,
-    as Emu's --min-pid and --min-align-len; unknown_delta adds a fourth value,
-    the per-read floor scores of the unknown-taxon component (unknown_floor_scores),
-    in the order of log_p_rgs.
+    as Emu's --min-pid and --min-align-len.
     """
     if records is None:
         records = read_alignment_records(sam_path)
@@ -291,48 +289,9 @@ def score_reads(sam_path, error_profile="primary", score="emu", min_identity=Non
             keep &= records.identity() >= min_identity
         if min_aligned_length is not None:
             keep &= records.aligned_query_length() >= min_aligned_length
-    result = read_scores_from_records(records, log_probs, dict_longest_align, zero_locs,
-                                      per_base_log_p=per_base, keep=keep)
-    if unknown_delta is None:
-        return result
-    floors = unknown_floor_scores(records, result[0], dict_longest_align, log_probs,
-                                  per_base, unknown_delta, error_profile)
-    return (*result, floors)
+    return read_scores_from_records(records, log_probs, dict_longest_align, zero_locs,
+                                    per_base_log_p=per_base, keep=keep)
 
-
-def _median_rate(errors, covered, delta):
-    ok = covered > 0
-    return min(float(np.median(errors[ok] / covered[ok])) + delta, 0.99)
-
-
-def unknown_floor_scores(records, log_p_rgs, dict_longest_align, log_p_cigar_op,
-                         per_base_log_p, delta, error_profile="primary"):
-    """Per-read score of the unknown-taxon component (experimental, M5; docs/design/unknown_component.md).
-
-    The score of a virtual alignment of the read, as long as its longest
-    alignment, whose error rate is the sample's median per-read error rate plus
-    delta, with the sample's mix of error operations. A read from a species
-    missing from the database aligns to its nearest relative with roughly its
-    own errors plus the divergence between the two, so its best score falls
-    below this floor once that divergence exceeds delta.
-    """
-    mask = records.profile_mask(error_profile)
-    if per_base_log_p is not None:
-        ops = records.op_counts()[mask]
-        errors, covered = ops[:, 1:].sum(axis=1), ops.sum(axis=1)
-        rate = _median_rate(errors, covered, delta)
-        mix = ops[:, 1:].sum(axis=0) / ops[:, 1:].sum()
-        per_base_cost = (1 - rate) * per_base_log_p[0] + rate * float(mix @ per_base_log_p[1:])
-    else:
-        # Emu's score charges error operations only (I, D, S, X over M + I + D + S
-        # columns), each at the log of its share, so the virtual alignment costs
-        # rate x Σ p_op ln p_op per column
-        stats = np.frombuffer(records.stats, dtype=np.int64).reshape(-1, len(CIGAR_OPS))[mask]
-        lengths = np.frombuffer(records.length, dtype=np.int64)[mask]
-        rate = _median_rate(stats.sum(axis=1), lengths, delta)
-        log_p = np.array(log_p_cigar_op)
-        per_base_cost = rate * float(np.exp(log_p) @ log_p)
-    return np.array([dict_longest_align[r] * per_base_cost for r in log_p_rgs], dtype=np.float64)
 
 
 def read_scores_to_arrays(log_p_rgs):

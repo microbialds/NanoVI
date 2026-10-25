@@ -9,9 +9,7 @@ tax_ids[offsets[r]:offsets[r + 1]]) for estimate_abundance.py, and the numbers
 of assigned and unassigned reads as a small JSON for write_abundance_table.py.
 
 The options after --counts are experimental (Phase 7a benchmark, off by default):
-they change the error profile, the score and which alignments are scored, and
---unknown-delta adds the unknown-taxon floor of each read to the npz
-("unknown_floor", in read order; docs/design/unknown_component.md).
+they change the error profile, the score and which alignments are scored.
 """
 import argparse
 import json
@@ -34,22 +32,15 @@ def main():
                         help="experimental: skip alignments below this percent identity (Emu's --min-pid)")
     parser.add_argument("--min-aligned-length", type=int,
                         help="experimental: skip alignments with fewer aligned query bases (Emu's --min-align-len)")
-    parser.add_argument("--unknown-delta", type=float,
-                        help="experimental: write each read's unknown-taxon floor, at the sample's median "
-                             "error rate plus this value")
     args = parser.parse_args()
 
-    result = score_reads(args.alignments, error_profile=args.error_profile, score=args.score,
-                         min_identity=args.min_identity, min_aligned_length=args.min_aligned_length,
-                         unknown_delta=args.unknown_delta)
-    log_p_rgs, unassigned_count, assigned_count = result[:3]
+    log_p_rgs, unassigned_count, assigned_count = score_reads(
+        args.alignments, error_profile=args.error_profile, score=args.score,
+        min_identity=args.min_identity, min_aligned_length=args.min_aligned_length)
 
     offsets, tax_ids, scores = read_scores_to_arrays(log_p_rgs)
-    arrays = {"offsets": offsets, "tax_ids": tax_ids, "scores": scores}
-    if args.unknown_delta is not None:
-        arrays["unknown_floor"] = result[3]
     with open(args.scores, "wb") as f:
-        np.savez_compressed(f, **arrays)
+        np.savez_compressed(f, offsets=offsets, tax_ids=tax_ids, scores=scores)
     with open(args.counts, "w") as f:
         json.dump({"assigned_count": assigned_count, "unassigned_count": unassigned_count}, f)
 

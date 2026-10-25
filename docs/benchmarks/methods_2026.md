@@ -23,6 +23,12 @@ step's output is cached under its parameters, so layers that only change the
 likelihood or the estimator reuse one alignment. The harness's abundance JSON was
 checked identical to `nextflow run main.nf` on the same reads.
 
+**Code version.** The experimental options that the arms use (error profile, per-base
+score, identity and aligned-length filters, the unknown component, pruning off) were
+removed from `bin/` in Phase 7b (decisions D22, D25, D29, D31). To rerun the benchmark,
+run the scripts from a checkout of commit 34d0411 (for example
+`git worktree add ../NanoVI_34d0411 34d0411`): they import and run the `bin/` beside them.
+
 **Reference setting.** Exact database, `-N 3`, primary-alignment error profile, Emu's
 read score, VB, output floor 1e-3, pruning on: the pipeline's defaults at dev `d8e387b`.
 

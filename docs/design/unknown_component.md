@@ -1,6 +1,6 @@
 # Unknown-taxon component (design note, M5)
 
-Status: prototype behind experimental options (Phase 7a, decision D10). Not used by the pipeline; Phase 7b decides whether to implement it, from the clade-exclusion benchmark in `docs/benchmarks/methods_2026.md`.
+Status: dropped (decision D22, after the Phase 7a benchmark). The prototype lived behind experimental options (`read_likelihood.py --unknown-delta`, `estimate_abundance.py --unknown-component`) until commit 34d0411 and was then removed from `bin/`. It did not separate a species missing from the database from its relatives (clade exclusion: removal ratio 0.9-1.8 against in-database reads) and reported 14-35% of reads as unknown on mocks whose species are all in the database (`docs/benchmarks/methods_2026.md`, Section 9). This note is kept as the record of a negative result.
 
 ## Problem
 

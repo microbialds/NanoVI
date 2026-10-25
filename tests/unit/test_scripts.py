@@ -109,14 +109,11 @@ def test_estimate_abundance_rejects_intervals_with_em(tmp_path):
 
 # ─── Experimental estimator options (Phase 7a benchmark) ─────────────────────
 
-def write_npz(path, per_read, floors=None):
+def write_npz(path, per_read):
     sys.path.insert(0, BIN)
     from likelihood import read_scores_to_arrays
     offsets, tax_ids, scores = read_scores_to_arrays(per_read)
-    arrays = dict(offsets=offsets, tax_ids=tax_ids, scores=scores)
-    if floors is not None:
-        arrays['unknown_floor'] = np.asarray(floors, dtype=float)
-    np.savez_compressed(path, **arrays)
+    np.savez_compressed(path, offsets=offsets, tax_ids=tax_ids, scores=scores)
     return str(path)
 
 
@@ -169,30 +166,8 @@ def test_em_without_pruning_does_not_report_underflowed_species(tmp_path):
     assert set(data['abundance']) == {'1'}
 
 
-def test_add_unknown_candidate():
-    sys.path.insert(0, BIN)
-    from estimate_abundance import UNKNOWN_TAX_ID, add_unknown_candidate
-    offsets, tax_ids, scores = add_unknown_candidate(
-        np.array([0, 2, 3]), np.array([5, 6, 5]), np.array([-1.0, -2.0, -3.0]), np.array([-10.0, -20.0]))
-    assert offsets.tolist() == [0, 3, 5]
-    assert tax_ids.tolist() == [5, 6, UNKNOWN_TAX_ID, 5, UNKNOWN_TAX_ID]
-    assert scores.tolist() == [-1.0, -2.0, -10.0, -3.0, -20.0]
-
-
-@pytest.mark.parametrize('estimator', ['vb', 'em'])
-def test_unknown_component_takes_reads_that_score_below_their_floor(tmp_path, estimator):
-    # 100 reads match species 1 well; 25 reads align to it 60 nats below the floor
-    per_read = {f'a{i}': ([1], [-5.0]) for i in range(100)}
-    per_read.update({f'u{i}': ([1], [-110.0]) for i in range(25)})
-    npz = write_npz(tmp_path / 's.npz', per_read, floors=[-50.0] * 125)
-    data = estimate(tmp_path, npz, '--estimator', estimator, '--unknown-component')
-    assert set(data['abundance']) == {'0', '1'}
-    assert data['abundance']['0'] == pytest.approx(25 / 125, abs=0.01)
-    without = estimate(tmp_path, npz, '--estimator', estimator)
-    assert without['abundance'] == {'1': pytest.approx(1.0)}
-
-
-def test_unknown_component_needs_floors(tmp_path):
+def test_estimate_abundance_has_no_unknown_component(tmp_path):
+    # The unknown-taxon prototype was dropped after the Phase 7a benchmark (D22)
     npz = write_npz(tmp_path / 's.npz', {'a': ([1], [-1.0])})
     result = subprocess.run(
         [sys.executable, os.path.join(BIN, 'estimate_abundance.py'), '--scores', npz,
@@ -200,4 +175,4 @@ def test_unknown_component_needs_floors(tmp_path):
         cwd=tmp_path, capture_output=True, text=True,
     )
     assert result.returncode == 2
-    assert '--unknown-delta' in result.stderr
+    assert 'unrecognized arguments: --unknown-component' in result.stderr

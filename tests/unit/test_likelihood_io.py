@@ -270,33 +270,15 @@ def test_identity_and_length_filters_skip_alignments(tmp_path):
     assert score_reads(path, min_identity=None) == score_reads(path)
 
 
-def test_unknown_floor_is_the_score_at_the_median_error_rate_plus_delta(tmp_path):
-    records_in = [
-        ('r1', PRIMARY, REFS[0], '100M', 2),
-        ('r2', PRIMARY, REFS[1], '90M10S', 4),
-        ('r3', PRIMARY, REFS[1], '200M', 10),
-    ]
-    path = write_sam(tmp_path / 'a.sam', records_in)
-    log_p_rgs, _, _, floors = score_reads(path, unknown_delta=0.03)
-    # Emu columns M+I+D+S: 100, 100, 200; errors I+D+S+X: 2, 14, 10 -> rates .02, .14, .05
-    rate = 0.05 + 0.03
-    log_p = np.array(log_shares([0, 0, 10, 16]))
-    p = np.exp(log_p)
-    np.testing.assert_allclose(floors, [100 * rate * p @ log_p, 100 * rate * p @ log_p, 200 * rate * p @ log_p])
-    # A read whose best alignment has the median error rate scores above its floor
-    assert log_p_rgs['r3'][1][0] > floors[2]
-
-
-def test_read_likelihood_script_writes_unknown_floor(tmp_path):
+def test_read_likelihood_script_has_no_unknown_component(tmp_path):
+    # The unknown-taxon prototype was dropped after the Phase 7a benchmark (D22)
     path = write_sam(tmp_path / 'a.bam', MIXED, 'wb')
-    result = subprocess.run(
-        [sys.executable, os.path.join(BIN, 'read_likelihood.py'), '--alignments', path,
-         '--scores', 'scores.npz', '--counts', 'counts.json', '--score', 'per-base', '--unknown-delta', '0.05'],
-        cwd=tmp_path, capture_output=True, text=True,
-    )
+    argv = [sys.executable, os.path.join(BIN, 'read_likelihood.py'), '--alignments', path,
+            '--scores', 'scores.npz', '--counts', 'counts.json']
+    result = subprocess.run(argv + ['--unknown-delta', '0.05'], cwd=tmp_path, capture_output=True, text=True)
+    assert result.returncode == 2
+    assert 'unrecognized arguments: --unknown-delta' in result.stderr
+    result = subprocess.run(argv, cwd=tmp_path, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
-    log_p_rgs, _, _, floors = score_reads(path, score='per-base', unknown_delta=0.05)
     with np.load(tmp_path / 'scores.npz') as data:
-        assert set(data.files) == {'offsets', 'tax_ids', 'scores', 'unknown_floor'}
-        np.testing.assert_array_equal(data['unknown_floor'], floors)
-        assert len(data['unknown_floor']) == len(data['offsets']) - 1
+        assert set(data.files) == {'offsets', 'tax_ids', 'scores'}

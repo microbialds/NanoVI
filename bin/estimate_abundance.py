@@ -10,11 +10,7 @@ With --credible-intervals it also writes "posterior": {tax_id: {"alpha",
 "expected_reads", "shared_reads"}}, from which write_abundance_table.py builds
 the experimental ci_lower, ci_upper and shared_read_fraction columns.
 
---no-pruning and --unknown-component are experimental (Phase 7a benchmark, off
-by default). With --unknown-component every read also gets the candidate
-UNKNOWN_TAX_ID (0) with its floor score from the npz ("unknown_floor", written by
-read_likelihood.py --unknown-delta); its abundance is reported under that ID
-(docs/design/unknown_component.md).
+--no-pruning is experimental (Phase 7a benchmark, off by default).
 """
 import argparse
 import json
@@ -23,25 +19,6 @@ import numpy as np
 
 import em_estimator
 from variational_inference_bayesian import bayesian_vi, sparse_likelihood_from_csr
-
-# Tax ID of the experimental unknown-taxon component (database tax IDs start at 1)
-UNKNOWN_TAX_ID = 0
-
-
-def add_unknown_candidate(offsets, tax_ids, scores, floors):
-    """CSR arrays with one more candidate per read: UNKNOWN_TAX_ID, scored at the read's floor."""
-    n_reads = len(offsets) - 1
-    lengths = np.diff(offsets) + 1
-    new_offsets = np.zeros(n_reads + 1, dtype=np.int64)
-    np.cumsum(lengths, out=new_offsets[1:])
-    last = new_offsets[1:] - 1
-    is_old = np.ones(int(new_offsets[-1]), dtype=bool)
-    is_old[last] = False
-    new_tax_ids = np.empty(int(new_offsets[-1]), dtype=np.int64)
-    new_scores = np.empty(int(new_offsets[-1]), dtype=np.float64)
-    new_tax_ids[is_old], new_scores[is_old] = tax_ids, scores
-    new_tax_ids[last], new_scores[last] = UNKNOWN_TAX_ID, floors
-    return new_offsets, new_tax_ids, new_scores
 
 
 def main():
@@ -64,18 +41,12 @@ def main():
                         help="VB only, experimental: write the posterior summary for the interval columns")
     parser.add_argument("--no-pruning", action="store_true",
                         help="experimental: prune only below --min-abundance, not below 1/R or 10/R (both estimators)")
-    parser.add_argument("--unknown-component", action="store_true",
-                        help="experimental: add the unknown-taxon component (needs read_likelihood.py --unknown-delta)")
     args = parser.parse_args()
     if args.credible_intervals and args.estimator != "vb":
         parser.error("--credible-intervals needs --estimator vb")
 
     with np.load(args.scores) as data:
         offsets, tax_ids, scores = data["offsets"], data["tax_ids"], data["scores"]
-        if args.unknown_component:
-            if "unknown_floor" not in data:
-                parser.error("--unknown-component needs scores written with read_likelihood.py --unknown-delta")
-            offsets, tax_ids, scores = add_unknown_candidate(offsets, tax_ids, scores, data["unknown_floor"])
 
     # Species in order of first appearance through a set, as the JSON hand-off did,
     # so the columns (and the floating-point sums) are in the same order as before
