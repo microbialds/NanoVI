@@ -74,9 +74,9 @@ def filter_reads(fastq, out, min_quality=None, version="0.2.2", threads=2):
     return _run(out, docker(FASTPLONG_IMAGE[version], cmd, [Path(fastq).parent, out.parent]))
 
 
-def build_index(db_dir, out, threads=8, version="2.24"):
+def build_index(db_dir, out, threads=8, version="2.24", k=21):
     out = Path(out)
-    cmd = f"minimap2 -x map-ont -k 21 -t {threads} -d {{OUT}} {db_dir}/species_taxid.fasta"
+    cmd = f"minimap2 -x map-ont -k {k} -t {threads} -d {{OUT}} {db_dir}/species_taxid.fasta"
     return _run(out, docker(ALIGN_IMAGE[version], cmd, [Path(db_dir), out.parent]))
 
 
@@ -151,6 +151,6 @@ def read_counts(npz):
     return json.loads(Path(npz).with_suffix(".counts.json").read_text())
 
 
-def index_path(db, version="2.24"):
+def index_path(db, version="2.24", k=21):
     suffix = "" if version == "2.24" else f".minimap2-{version}"
-    return BENCH / "indexes" / f"{db}.map-ont.k21{suffix}.mmi"
+    return BENCH / "indexes" / f"{db}.map-ont.k{k}{suffix}.mmi"
