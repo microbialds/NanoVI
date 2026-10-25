@@ -233,23 +233,16 @@ def test_error_profile_all_counts_secondary_alignments(tmp_path):
         cigar_profile(records, 'some')
 
 
-def test_per_base_score_counts_matches_and_clips(tmp_path):
-    records_in = [
-        ('r1', PRIMARY, REFS[0], '10H98M2I', 5),   # 98 columns, NM 5: 3 mismatches, 95 matches
-        ('r1', SECONDARY, REFS[1], '100M10S', 2),  # 100 columns, 2 mismatches, 98 matches
-    ]
-    path = write_sam(tmp_path / 'a.sam', records_in)
-    from likelihood import per_base_log_probabilities, read_alignment_records
-    records = read_alignment_records(path)
-    assert records.op_counts().tolist() == [[95, 2, 0, 10, 3], [98, 0, 0, 10, 2]]
-    log_p = per_base_log_probabilities(records)  # primary only, pseudocount 0.5
-    counts = np.array([95, 2, 0, 10, 3]) + 0.5
-    np.testing.assert_allclose(log_p, np.log(counts / counts.sum()))
-    with pytest.raises(ValueError, match='error_profile'):
-        per_base_log_probabilities(records, 'some')
-    log_p_rgs, unassigned, assigned = score_reads(path, score='per-base')
-    assert log_p_rgs['r1'][0] == [1, 2]
-    np.testing.assert_allclose(log_p_rgs['r1'][1], [np.dot([95, 2, 0, 10, 3], log_p), np.dot([98, 0, 0, 10, 2], log_p)])
+def test_per_base_score_is_removed(tmp_path):
+    # Emu's score stays; the per-base score lost in the Phase 7a benchmark (D29)
+    path = write_sam(tmp_path / 'a.bam', MIXED, 'wb')
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'read_likelihood.py'), '--alignments', path,
+         '--scores', 'scores.npz', '--counts', 'counts.json', '--score', 'per-base'],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert result.returncode == 2
+    assert 'unrecognized arguments: --score' in result.stderr
 
 
 def test_identity_and_length_filters_are_removed(tmp_path):

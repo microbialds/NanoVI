@@ -44,11 +44,9 @@ class AlignmentRecords:
 
     Per alignment, in file order: the read (an index into names), the
     reference (an index into ref_names, -1 when unmapped), the aligned length
-    (M + I + D + S), the counts of I, D, S and mismatches, whether it is a
-    primary mapped alignment, and the counts of aligned columns (M, = and X
-    operations) and hard-clipped bases, which the experimental scores and
-    filters use. Integers are kept in array.array, about 80 bytes per
-    alignment, so the alignments are not held as pysam objects.
+    (M + I + D + S), the counts of I, D, S and mismatches, and whether it is a
+    primary mapped alignment. Integers are kept in array.array, about 60 bytes
+    per alignment, so the alignments are not held as pysam objects.
     """
 
     def __init__(self, sam_path):
@@ -59,7 +57,6 @@ class AlignmentRecords:
         self.length = array("q")
         self.stats = array("q")
         self.primary = array("b")
-        self.extra = array("q")
         read_index = {}
         with pysam.AlignmentFile(sam_path) as sam_pysam:
             self.ref_names = list(sam_pysam.references)
@@ -78,17 +75,12 @@ class AlignmentRecords:
                 self.primary.append(
                     not alignment.is_unmapped and not alignment.is_secondary and not alignment.is_supplementary
                 )
-                self.extra.extend((cigar_stats[0] + cigar_stats[7] + cigar_stats[8], cigar_stats[5]))
 
     def __len__(self):
         return len(self.read)
 
     def align_stats(self, i):
         return list(self.stats[4 * i:4 * i + 4])
-
-    def columns(self):
-        """Per alignment: aligned columns (M, = and X) and hard-clipped bases, as an (n, 2) array."""
-        return np.frombuffer(self.extra, dtype=np.int64).reshape(-1, 2)
 
     def profile_mask(self, error_profile="primary"):
         """The alignments an error profile is estimated from: primary mapped ones, or
@@ -98,17 +90,6 @@ class AlignmentRecords:
         if error_profile != "primary":
             raise ValueError(f"error_profile must be 'primary' or 'all', not {error_profile!r}")
         return np.frombuffer(self.primary, dtype=np.int8).astype(bool)
-
-    def op_counts(self):
-        """Per alignment: matches, I, D, S (hard clips included) and mismatches, as an (n, 5) array.
-
-        Matches are aligned columns minus mismatches (NM - I - D). Hard-clipped
-        bases count as soft clips, so every alignment of a read covers the whole read.
-        """
-        stats = np.frombuffer(self.stats, dtype=np.int64).reshape(-1, len(CIGAR_OPS))
-        cols = self.columns()
-        return np.column_stack([cols[:, 0] - stats[:, 3], stats[:, 0], stats[:, 1],
-                                stats[:, 2] + cols[:, 1], stats[:, 3]])
 
 
 def read_alignment_records(sam_path):
@@ -157,7 +138,7 @@ def get_cigar_op_log_probabilities(sam_path):
     """Compute global log-probabilities for each CIGAR operation from the alignments.
 
     Reads the SAM or BAM once into AlignmentRecords (memory grows with the number
-    of alignments, about 80 bytes each). Returns (log_probs, zero_locs, dict_longest_align):
+    of alignments, about 60 bytes each). Returns (log_probs, zero_locs, dict_longest_align):
     the log share of each error operation (I, D, S, X) over the primary mapped
     alignments, with the operations of zero count removed (F03); the indices of
     those operations in CIGAR_OPS; and each read's longest alignment over all of
@@ -168,31 +149,11 @@ def get_cigar_op_log_probabilities(sam_path):
     """
     return cigar_profile(read_alignment_records(sam_path))
 
-def per_base_log_probabilities(records, error_profile="primary", pseudocount=0.5):
-    """Per-base log-probabilities of match, I, D, S and X (experimental, M4).
-
-    Each operation's share of all aligned and clipped bases over the primary
-    mapped alignments (every mapped alignment with error_profile 'all'), with a
-    pseudocount so that an operation unseen there still has a finite cost.
-    """
-    mask = records.profile_mask(error_profile)
-    counts = records.op_counts()[mask].sum(axis=0) + pseudocount
-    return np.log(counts / counts.sum())
-
-
-def read_scores_from_records(records, log_p_cigar_op, dict_longest_align, p_cigar_op_zero_locs=None,
-                             per_base_log_p=None):
-    """log_prob_rgs_dict on AlignmentRecords: the same scores, in the same order.
-
-    Experimental (Phase 7a): with per_base_log_p (from per_base_log_probabilities)
-    the score is Σ count_op × ln p_op over match, I, D, S and X, with no length
-    scaling (clips count as S, so every alignment covers the whole read).
-    """
+def read_scores_from_records(records, log_p_cigar_op, dict_longest_align, p_cigar_op_zero_locs=None):
+    """log_prob_rgs_dict on AlignmentRecords: the same scores, in the same order."""
     zero_locs = sorted(p_cigar_op_zero_locs or [], reverse=True)
     log_p_rgs, unassigned_set = {}, set()
     species_tids = {}
-    if per_base_log_p is not None:
-        per_base_scores = records.op_counts() @ per_base_log_p
 
     for i in range(len(records)):
         query_name = records.names[records.read[i]]
@@ -201,16 +162,13 @@ def read_scores_from_records(records, log_p_cigar_op, dict_longest_align, p_ciga
         if not (ref >= 0 and align_len):
             unassigned_set.add(query_name)
             continue
-        if per_base_log_p is not None:
-            log_score = float(per_base_scores[i])
-        else:
-            cigar_stats = records.align_stats(i)
-            if any(cigar_stats[j] for j in zero_locs):
-                unassigned_set.add(query_name)
-                continue
-            for j in zero_locs:
-                del cigar_stats[j]
-            log_score = sum(list(map(mul, log_p_cigar_op, cigar_stats))) * (dict_longest_align[query_name] / align_len)
+        cigar_stats = records.align_stats(i)
+        if any(cigar_stats[j] for j in zero_locs):
+            unassigned_set.add(query_name)
+            continue
+        for j in zero_locs:
+            del cigar_stats[j]
+        log_score = sum(list(map(mul, log_p_cigar_op, cigar_stats))) * (dict_longest_align[query_name] / align_len)
         species_tid = species_tids.get(ref)
         if species_tid is None:
             species_tid = species_tids[ref] = int(records.ref_names[ref].split(":")[0])
@@ -243,7 +201,7 @@ def log_prob_rgs_dict(sam_path, log_p_cigar_op, dict_longest_align, p_cigar_op_z
         read_alignment_records(sam_path), log_p_cigar_op, dict_longest_align, p_cigar_op_zero_locs
     )
 
-def score_reads(sam_path, error_profile="primary", score="emu", records=None):
+def score_reads(sam_path, error_profile="primary", records=None):
     """Error profile and read scores from one pass over a SAM or BAM file (F24).
 
     Returns (log_p_rgs, unassigned_count, assigned_count), as log_prob_rgs_dict
@@ -251,16 +209,12 @@ def score_reads(sam_path, error_profile="primary", score="emu", records=None):
 
     The other arguments are experimental (Phase 7a benchmark; defaults give the
     pipeline's scores): error_profile 'all' estimates the error mix from every
-    mapped alignment; score 'per-base' uses per_base_log_probabilities.
+    mapped alignment.
     """
     if records is None:
         records = read_alignment_records(sam_path)
     log_probs, zero_locs, dict_longest_align = cigar_profile(records, error_profile)
-    per_base = per_base_log_probabilities(records, error_profile) if score == "per-base" else None
-    if score not in ("emu", "per-base"):
-        raise ValueError(f"score must be 'emu' or 'per-base', not {score!r}")
-    return read_scores_from_records(records, log_probs, dict_longest_align, zero_locs,
-                                    per_base_log_p=per_base)
+    return read_scores_from_records(records, log_probs, dict_longest_align, zero_locs)
 
 
 
