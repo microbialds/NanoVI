@@ -53,3 +53,26 @@ Emu's filters drop alignments below a fixed identity or aligned length before sc
 - `read_likelihood.py --unknown-delta δ`: writes `unknown_floor` (one value per scored read, in read order) into the scores npz (`likelihood.unknown_floor_scores`).
 - `estimate_abundance.py --unknown-component`: adds the candidate for each read and reports its abundance under tax ID 0 (both estimators).
 - For comparison: `read_likelihood.py --min-identity` and `--min-aligned-length`, with Emu 3.6's definitions (percent identity 100 × (1 − NM / aligned query bases); aligned query bases exclude clips).
+
+## Benchmark result (Phase 7a)
+
+Source: `docs/benchmarks/methods_2026.md` Section 9, `docs/benchmarks/data/clade_exclusion_summary.tsv`,
+`real_arms_paired.tsv`.
+
+- **Novelty detection fails on the clade-exclusion sets.** With one community species
+  removed from the database at a time, the component removes the excluded species'
+  reads at 1.0-1.8 times the rate at which it removes reads of species in the database
+  (δ 0.02: 8% vs 6% on R10.4.1, 31% vs 28% on R9.4.1). Identity and length filters do
+  no better. Every excluded species has GTDB relatives within the read error of its
+  16S, so per-read evidence cannot separate a missing species from a present relative.
+- **On real mocks it acts as a soft filter.** With every species in the database, δ 0.02
+  reports 14-35% of the reads as unknown (R10.4.1 sup 14-20%, R9.4 34-35%). The
+  database species, renormalised over themselves, keep their species L1 (within 0.01),
+  and 1-4 false-positive species per sample disappear.
+- **Reporting as proposed above would mislead.** An `Unknown (not in database)` row of
+  14-35% on a mock with no novel taxa would be read as novelty. If the component is
+  kept for its false-positive trimming, it should be reported as a share of reads
+  that fit no database sequence within the sample's error, not as unknown taxa.
+
+Whether to adopt it, and how to name the row, are decisions for Phase 7b.
+

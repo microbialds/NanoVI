@@ -249,7 +249,8 @@ false-positive species per sample; it lowers species L1 on the R9.4 Zymo mocks (
 mock (+0.04) and loses one gut species in five samples. c995 and reps add 6-25
 false-positive species per sample and raise L1 by 0.08-0.44. Pruning off reports 94-409
 species. The unknown component (δ 0.02) removes 1-4 false-positive species per sample with
-L1 within 0.01; an identity floor of 97% removes every read of the R9.4 mocks.
+L1 within 0.01, but reports 14-35% of the reads as unknown in mocks whose species are
+all in the database (Section 9); an identity floor of 97% removes every read of the R9.4 mocks.
 Per sample group, reference setting:
 
 | Group | Species precision | Recall | Species L1 | Genus L1 | FP abundance |
@@ -362,6 +363,17 @@ every read of the R9.4 published mocks); only 99% does anything on R10.4.1. The
 design is the hardest case: every excluded species has GTDB relatives within the
 read error of its 16S, so per-read evidence cannot tell a missing species from a
 present relative. A genus-level exclusion would be an easier test; it was not run.
+
+On the real mocks, where every species is in the database, δ 0.02 reports 14-20% of
+the reads as unknown on the ONT 2025.09 sup data, 23% on SRR23636353 and 34-35% on the
+R9.4 mocks (`real_nanovi.tsv`, arm unk0.02), against 6% (R10.4.1) and 28% (R9.4.1) of
+in-database reads on the simulations: real reads have heavier error tails than
+Badread's, and the floor, set from each sample's mean error, sits inside them. The
+database species, renormalised over themselves, keep their L1 (within 0.01), and 1-4
+false-positive species per sample disappear. On Emu's database the same arm loses
+*Dorea longicatena* on the Emu gut mock and raises species L1 by 0.09-0.26. Reported
+as a share of the sample, the unknown row would read as 14-35% novel taxa in a mock
+with none.
 
 ## 10. Comparators (D8, W4, W5)
 
