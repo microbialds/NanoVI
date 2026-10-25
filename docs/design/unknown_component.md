@@ -61,7 +61,7 @@ Source: `docs/benchmarks/methods_2026.md` Section 9, `docs/benchmarks/data/clade
 
 - **Novelty detection fails on the clade-exclusion sets.** With one community species
   removed from the database at a time, the component removes the excluded species'
-  reads at 1.0-1.8 times the rate at which it removes reads of species in the database
+  reads at 1.1-1.8 times the rate at which it removes reads of species in the database
   (δ 0.02: 8% vs 6% on R10.4.1, 31% vs 28% on R9.4.1). Identity and length filters do
   no better. Every excluded species has GTDB relatives within the read error of its
   16S, so per-read evidence cannot separate a missing species from a present relative.

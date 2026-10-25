@@ -216,7 +216,10 @@ VB and EM (identical here) then give the shared reads to the partner, and *S. ar
 is estimated at 0. With more secondary alignments the *E. coli* share rises further
 (0.97 at -N 10, 0.99 at -N 50). The per-base score and pruning off do not change the
 split. Pairs whose members have reads of their own split close to truth on R10.4.1;
-on R9.4.1 the higher error rate moves 11-19% of those reads to the wrong member. The
+on R9.4.1 the higher error rate moves 11-19% of those reads to the wrong member. More reads
+do not help: at 50k reads (seeds 1-3) the error of VB's split, |share of member A −
+realised share|, averaged over shapes and -N, is within 0.02 of its 10k value for
+every pair and chemistry (*S. argenteus* pair 0.25 at 1k, 10k and 50k). The
 e2e fixture's 51 tied *E. coli* / *S. flexneri* reads are the same case as
 *E. fergusonii*.
 
@@ -349,10 +352,10 @@ unknown component with δ 0.01/0.02/0.03/0.05 (`clade_exclusion_summary.tsv`,
 `fig_clade.png`).
 
 Without filtering, the excluded species' reads go to species absent from the sample
-(58-66% of them) or, when the pair partner is present, mostly to the partner (50-57%). None of the three
-approaches separates them from reads of species in the database: each removes the
-excluded species' reads at 1.0-1.8 times the rate at which it removes reads of
-in-database species.
+(58-66% of them) or, when the pair partner is present, mostly to the partner (49-57%). None of the three
+approaches separates them from reads of species in the database: wherever an arm
+removes at least 1% of the reads, it removes the excluded species' reads at 0.9-1.8
+times the rate at which it removes reads of in-database species.
 
 | Arm | Excluded reads removed (R10.4.1 / R9.4.1) | In-database reads removed |
 |---|---|---|
