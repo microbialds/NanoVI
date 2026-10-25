@@ -1,0 +1,16 @@
+ncbi_species	gtdb_species	abundance	note
+Faecalibacterium prausnitzii	Faecalibacterium prausnitzii	0.176307	NCBI species split over 51 GTDB species (37% majority)
+Veillonella rogosae	Veillonella rogosae	0.158706	
+Roseburia hominis	Roseburia hominis	0.0989039	
+Bacteroides fragilis	Bacteroides fragilis	0.0994039	
+Prevotella corporis	Prevotella corporis	0.0498019	
+Bifidobacterium adolescentis	Bifidobacterium adolescentis	0.0878034	
+Fusobacterium nucleatum	Fusobacterium nucleatum	0.0749029	NCBI species split over 5 GTDB species (43% majority)
+Lactobacillus fermentum	Limosilactobacillus fermentum	0.0963038	
+Clostridioides difficile	Clostridioides difficile	0.026201	
+Akkermansia muciniphila	Akkermansia muciniphila	0.00970038	
+Methanobrevibacter smithii	Methanocatella smithii	0.000660026	GTDB r226 genus Methanocatella
+Salmonella enterica	Salmonella enterica	9.00035e-05	
+Enterococcus faecalis	Enterococcus faecalis	9.00035e-06	
+Clostridium perfringens	Sarcina perfringens	2.00008e-06	GTDB r226 genus Sarcina
+Escherichia coli	Escherichia coli	0.121205	five strains: 2.53 + 2.53 + 2.29 + 2.31 + 2.46

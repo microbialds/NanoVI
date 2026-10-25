@@ -1,0 +1,21 @@
+species	gtdb_species_merged	genomes	sequences_ge_min_length	db_sequences
+Escherichia coli	3	39579	87433	14661
+Klebsiella pneumoniae	1	19214	48097	6650
+Salmonella enterica	1	15852	30923	4367
+Staphylococcus aureus	2	16799	37570	4177
+Streptococcus pneumoniae	7	9401	11394	1743
+Acinetobacter baumannii	1	9755	17335	1395
+Bacillus velezensis	1	1128	5586	1373
+Helicobacter pylori	27	2506	3269	1363
+Clostridioides difficile	5	2683	7211	1302
+Pseudomonas aeruginosa	1	10172	15165	1287
+Vibrio parahaemolyticus	1	2049	4893	1208
+Enterococcus faecium	1	3711	6976	1154
+Bacillus subtilis	2	1000	5570	998
+Enterobacter hormaechei	2	2845	7671	908
+Sarcina perfringens	2	736	2444	817
+Bacillus cereus	14	1328	4534	807
+Paenibacillus polymyxa	4	148	1152	760
+Enterococcus faecalis	1	3691	5880	745
+Vibrio cholerae	2	1828	3333	707
+Klebsiella variicola	1	1022	2673	688
