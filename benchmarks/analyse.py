@@ -15,6 +15,8 @@
   real           real mocks: each arm by sample group, and paired against the reference
   intervals      credible interval coverage by method, depth, pair membership, abundance
                  and shared_read_fraction, and how well that fraction flags the misses
+  comparators    NanoVI against Emu (both databases, both ways), Kraken2 + Bracken,
+                 wf-16s and NanoCLUST on the same samples (D8)
 
 Every figure (docs/benchmarks/figures/*.png) has its source data in
 docs/benchmarks/data/ under the same name.
@@ -453,9 +455,137 @@ def intervals():
     return t
 
 
+# ─── Comparators ────────────────────────────────────────────────────────────
+
+NANOVI_REAL_ARMS = {"reference": ("nanovi", "nanovi_exact"), "em": ("nanovi_em", "nanovi_exact"),
+                    "emudb": ("nanovi", "emu_default")}
+# (tool, database) NanoVI is compared with -> NanoVI's (tool, database) on the same samples
+COMPARISONS = {
+    ("emu", "emu_default"): ("nanovi", "nanovi_exact"),
+    ("emu", "nanovi_exact"): ("nanovi", "nanovi_exact"),
+    ("nanovi", "emu_default"): ("emu", "emu_default"),
+    ("nanovi_em", "nanovi_exact"): ("nanovi", "nanovi_exact"),
+    ("kraken2_bracken", "ncbi_16s_18s"): ("nanovi", "nanovi_exact"),
+    ("wf16s_minimap2", "ncbi_16s_18s"): ("nanovi", "nanovi_exact"),
+    ("wf16s_kraken2", "ncbi_16s_18s"): ("nanovi", "nanovi_exact"),
+    ("nanoclust", "ncbi_16S_ribosomal_RNA"): ("nanovi", "nanovi_exact"),
+}
+FP_FLOOR = 0.001
+
+
+def comparators():
+    """NanoVI and the comparators (D8) on the same samples: per sample, by group, paired.
+
+    Simulations are scored on every species (species_l1), real mocks on the species
+    with a known share (species_l1_known); both go in l1_species, l1_group and l1_genus.
+    The group level merges species with identical 16S sequences; it is the fair level
+    across databases, whose names for one strain can differ (Zymo's Bacillus is
+    B. subtilis in NCBI and B. spizizenii in GTDB).
+    fp_count_ge_0.1pct counts false positives at 0.1% or more, so that a tool which
+    reports a long tail is not penalised for the tail alone.
+    """
+    from evaluate import UNKNOWN, load_real_truth
+    from names import load as load_crosswalk, to_gtdb
+    from real import EMU_DB
+    comp = pd.read_csv(RESULTS / "comparators.tsv", sep="\t")
+    comp_sp = pd.read_csv(RESULTS / "comparators_species.tsv.gz", sep="\t")
+    sims = sorted(s for s in comp["sample"].unique() if s.startswith(("even_", "log_")))
+    reals = sorted(set(comp["sample"]) - set(sims))
+
+    # NanoVI on the simulations: the grid's reference setting and Emu's EM
+    ofat = pd.read_csv(RESULTS / "grid_ofat.tsv", sep="\t")
+    ofat_sp = pd.read_csv(RESULTS / "grid_ofat_species.tsv.gz", sep="\t")
+    arms = {REFERENCE_ARM: "nanovi", PAIR_ARMS["em"]: "nanovi_em"}
+    frames, fp = [comp], {}
+    x = ofat[ofat["arm"].isin(arms) & ofat["sample"].isin(sims)].copy()
+    x["tool"], x["database"] = x["arm"].map(arms), "nanovi_exact"
+    frames.append(x[comp.columns.intersection(x.columns)])
+    y = ofat_sp[ofat_sp["arm"].isin(arms) & ofat_sp["sample"].isin(sims)].copy()
+    y["tool"], y["database"] = y["arm"].map(arms), "nanovi_exact"
+    for (tool, db, sample), z in pd.concat([y, comp_sp[comp_sp["sample"].isin(sims)]]).groupby(
+            ["tool", "database", "sample"]):
+        fp[tool, db, sample] = int(((z["estimate"] >= FP_FLOOR) & ~z["in_truth"].astype(bool)).sum())
+
+    # NanoVI on the real mocks
+    rn = pd.read_csv(RESULTS / "real_nanovi.tsv", sep="\t")
+    rn = rn[rn["arm"].isin(NANOVI_REAL_ARMS) & rn["sample"].isin(reals)].copy()
+    rn["tool"] = rn["arm"].map(lambda a: NANOVI_REAL_ARMS[a][0])
+    rn["database"] = rn["arm"].map(lambda a: NANOVI_REAL_ARMS[a][1])
+    frames.append(rn[comp.columns.intersection(rn.columns)])
+    table = load_crosswalk()
+    for sample in reals:
+        truth = set(load_real_truth(sample))
+        for arm, (tool, db) in NANOVI_REAL_ARMS.items():
+            path = BENCH / "real" / "runs" / sample / "est" / f"{arm}.json"
+            est = load_estimate(path, EMU_DB if db == "emu_default" else BENCH / "db" / "exact")[0]
+            if db == "emu_default":
+                est = {to_gtdb(k, table): v for k, v in est.items()}
+            fp[tool, db, sample] = sum(v >= FP_FLOOR and k not in truth and k != UNKNOWN for k, v in est.items())
+        for (tool, db), z in comp_sp[comp_sp["sample"] == sample].groupby(["tool", "database"]):
+            fp[tool, db, sample] = int(((z["estimate"] >= FP_FLOOR) & ~z["species"].isin(truth)).sum())
+
+    d = pd.concat(frames, ignore_index=True)
+    d["kind"] = np.where(d["sample"].isin(sims), "simulated", "real")
+    d["group"] = np.where(d["kind"] == "simulated", d["sample"].str.replace(r"_10k_s\d+$", "", regex=True),
+                          d["sample"].str.replace(r"_rep\d+$", "", regex=True))
+    for level in ("species", "group", "genus"):
+        d[f"l1_{level}"] = np.where(d["kind"] == "simulated", d[f"{level}_l1"], d[f"{level}_l1_known"])
+    d["fp_count_ge_0.1pct"] = [fp.get(k) for k in zip(d["tool"], d["database"], d["sample"])]
+    cols = ["l1_species", "l1_group", "l1_genus", "species_precision", "species_recall", "species_fp_count",
+            "fp_count_ge_0.1pct", "species_fp_abundance", "group_precision", "group_recall", "group_fp_count",
+            "group_fp_abundance", "genus_fp_count", "genus_fp_abundance"]
+    keep = ["tool", "database", "kind", "group", "sample"] + cols
+    d = d[keep].sort_values(["kind", "tool", "database", "sample"])
+    write_tsv(d, DOCS_DATA / "comparators_per_sample.tsv")
+    t = d.groupby(["kind", "tool", "database"])[cols].agg(["mean", "std"])
+    t.columns = [f"{m}_{s}" for m, s in t.columns]
+    t["n_samples"] = d.groupby(["kind", "tool", "database"]).size()
+    write_tsv(t.reset_index(), DOCS_DATA / "comparators_summary.tsv")
+
+    # paired on the samples both have: other minus NanoVI's counterpart (positive L1 or FP: NanoVI better)
+    rows = []
+    ix = d.set_index(["tool", "database", "sample"])
+    for (tool, db), (ref_tool, ref_db) in COMPARISONS.items():
+        for kind in ("simulated", "real"):
+            a = d[(d["tool"] == tool) & (d["database"] == db) & (d["kind"] == kind)]["sample"]
+            both = [s for s in a if (ref_tool, ref_db, s) in ix.index]
+            if not both:
+                continue
+            for m in ("l1_species", "l1_group", "l1_genus", "fp_count_ge_0.1pct", "species_fp_abundance",
+                      "group_fp_count", "group_fp_abundance", "species_recall", "species_precision", "group_recall",
+                      "group_precision"):
+                diff = np.array([ix.loc[(tool, db, s), m] - ix.loc[(ref_tool, ref_db, s), m] for s in both], float)
+                better = diff > 0 if m.startswith(("l1", "fp", "species_fp", "group_fp")) else diff < 0
+                rows.append({"tool": tool, "database": db, "versus": f"{ref_tool}/{ref_db}", "kind": kind,
+                             "metric": m, "n": len(both), "mean_diff": np.nanmean(diff), "min_diff": np.nanmin(diff),
+                             "max_diff": np.nanmax(diff), "n_versus_better": int(better.sum()),
+                             "n_tied": int((diff == 0).sum())})
+    write_tsv(pd.DataFrame(rows), DOCS_DATA / "comparators_paired.tsv")
+
+    plt = _plt()
+    tools = sorted({(t_, b_) for t_, b_ in zip(d["tool"], d["database"])})
+    labels = [f"{t_} / {b_}" for t_, b_ in tools]
+    fig, axes = plt.subplots(2, 3, figsize=(9, 5), sharey=True)
+    for i, kind in enumerate(("simulated", "real")):
+        for j, (m, name) in enumerate((("l1_group", "L1 (identical-16S groups)"),
+                                       ("group_fp_count", "false positives (groups)"),
+                                       ("group_recall", "recall (groups)"))):
+            ax = axes[i, j]
+            for k, (t_, b_) in enumerate(tools):
+                v = d[(d["tool"] == t_) & (d["database"] == b_) & (d["kind"] == kind)][m].dropna()
+                ax.scatter(v, np.full(len(v), k) + np.random.default_rng(k).uniform(-0.15, 0.15, len(v)),
+                           s=6, alpha=0.7, color="C0" if t_.startswith("nanovi") else "C1")
+            ax.set_yticks(range(len(tools)))
+            ax.set_yticklabels(labels, fontsize=6)
+            ax.set_title(f"{kind}: {name}", fontsize=7)
+    save_figure(fig, "fig_comparators", d)
+    return t
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("what", nargs="+", choices=["ablation", "contamination", "pairs", "lod", "clade", "real", "intervals"])
+    ap.add_argument("what", nargs="+", choices=["ablation", "contamination", "pairs", "lod", "clade", "real", "intervals",
+                                                 "comparators"])
     ap.add_argument("--samples", help="comma-separated (default: per analysis)")
     args = ap.parse_args()
     ofat = sorted(pd.read_csv(RESULTS / "grid_ofat.tsv", sep="\t")["sample"].unique())
@@ -474,6 +604,8 @@ def main():
             clade()
         elif what == "intervals":
             intervals()
+        elif what == "comparators":
+            comparators()
         else:
             real()
         print("done", what, flush=True)

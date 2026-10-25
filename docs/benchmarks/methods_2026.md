@@ -365,7 +365,73 @@ present relative. A genus-level exclusion would be an easier test; it was not ru
 
 ## 10. Comparators (D8, W4, W5)
 
-<!-- pending: comparators.tsv -->
+Source data: `comparators_per_sample.tsv`, `comparators_summary.tsv`,
+`comparators_paired.tsv`, `fig_comparators.png`. Every tool gets the same reads
+(Emu and Kraken2 the reads NanoVI aligns; wf-16s the unfiltered reads, which it filters
+itself), 10,000 per sample. Names from NCBI databases are mapped to GTDB r226 before
+scoring, through the species' genomes in GTDB's metadata and, for older names such as
+Emu's *Ruminococcus gnavus* and *Paeniclostridium sordellii*, NCBI synonyms
+(`benchmarks/names.py`). Species-level scores across databases are not fair: one strain can carry
+different names (Zymo's *Bacillus* is *B. subtilis* in NCBI and *B. spizizenii* in
+GTDB, 17% of the MSPlus mock). The comparison therefore uses the identical-16S group
+level (species whose 16S sequences are identical in GTDB merged) and reports species
+level alongside. All tools already drop species below 0.1% at this depth, so the
+false-positive counts are not inflated by long tails (`fp_count_ge_0.1pct` equals the
+raw count for every tool).
+
+Real mocks (13 samples; Emu on NanoVI's database on 5):
+
+| Tool / database | Species L1 | Group L1 | Group recall | False-positive groups | False-positive abundance |
+|---|---|---|---|---|---|
+| NanoVI (VB) / exact GTDB | 0.352 | 0.333 | 0.972 | 3.6 | 0.028 |
+| NanoVI (EM) / exact GTDB | 0.353 | 0.333 | 0.972 | 3.8 | 0.028 |
+| NanoVI (VB) / Emu's database | 0.569 | 0.413 | 0.967 | 2.9 | 0.104 |
+| Emu 3.6.2 / Emu's database | 0.568 | 0.415 | 0.967 | 1.2 | 0.096 |
+| Emu 3.6.2 / exact GTDB (5) | 0.355 | 0.321 | 0.964 | 2.6 | 0.033 |
+| Kraken2 + Bracken / ncbi_16s_18s | 0.824 | 0.811 | 0.862 | 25.0 | 0.349 |
+
+Simulations (12 samples, 10k reads, seeds 1-3; Emu on the 4 seed-1 samples):
+
+| Tool / database | Species L1 | Group L1 | Group recall | False-positive groups |
+|---|---|---|---|---|
+| NanoVI (VB) / exact GTDB | 0.131 | 0.010 | 0.869 | 0.5 |
+| NanoVI (EM) / exact GTDB | 0.131 | 0.010 | 0.869 | 0.4 |
+| Emu 3.6.2 / Emu's database (4) | 0.222 | 0.011 | 0.845 | 0 |
+| Emu 3.6.2 / exact GTDB (4) | 0.229 | 0.088 | 0.845 | 0 |
+| Kraken2 + Bracken / ncbi_16s_18s | 1.130 | 1.049 | 0.805 | 72.1 |
+
+<!-- pending: NanoVI on Emu's database for the 4 seed-1 simulations; wf-16s (minimap2,
+kraken2); NanoCLUST -->
+
+Paired on the same samples (`comparators_paired.tsv`):
+
+- **NanoVI as shipped vs Emu as shipped** (each on its own database). Real: group L1
+  lower with NanoVI on all 13 samples (mean 0.083, range 0.020-0.201); Emu reports 2.5
+  fewer false-positive groups (fewer on 12 of 13); group recall equal on 12 of 13 (on
+  the Emu-paper gut mock Emu misses *Romboutsia hominis*, which its database lacks; it
+  reports *R. timonensis*). Simulations: group L1 equal (±0.016), species L1
+  lower with NanoVI on all 4 (mean 0.089), species recall 0.10 higher with NanoVI.
+- **Same database, both ways.** On Emu's database NanoVI and Emu give the same group L1
+  (within 0.013 on every sample) and the same recall; NanoVI reports 1.8 more
+  false-positive groups (more on all 13). On NanoVI's database (5 real samples) group
+  L1 differs by -0.011 to +0.037 (mean 0.009 in NanoVI's favour) and Emu reports 1.4
+  fewer false-positive groups; on the simulations Emu's group L1 is 0.076 higher. The
+  difference on the simulations comes from Emu's -N 50: with -N 50 the GTDB
+  contaminant copies (Section 4.2) get alignment slots and pull *Enterococcus* and
+  *Acinetobacter* reads into the *Klebsiella* and *E. coli* groups, as NanoVI's own
+  -N 50 cell does (group L1 0.046 vs 0.012 at -N 3).
+- **VB vs EM in NanoVI's code**: no difference (group L1 within 0.002, 0-1 false-positive
+  group).
+- **Kraken2 + Bracken**: worse than NanoVI on every sample (group L1 +0.48 real, +1.04
+  simulated; 21 and 72 more false-positive groups).
+
+What this supports: NanoVI's lower error than Emu-as-shipped comes from the database
+(exact GTDB r226 vs Emu's rrnDB + NCBI RefSeq), not from the estimator. With the same
+database and alignments the two give the same abundances, and Emu reports fewer
+false positives. Emu's alignment settings (-N 50, k 15) differ from NanoVI's (-N 3,
+k 21), so this comparison alone cannot say whether that difference comes from the
+alignment or from the estimator.
+<!-- pending: the timing runs score Emu and NanoVI on the same SAM at matched -N and k -->
 
 ## 11. Runtime (W3)
 
