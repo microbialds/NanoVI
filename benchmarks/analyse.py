@@ -17,6 +17,8 @@
                  and shared_read_fraction, and how well that fraction flags the misses
   comparators    NanoVI against Emu (both databases, both ways), Kraken2 + Bracken,
                  wf-16s and NanoCLUST on the same samples (D8)
+  timing         CPU time, wall time and memory per step of NanoVI and Emu at matched -N
+                 and k, Emu as shipped, and both tools' accuracy on the same alignments (W3)
 
 Every figure (docs/benchmarks/figures/*.png) has its source data in
 docs/benchmarks/data/ under the same name.
@@ -582,10 +584,102 @@ def comparators():
     return t
 
 
+# ─── Runtime ────────────────────────────────────────────────────────────────
+
+# what each tool runs per sample at one setting (the index is built once, separately)
+PIPELINES = {"nanovi_vb": ["align", "sam_to_bam", "nanovi_likelihood", "nanovi_vb"],
+             "nanovi_em": ["align", "sam_to_bam", "nanovi_likelihood", "nanovi_em"],
+             "emu": ["align", "emu"]}
+
+
+def timing():
+    """Per-step CPU time, wall time and peak memory (W3), and the accuracy of NanoVI and
+    Emu on the same alignments at matched -N and k.
+
+    CPU time (user + system) is the primary number: the host is shared and the load
+    is recorded with every step. Medians over the repeats.
+    """
+    from comparators import parse_emu
+    from evaluate import real_metrics
+    from timing import OUT, SAMPLES
+    t = pd.read_csv(RESULTS / "timing.tsv", sep="\t")
+    t["load1"] = (t["load1_before"] + t["load1_after"]) / 2
+    keys = ["mode", "sample", "N", "k", "step"]
+    steps = t.groupby(keys, dropna=False).agg(
+        repeats=("cpu_s", "size"), reads=("reads", "first"), cpu_s=("cpu_s", "median"), cpu_s_min=("cpu_s", "min"),
+        cpu_s_max=("cpu_s", "max"), wall_s=("wall_s", "median"), peak_rss_mb=("peak_rss_mb", "max"),
+        load1=("load1", "mean")).reset_index()
+    write_tsv(steps, DOCS_DATA / "timing_steps.tsv")
+
+    rows = []
+    matched = steps[steps["mode"] == "matched"]
+    for (sample, N, k), x in matched.groupby(["sample", "N", "k"]):
+        x = x.set_index("step")
+        for tool, parts in PIPELINES.items():
+            rows.append({"sample": sample, "N": N, "k": k, "tool": tool, "reads": x["reads"].iloc[0],
+                         "cpu_s": x.loc[parts, "cpu_s"].sum(), "wall_s": x.loc[parts, "wall_s"].sum(),
+                         "peak_rss_mb": x.loc[parts, "peak_rss_mb"].max(),
+                         "estimation_cpu_s": x.loc[parts[1:], "cpu_s"].sum()})
+    for _, x in steps[steps["mode"] == "emu_shipped"].iterrows():
+        rows.append({"sample": x["sample"], "N": 50, "k": 15, "tool": "emu_shipped", "reads": np.nan,
+                     "cpu_s": x["cpu_s"], "wall_s": x["wall_s"], "peak_rss_mb": x["peak_rss_mb"],
+                     "estimation_cpu_s": np.nan})
+    tools = pd.DataFrame(rows)
+    write_tsv(tools, DOCS_DATA / "timing_tools.tsv")
+
+    # accuracy on the same SAM (repeat 1): the estimators differ, the alignments do not
+    acc = []
+    for (sample, N, k), _ in matched[matched["sample"].isin(SAMPLES)].groupby(["sample", "N", "k"]):
+        run = OUT / sample / f"N{N}_k{k}" / "r1"
+        ests = {"nanovi_vb": load_estimate(run / "vb.json", BENCH / "db" / "exact")[0],
+                "nanovi_em": load_estimate(run / "em.json", BENCH / "db" / "exact")[0],
+                "emu": parse_emu(run / "emu" / "aln_rel-abundance.tsv", {})}
+        for tool, est in ests.items():
+            acc.append({"sample": sample, "N": N, "k": k, "tool": tool, **real_metrics(est, sample, 10000)})
+    acc = pd.DataFrame(acc)
+    write_tsv(acc, DOCS_DATA / "timing_matched_accuracy.tsv")
+
+    plt = _plt()
+    matched = matched.astype({"N": int, "k": int})
+    settings = sorted({(N, k) for N, k in zip(matched["N"], matched["k"])})
+    samples = sorted(matched["sample"].unique())
+    colour = {step: f"C{i}" for i, step in enumerate(dict.fromkeys(sum(PIPELINES.values(), [])))}
+    seen = set()
+    fig, axes = plt.subplots(len(samples), 2, figsize=(8, 2.6 * len(samples)), squeeze=False)
+    for row, sample in zip(axes, samples):
+        x = matched[matched["sample"] == sample]
+        # left: everything per sample; right: without the alignment, which both tools share
+        for ax, skip in zip(row, ([], ["align"])):
+            labels = []
+            for N, k in settings:
+                y = x[(x["N"] == N) & (x["k"] == k)].set_index("step")["cpu_s"]
+                for tool, parts in (("NanoVI", PIPELINES["nanovi_vb"]), ("Emu", PIPELINES["emu"])):
+                    pos, bottom = len(labels), 0.0
+                    for part in (p_ for p_ in parts if p_ not in skip):
+                        ax.bar(pos, y.get(part, 0.0), bottom=bottom, color=colour[part],
+                               label=None if part in seen else part)
+                        seen.add(part)
+                        bottom += y.get(part, 0.0)
+                    labels.append(f"{tool}\nN{N} k{k}")
+            shipped = steps[(steps["mode"] == "emu_shipped") & (steps["sample"] == sample)]["cpu_s"]
+            if len(shipped) and not skip:
+                ax.bar(len(labels), shipped.iloc[0], color="grey",
+                       label=None if "emu_shipped" in seen else "Emu as shipped (all steps)")
+                seen.add("emu_shipped")
+                labels.append("Emu as\nshipped")
+            ax.set_xticks(range(len(labels)))
+            ax.set_xticklabels(labels, fontsize=5)
+            ax.set_title(f"{sample}: {'without the alignment' if skip else 'per sample'}", fontsize=7)
+            ax.set_ylabel("CPU seconds (median)")
+    fig.legend(frameon=False, fontsize=5, loc="upper right")
+    save_figure(fig, "fig_timing", steps)
+    return tools
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("what", nargs="+", choices=["ablation", "contamination", "pairs", "lod", "clade", "real", "intervals",
-                                                 "comparators"])
+                                                 "comparators", "timing"])
     ap.add_argument("--samples", help="comma-separated (default: per analysis)")
     args = ap.parse_args()
     ofat = sorted(pd.read_csv(RESULTS / "grid_ofat.tsv", sep="\t")["sample"].unique())
@@ -606,6 +700,8 @@ def main():
             intervals()
         elif what == "comparators":
             comparators()
+        elif what == "timing":
+            timing()
         else:
             real()
         print("done", what, flush=True)
