@@ -247,6 +247,8 @@ def test_per_base_score_counts_matches_and_clips(tmp_path):
     log_p = per_base_log_probabilities(records)  # primary only, pseudocount 0.5
     counts = np.array([95, 2, 0, 10, 3]) + 0.5
     np.testing.assert_allclose(log_p, np.log(counts / counts.sum()))
+    with pytest.raises(ValueError, match='error_profile'):
+        per_base_log_probabilities(records, 'some')
     log_p_rgs, unassigned, assigned = score_reads(path, score='per-base')
     assert log_p_rgs['r1'][0] == [1, 2]
     np.testing.assert_allclose(log_p_rgs['r1'][1], [np.dot([95, 2, 0, 10, 3], log_p), np.dot([98, 0, 0, 10, 2], log_p)])

@@ -90,6 +90,15 @@ class AlignmentRecords:
         """Per alignment: aligned columns (M, = and X) and hard-clipped bases, as an (n, 2) array."""
         return np.frombuffer(self.extra, dtype=np.int64).reshape(-1, 2)
 
+    def profile_mask(self, error_profile="primary"):
+        """The alignments an error profile is estimated from: primary mapped ones, or
+        with error_profile 'all' (experimental, Phase 7a) every mapped alignment."""
+        if error_profile == "all":
+            return np.frombuffer(self.ref, dtype=np.int64) >= 0
+        if error_profile != "primary":
+            raise ValueError(f"error_profile must be 'primary' or 'all', not {error_profile!r}")
+        return np.frombuffer(self.primary, dtype=np.int8).astype(bool)
+
     def op_counts(self):
         """Per alignment: matches, I, D, S (hard clips included) and mismatches, as an (n, 5) array.
 
@@ -133,12 +142,8 @@ def cigar_profile(records, error_profile="primary"):
     np.maximum.at(longest, np.frombuffer(records.read, dtype=np.int64),
                   np.frombuffer(records.length, dtype=np.int64))
     # The error profile comes from primary mapped alignments only, as in Emu (F03, D3)
-    primary = np.frombuffer(records.primary, dtype=np.int8).astype(bool)
-    n_mapped = int(primary.sum())
-    if error_profile == "all":
-        primary = np.frombuffer(records.ref, dtype=np.int64) >= 0
-    elif error_profile != "primary":
-        raise ValueError(f"error_profile must be 'primary' or 'all', not {error_profile!r}")
+    n_mapped = int(records.profile_mask("primary").sum())
+    primary = records.profile_mask(error_profile)
     stats = np.frombuffer(records.stats, dtype=np.int64).reshape(-1, len(CIGAR_OPS))
     cigar_stats_primary = [int(x) for x in stats[primary].sum(axis=0)]
 
@@ -167,7 +172,7 @@ def get_cigar_op_log_probabilities(sam_path):
     """Compute global log-probabilities for each CIGAR operation from the alignments.
 
     Reads the SAM or BAM once into AlignmentRecords (memory grows with the number
-    of alignments, about 60 bytes each). Returns (log_probs, zero_locs, dict_longest_align):
+    of alignments, about 80 bytes each). Returns (log_probs, zero_locs, dict_longest_align):
     the log share of each error operation (I, D, S, X) over the primary mapped
     alignments, with the operations of zero count removed (F03); the indices of
     those operations in CIGAR_OPS; and each read's longest alignment over all of
@@ -185,10 +190,7 @@ def per_base_log_probabilities(records, error_profile="primary", pseudocount=0.5
     mapped alignments (every mapped alignment with error_profile 'all'), with a
     pseudocount so that an operation unseen there still has a finite cost.
     """
-    if error_profile == "all":
-        mask = np.frombuffer(records.ref, dtype=np.int64) >= 0
-    else:
-        mask = np.frombuffer(records.primary, dtype=np.int8).astype(bool)
+    mask = records.profile_mask(error_profile)
     counts = records.op_counts()[mask].sum(axis=0) + pseudocount
     return np.log(counts / counts.sum())
 
@@ -314,10 +316,7 @@ def unknown_floor_scores(records, log_p_rgs, dict_longest_align, log_p_cigar_op,
     own errors plus the divergence between the two, so its best score falls
     below this floor once that divergence exceeds delta.
     """
-    if error_profile == "all":
-        mask = np.frombuffer(records.ref, dtype=np.int64) >= 0
-    else:
-        mask = np.frombuffer(records.primary, dtype=np.int8).astype(bool)
+    mask = records.profile_mask(error_profile)
     if per_base_log_p is not None:
         ops = records.op_counts()[mask]
         errors, covered = ops[:, 1:].sum(axis=1), ops.sum(axis=1)
