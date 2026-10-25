@@ -82,6 +82,8 @@ def build_index(db_dir, out, threads=8, version="2.24", k=21):
 
 def align(reads, index, out, N, threads=4, version="2.24"):
     out = Path(out)
+    if out.exists():  # the 2.31 path deletes its SAM, which _run would otherwise redo
+        return out
     mm2 = (f"minimap2 -ax map-ont -t {threads} -N {N} -p 0.9 -K 500M -k 21 --split-prefix {out}.temp "
            f"{index} {reads}")
     if version == "2.24":
@@ -139,7 +141,7 @@ def estimate(npz, out, estimator="vb", min_abundance=0.001, no_pruning=False, un
         argv.append("--unknown-component")
     if credible_intervals:
         argv.append("--credible-intervals")
-    if read_counts(npz)["assigned_count"] == 0:
+    if not Path(out).exists() and read_counts(npz)["assigned_count"] == 0:
         # a filter that keeps no reads: the pipeline stops here; record an empty estimate
         Path(out).write_text(json.dumps({"abundance": {}, "below_detection_count": 0}))
         return Path(out)

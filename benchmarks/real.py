@@ -14,7 +14,8 @@ Zymo mock (SRR23636353), each subsampled to 10,000 reads (seqkit shuffle, seed
   q10 / q15      fastplong mean quality filter (--min_quality; M8); alignments are the
                  reference alignments of the reads that pass (harness.subset_bam)
   tools_new      fastplong 0.7.0 and minimap2 2.31 (D16)
-  emudb          NanoVI on Emu's default database (the 'both ways' comparison)
+  emudb          NanoVI on Emu's default database (the 'both ways' comparison); its
+                 NCBI names are mapped to GTDB's (names.py) before the comparison
 
 The hac basecalls (an extra arm, D20) run the reference and q10/q15 only.
 Writes <bench>/results/real/<sample>.tsv per sample and real_nanovi.tsv.
@@ -29,6 +30,7 @@ import pandas as pd
 import harness
 from common import BENCH, write_tsv
 from evaluate import load_estimate, real_metrics
+from names import load as load_crosswalk, to_gtdb
 
 N_READS = 10000
 REAL = BENCH / "real"
@@ -111,6 +113,13 @@ def run_sample(name, arms, align_threads):
         harness.likelihood(aln, npz, **lik_opts)
         harness.estimate(npz, est, **est_opts)
         abund, below = load_estimate(est, db_dir(db))
+        if db == "emu_default":
+            # Emu's database has NCBI names; the truth tables use GTDB's
+            table = load_crosswalk()
+            mapped = {}
+            for k, v in abund.items():
+                mapped[to_gtdb(k, table)] = mapped.get(to_gtdb(k, table), 0.0) + v
+            abund = mapped
         counts = harness.read_counts(npz)
         rows.append({"sample": name, "arm": arm, "tool": "nanovi", "database": db, "below_detection": below,
                      **counts, **real_metrics(abund, name, N_READS)})
