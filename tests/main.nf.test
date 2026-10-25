@@ -588,6 +588,11 @@ nextflow_pipeline {
             assert versions.FILTER_READS.fastplong ==~ /\d+\.\d+\.\d+/
             assert versions.ALIGN_READS.minimap2 ==~ /\d+\.\d+.*/
             assert versions.ALIGN_READS.samtools ==~ /\d+\.\d+.*/
+            // The cached index is named after the minimap2 that aligned (ext.minimap2_version, D30)
+            def indexes = file("${outputDir}/index_cache").listFiles().findAll { it.name.endsWith('.mmi') }
+            assert indexes.size() == 1
+            def cached = (indexes[0].name =~ /\.minimap2-(.+)\.mmi$/)[0][1]
+            assert versions.ALIGN_READS.minimap2 == cached || versions.ALIGN_READS.minimap2.startsWith(cached + '-')
             assert versions.RUN_VI.python.toString().startsWith('3.11.')
             ['numpy', 'pandas', 'scipy', 'pysam', 'biopython'].each { pkg ->
                 assert versions.RUN_VI[pkg] && versions.RUN_VI[pkg] != 'not installed'

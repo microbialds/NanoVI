@@ -95,8 +95,8 @@ Parameters are checked against `nextflow_schema.json` at the start of every run 
 |-----------|---------|-------------|
 | `--input` | required | Path to samplesheet CSV or FASTQ directory |
 | `--db` | required | Path to NanoVI/GTDB reference database |
-| `--db_index` | none | Prebuilt minimap2 index (`.mmi`) of the database's `species_taxid.fasta`; INDEX_DB is skipped. Build it with the pipeline's minimap2 (2.24) and the same `-x <type> -k <kmer_size>`, or take it from the index cache of an earlier run |
-| `--index_cache_dir` | `<output_dir>/index_cache` | Where INDEX_DB keeps the indexes it builds. The file name records the database (the first 12 digits of the FASTA's MD5), `--type`, `--kmer_size` and the minimap2 version, e.g. `species_taxid.3f9c0a12b7de.map-ont.k21.minimap2-2.24.mmi`, so a later run with the same settings reuses the index instead of rebuilding it. Point several runs at one directory to share it, but let the first run that builds an index finish before starting others: a run reuses any file with the right name, and nothing checks that it is complete |
+| `--db_index` | none | Prebuilt minimap2 index (`.mmi`) of the database's `species_taxid.fasta`; INDEX_DB is skipped. Build it with the pipeline's minimap2 (2.31) and the same `-x <type> -k <kmer_size>`, or take it from the index cache of an earlier run |
+| `--index_cache_dir` | `<output_dir>/index_cache` | Where INDEX_DB keeps the indexes it builds. The file name records the database (the first 12 digits of the FASTA's MD5), `--type`, `--kmer_size` and the minimap2 version, e.g. `species_taxid.3f9c0a12b7de.map-ont.k21.minimap2-2.31.mmi`, so a later run with the same settings reuses the index instead of rebuilding it. Point several runs at one directory to share it, but let the first run that builds an index finish before starting others: a run reuses any file with the right name, and nothing checks that it is complete |
 | `--taxonomy_tsv` | `<db>/taxonomy.tsv` | Path to taxonomy TSV |
 | `--kmer_size` | `21` | K-mer size for minimap2 indexing |
 | `--N` | `3` | Maximum secondary alignments per read |
@@ -174,7 +174,7 @@ The pipeline produces the following output files in `--output_dir`:
 |---------|-------------|
 | `docker` | Run with Docker containers (default if no profile specified) |
 | `singularity` | Run with Singularity containers |
-| `conda` | Run with Conda environments: fastplong 0.2.2 and minimap2 2.24 from bioconda, and `containers/environment.yml` (the image's Python and package versions) for the Python steps. Creating the environments with conda's classic solver can take a long time; a recent conda (libmamba solver) or `-c` with `conda.useMicromamba = true` is much faster |
+| `conda` | Run with Conda environments: fastplong 0.7.0 and minimap2 2.31 (with samtools 1.24) from bioconda, and `containers/environment.yml` (the image's Python and package versions) for the Python steps. Creating the environments with conda's classic solver can take a long time; a recent conda (libmamba solver) or `-c` with `conda.useMicromamba = true` is much faster |
 | `slurm` | Submit jobs to SLURM scheduler (uses Singularity) |
 | `sge` | Submit jobs to SGE scheduler (uses Singularity) |
 | `test` | Minimal test dataset with reduced resources |
