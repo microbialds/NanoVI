@@ -499,9 +499,10 @@ def bayesian_vi(
         If True, also return a fifth value, the per-species summary that the
         experimental interval columns are built from (see posterior_read_summary).
     prune : bool
-        Experimental (Phase 7a): False skips the pruning loop, so the first fit
-        on every species with data is returned; abundance_threshold still
-        selects the reported species.
+        Experimental (Phase 7a): False drops the read-count part of the pruning
+        threshold (1/R or 10/R), so species are pruned, and the rest refitted,
+        only below abundance_threshold; with abundance_threshold 0 the first fit
+        on every species with data is returned. EM's prune=False does the same.
 
     Returns
     -------
@@ -544,7 +545,7 @@ def bayesian_vi(
     if n_reads > 1000:
         freq_thresh = max(10.0 / n_reads, abundance_threshold)
     if not prune:
-        freq_thresh = 0.0
+        freq_thresh = abundance_threshold
 
     stdout.write(
         f"Running Bayesian VI with Dirichlet prior "

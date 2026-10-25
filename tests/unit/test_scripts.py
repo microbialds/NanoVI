@@ -145,6 +145,30 @@ def test_no_pruning_keeps_species_below_the_pruning_threshold(tmp_path, estimato
     assert data['below_detection_count'] == 0
 
 
+def test_no_pruning_refits_below_min_abundance_in_both_estimators(tmp_path):
+    # Species 2 (about 6%) is below --min-abundance 0.1; its 200 shared reads must go
+    # to species 3 in a refit, in VB as in EM, not be dropped with species 2
+    per_read = {f'a{i}': ([1], [-1.0]) for i in range(2000)}
+    per_read.update({f'd{i}': ([3], [-1.0]) for i in range(1000)})
+    per_read.update({f'b{i}': ([2, 3], [-1.0, -6.0]) for i in range(200)})
+    per_read.update({f'c{i}': ([2], [-1.0]) for i in range(4)})
+    npz = write_npz(tmp_path / 's.npz', per_read)
+    for estimator in ('vb', 'em'):
+        data = estimate(tmp_path, npz, '--estimator', estimator, '--min-abundance', '0.1', '--no-pruning')
+        assert set(data['abundance']) == {'1', '3'}
+        assert data['abundance']['3'] == pytest.approx(1200 / 3200, abs=1e-3)
+        assert data['below_detection_count'] == 4
+
+
+def test_em_without_pruning_does_not_report_underflowed_species(tmp_path):
+    # species 3's only reads score 800 nats below species 1's: its EM frequency is 0
+    per_read = {f'a{i}': ([1], [-1.0]) for i in range(100)}
+    per_read.update({f'b{i}': ([1, 3], [-1.0, -800.0]) for i in range(5)})
+    npz = write_npz(tmp_path / 's.npz', per_read)
+    data = estimate(tmp_path, npz, '--estimator', 'em', '--min-abundance', '0', '--no-pruning')
+    assert set(data['abundance']) == {'1'}
+
+
 def test_add_unknown_candidate():
     sys.path.insert(0, BIN)
     from estimate_abundance import UNKNOWN_TAX_ID, add_unknown_candidate

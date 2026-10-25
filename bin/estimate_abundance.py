@@ -63,7 +63,7 @@ def main():
     parser.add_argument("--credible-intervals", action="store_true",
                         help="VB only, experimental: write the posterior summary for the interval columns")
     parser.add_argument("--no-pruning", action="store_true",
-                        help="experimental: skip the pruning loop (both estimators); --min-abundance still applies")
+                        help="experimental: prune only below --min-abundance, not below 1/R or 10/R (both estimators)")
     parser.add_argument("--unknown-component", action="store_true",
                         help="experimental: add the unknown-taxon component (needs read_likelihood.py --unknown-delta)")
     args = parser.parse_args()

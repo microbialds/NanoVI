@@ -86,7 +86,8 @@ def variational_inference_iterations(log_p_rgs, db_ids, lli_thresh, input_thresh
     the first), which are reported as 'Below detection' (F06).
 
     prune=False (experimental, Phase 7a) sets the pruning threshold to 0, so
-    every species with data is kept until input_threshold applies.
+    every species with a non-zero frequency is kept until input_threshold applies
+    (species are then refitted, as in VB's prune=False).
     """
     n_db = len(db_ids)
     n_reads = len(log_p_rgs)
@@ -116,7 +117,9 @@ def variational_inference_iterations(log_p_rgs, db_ids, lli_thresh, input_thresh
             )
         if elbo_diff < lli_thresh:
             stdout.write(f"Number of VI iterations: {counter}\n")
-            freq = {k: v for k, v in freq.items() if v >= freq_thresh}
+            # v > 0: with prune=False the threshold is 0, and frequencies that
+            # underflowed to 0 must not be reported
+            freq = {k: v for k, v in freq.items() if v >= freq_thresh and v > 0}
             freq_full, _ = variational_inference(log_p_rgs, freq)
             freq_set_thresh = None
             if freq_thresh < input_threshold:
