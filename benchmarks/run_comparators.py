@@ -140,7 +140,9 @@ def evaluate(ncbi_names):
             path = OUT / tool / db / f"{sample}.bracken.tsv"
             parse = cmp.parse_bracken
         if path.exists():
-            add(tool if tool in ("emu", "nanovi") else "kraken2_bracken", db, sample, parse(path, ncbi_names))
+            # NanoVI's database already has GTDB names: mapping them as NCBI names would rename 339
+            names = {} if db == "nanovi_exact" else ncbi_names
+            add(tool if tool in ("emu", "nanovi") else "kraken2_bracken", db, sample, parse(path, names))
     for classifier in ("minimap2", "kraken2"):
         for group, samples in (("sims", SIMS), ("real", REALS)):
             path = OUT / "wf16s" / f"{classifier}_{group}" / "abundance_table_species.tsv"
