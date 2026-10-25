@@ -6,6 +6,11 @@ Works with any GTDB release that provides the SSU FASTA file (r214, r220, r226..
 The script reads the taxonomy directly from GTDB's FASTA headers, so no separate
 taxonomy file is required.
 
+Names are kept as GTDB writes them, clade suffixes included ('Listeria
+monocytogenes_B', 'Pseudomonas_E'): GTDB treats such species as distinct (F16,
+D4). --merge-gtdb-suffixes strips the suffixes, merging those species into one
+tax ID, and writes merged_species.tsv, which lists what was merged.
+
 """
 
 import os
@@ -40,8 +45,9 @@ def normalize_gtdb_name(name: str) -> str:
 
     GTDB uses underscore + uppercase letters to resolve polyphyletic groups,
     e.g. 'Pseudomonas_E', 'Listeria monocytogenes_B', 'Methanobrevibacter_A'.
-    These suffixes have no meaning in standard nomenclature and must be stripped
-    so that genomes from the same biological species share the same taxid.
+    Stripping them gives the names of standard nomenclature, but merges species
+    and genera that GTDB keeps apart, so the builder does it only with
+    --merge-gtdb-suffixes (F16).
 
     Examples:
       'Pseudomonas_E aeruginosa'     → 'Pseudomonas aeruginosa'
@@ -52,7 +58,7 @@ def normalize_gtdb_name(name: str) -> str:
     return re.sub(r'_[A-Z]+', '', name).strip()
 
 
-def parse_gtdb_lineage(lineage_str: str) -> dict:
+def parse_gtdb_lineage(lineage_str: str, merge_suffixes: bool = False) -> dict:
     """
     Parse a GTDB lineage string into a rank dictionary.
 
@@ -61,27 +67,30 @@ def parse_gtdb_lineage(lineage_str: str) -> dict:
        f__Enterobacteriaceae;g__Escherichia;s__Escherichia coli'
 
     Returns dict with keys: superkingdom, phylum, class, order, family, genus, species.
-    Empty string for ranks not present in the lineage string.
-    GTDB-specific suffixes (_A, _B, ...) are stripped from all rank names.
+    Empty string for ranks not present in the lineage string. GTDB-specific
+    suffixes (_A, _B, ...) are kept, or stripped from all rank names with
+    merge_suffixes.
     """
     result = {rank: "" for rank in GTDB_PREFIX_TO_RANK.values()}
     for part in lineage_str.strip().split(";"):
         part = part.strip()
         for prefix, rank in GTDB_PREFIX_TO_RANK.items():
             if part.startswith(prefix):
-                result[rank] = normalize_gtdb_name(part[len(prefix):])
+                name = part[len(prefix):]
+                result[rank] = normalize_gtdb_name(name) if merge_suffixes else name
                 break
     return result
 
 
-def parse_ssu_header(header: str):
+def parse_ssu_header(header: str, merge_suffixes: bool = False):
     """
     Parse a GTDB SSU FASTA header line.
 
     Format:
       >genome_id~contig_id d__Bacteria;p__...;s__Species [location=...] [ssu_len=...] [contig_len=...]
 
-    Returns (genome_id: str, lineage: dict) or (None, None) if unparseable.
+    Returns (genome_id: str, lineage: dict) or (None, None) if unparseable;
+    merge_suffixes as in parse_gtdb_lineage.
     """
     header = header.lstrip(">").strip()
     parts = header.split(" ", 1)
@@ -97,7 +106,7 @@ def parse_ssu_header(header: str):
     if not lineage_str.startswith("d__"):
         return None, None
 
-    return genome_id, parse_gtdb_lineage(lineage_str)
+    return genome_id, parse_gtdb_lineage(lineage_str, merge_suffixes)
 
 
 # ─── File helpers ─────────────────────────────────────────────────────────────
@@ -129,7 +138,8 @@ def fasta_records(path: str):
 
 # ─── Main build function ──────────────────────────────────────────────────────
 
-def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int = 900):
+def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int = 900,
+                   merge_suffixes: bool = False):
     """
     Build species_taxid.fasta and taxonomy.tsv from a GTDB SSU FASTA file.
 
@@ -139,23 +149,30 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
     db_name    : label embedded in FASTA headers (e.g. 'db_gtdb_r226')
     output_dir : directory where output files are written
     min_length : minimum 16S sequence length to include [900 bp]
+    merge_suffixes : strip GTDB clade suffixes, merging the species and genera
+                 they separate, and write merged_species.tsv (F16)
     """
     os.makedirs(output_dir, exist_ok=True)
 
     # ── Pass 1: collect unique species and their lineages ─────────────────────
     print("Pass 1: Scanning headers to collect unique species...")
     species_to_lineage = {}
+    # With merge_suffixes: per merged name, the GTDB species merged into it and their lineages
+    merged_sources = defaultdict(dict)
     n_total, n_skipped = 0, 0
 
     for header, _ in fasta_records(ssu_path):
         n_total += 1
-        _, lineage = parse_ssu_header(header)
-        if lineage is None or not lineage.get("species"):
+        _, raw = parse_ssu_header(header)
+        if raw is None or not raw.get("species"):
             n_skipped += 1
             continue
+        lineage = {rank: normalize_gtdb_name(name) for rank, name in raw.items()} if merge_suffixes else raw
         sp = lineage["species"]
         if sp not in species_to_lineage:
             species_to_lineage[sp] = lineage
+        if merge_suffixes:
+            merged_sources[sp].setdefault(raw["species"], raw)
 
     n_species = len(species_to_lineage)
     print(f"  Total sequences scanned : {n_total:,}")
@@ -174,7 +191,7 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
     seq_counter = 0
 
     for header, seq in fasta_records(ssu_path):
-        _, lineage = parse_ssu_header(header)
+        _, lineage = parse_ssu_header(header, merge_suffixes)
         if lineage is None or not lineage.get("species"):
             continue
         sp = lineage["species"]
@@ -227,6 +244,11 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
             fh.write("\t".join(row) + "\n")
     print(f"  Done. ({n_species:,} species)")
 
+    if merge_suffixes:
+        n_merged = write_merged_species(merged_sources, species_to_taxid,
+                                        os.path.join(output_dir, "merged_species.tsv"))
+        print(f"  GTDB species merged by suffix stripping: {n_merged:,} names (merged_species.tsv)")
+
     print("\n" + "=" * 60)
     print("Database build complete!")
     print(f"  Output directory : {output_dir}")
@@ -238,6 +260,35 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
     print("index (with --type and --kmer_size) and keeps it in --index_cache_dir.")
     print("To build it yourself for --db_index, use the same settings, e.g.:")
     print(f"  minimap2 -x map-ont -k 21 -d {output_dir}/species_taxid.map-ont.k21.mmi {fasta_out}")
+
+
+def write_merged_species(merged_sources, species_to_taxid, path):
+    """Write merged_species.tsv: the names that --merge-gtdb-suffixes built from more than one GTDB species.
+
+    One row per merged name: its tax ID, the GTDB species merged into it and their
+    genera (suffixes kept), the ranks at which their lineages still differ after
+    stripping, and the GTDB species whose lineage taxonomy.tsv keeps (the first
+    seen in the input). Returns the number of rows.
+    """
+    rows = []
+    for sp in sorted(merged_sources):
+        sources = merged_sources[sp]
+        if len(sources) < 2:
+            continue
+        conflicts = [rank for rank in RANKS_OUT[2:]
+                     if len({normalize_gtdb_name(lin[rank]) for lin in sources.values()}) > 1]
+        # sources is in input order, and its first species set the kept lineage
+        first = next(iter(sources))
+        rows.append([
+            str(species_to_taxid[sp]), sp, str(len(sources)), ";".join(sorted(sources)),
+            ";".join(sorted({lin["genus"] for lin in sources.values()})), ",".join(conflicts), first,
+        ])
+    with open(path, "w") as fh:
+        fh.write("\t".join(["tax_id", "species", "gtdb_species_merged", "gtdb_species", "gtdb_genera",
+                            "ranks_in_conflict", "lineage_from"]) + "\n")
+        for row in rows:
+            fh.write("\t".join(row) + "\n")
+    return len(rows)
 
 
 # ─── CLI ──────────────────────────────────────────────────────────────────────
@@ -264,6 +315,12 @@ def main():
         "--min-length", type=int, default=900,
         help="Minimum 16S sequence length in bp to include. [900]",
     )
+    parser.add_argument(
+        "--merge-gtdb-suffixes", action="store_true",
+        help="Strip GTDB clade suffixes ('Listeria monocytogenes_B' -> 'Listeria monocytogenes'), "
+             "merging the species and genera they separate, and write merged_species.tsv. "
+             "Off by default: names are kept as GTDB writes them.",
+    )
     args = parser.parse_args()
 
     if not os.path.exists(args.ssu):
@@ -274,6 +331,7 @@ def main():
         db_name=args.db_name,
         output_dir=args.output_dir,
         min_length=args.min_length,
+        merge_suffixes=args.merge_gtdb_suffixes,
     )
 
 

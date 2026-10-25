@@ -459,13 +459,21 @@ class TestGtdbParsers:
     def test_normalize_gtdb_name(self, name, expected):
         assert build_gtdb_db.normalize_gtdb_name(name) == expected
 
-    def test_parse_gtdb_lineage(self):
+    def test_parse_gtdb_lineage_keeps_suffixes(self):
+        # GTDB species and genera with clade suffixes stay distinct by default (F16, D4)
         lin = build_gtdb_db.parse_gtdb_lineage('d__Bacteria;p__Bacillota_A;g__Clostridium_P;s__Clostridium_P sp1')
         assert lin['superkingdom'] == 'Bacteria'
+        assert lin['phylum'] == 'Bacillota_A'
+        assert lin['genus'] == 'Clostridium_P'
+        assert lin['species'] == 'Clostridium_P sp1'
+        assert lin['family'] == ''
+
+    def test_parse_gtdb_lineage_merges_suffixes(self):
+        lin = build_gtdb_db.parse_gtdb_lineage('d__Bacteria;p__Bacillota_A;g__Clostridium_P;s__Clostridium_P sp1',
+                                               merge_suffixes=True)
         assert lin['phylum'] == 'Bacillota'
         assert lin['genus'] == 'Clostridium'
         assert lin['species'] == 'Clostridium sp1'
-        assert lin['family'] == ''
 
     def test_parse_ssu_header(self):
         genome_id, lin = build_gtdb_db.parse_ssu_header(HEADER)
@@ -507,11 +515,44 @@ class TestBuildDatabase:
 
         tax = pd.read_csv(out / 'taxonomy.tsv', sep='\t', dtype=str)
         assert list(tax.columns) == build_gtdb_db.RANKS_OUT
-        assert list(tax['species']) == ['Alpha beta', 'Zeta alpha']
+        assert list(tax['species']) == ['Alpha_A beta', 'Zeta alpha']
+        assert list(tax['genus']) == ['Alpha_A', 'Zeta']
         assert list(tax['tax_id']) == ['1', '2']
 
         headers = [h for h, _ in build_gtdb_db.fasta_records(str(out / 'species_taxid.fasta'))]
         assert headers == ['>2:testdb:1', '>1:testdb:2']
+        assert not (out / 'merged_species.tsv').exists()
+
+    def test_merge_gtdb_suffixes_merges_and_reports(self, tmp_path):
+        # Two GTDB species become 'Alpha beta' (from genera Alpha and Alpha_A, in
+        # different families); 'Zeta alpha' has one source and is not reported
+        lin = 'd__Bacteria;p__P;c__C;o__O;f__{f};g__{g};s__{s}'
+        seq_a, seq_b, seq_c = 'ACGT' * 300, 'TTGCA' * 240, 'GGCAT' * 240
+        records = [
+            (f'>g1~c1 {lin.format(f="F1", g="Alpha_A", s="Alpha_A beta")} [ssu_len=1200]', seq_a),
+            (f'>g2~c2 {lin.format(f="F2", g="Alpha", s="Alpha beta")} [ssu_len=1200]', seq_b),
+            (f'>g3~c3 {lin.format(f="F2", g="Alpha", s="Alpha beta")} [ssu_len=1200]', seq_a),  # same 16S as g1
+            (f'>g4~c4 {lin.format(f="F3", g="Zeta", s="Zeta alpha")} [ssu_len=1200]', seq_c),
+        ]
+        ssu = tmp_path / 'ssu.fna'
+        ssu.write_text(''.join(f'{h}\n{s}\n' for h, s in records))
+        out = tmp_path / 'db'
+        build_gtdb_db.build_database(str(ssu), 'testdb', str(out), merge_suffixes=True)
+
+        tax = pd.read_csv(out / 'taxonomy.tsv', sep='\t', dtype=str)
+        assert list(tax['species']) == ['Alpha beta', 'Zeta alpha']
+        # The lineage of the first GTDB species seen is kept
+        assert list(tax['family']) == ['F1', 'F3']
+        # g3's sequence duplicates g1's within the merged species
+        headers = [h for h, _ in build_gtdb_db.fasta_records(str(out / 'species_taxid.fasta'))]
+        assert headers == ['>1:testdb:1', '>1:testdb:2', '>2:testdb:3']
+
+        merged = pd.read_csv(out / 'merged_species.tsv', sep='\t', dtype=str, keep_default_na=False)
+        assert merged.to_dict('records') == [{
+            'tax_id': '1', 'species': 'Alpha beta', 'gtdb_species_merged': '2',
+            'gtdb_species': 'Alpha beta;Alpha_A beta', 'gtdb_genera': 'Alpha;Alpha_A',
+            'ranks_in_conflict': 'family', 'lineage_from': 'Alpha_A beta',
+        }]
 
 
 class TestNcbiTaxonomyOrder:

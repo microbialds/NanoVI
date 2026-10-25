@@ -228,6 +228,7 @@ python3 bin/build_gtdb_db.py \
 | `--db-name` | `db_gtdb` | Label embedded in FASTA headers (e.g. `db_gtdb_r226`) |
 | `--output-dir` | `./db` | Directory where output files are written |
 | `--min-length` | `900` | Minimum 16S sequence length in bp to include |
+| `--merge-gtdb-suffixes` | off | Strip GTDB's clade suffixes (`Listeria monocytogenes_B` → `Listeria monocytogenes`, `Pseudomonas_E` → `Pseudomonas`), merging the species and genera GTDB separates with them into one tax ID, and write `merged_species.tsv`. Off: names are kept as GTDB writes them |
 
 **Output files:**
 
@@ -235,6 +236,7 @@ python3 bin/build_gtdb_db.py \
 |------|-------------|
 | `species_taxid.fasta` | Reference FASTA — one entry per unique 16S sequence, header: `taxid:db_name:n` |
 | `taxonomy.tsv` | Taxonomy table — one row per species with full lineage |
+| `merged_species.tsv` | With `--merge-gtdb-suffixes` only: each merged name with the GTDB species and genera merged into it, the ranks at which their lineages differ, and the GTDB species whose lineage `taxonomy.tsv` keeps (the first in the input) |
 
 ### 3. Run NanoVI with the GTDB database
 
