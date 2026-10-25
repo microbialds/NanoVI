@@ -96,6 +96,7 @@ def run_wf16s(fastq_dir, out_dir, classifier, threads=8):
     if done.exists():
         return done
     work = out_dir.with_name(out_dir.name + "_work")
+    out_dir.parent.mkdir(parents=True, exist_ok=True)
     env = {**os.environ, "NXF_VER": os.environ.get("WF16S_NXF_VER", "25.04.8")}
     subprocess.run(["nextflow", "-q", "run", WF16S[0], "-r", WF16S[1], "-profile", "standard",
                     "-w", str(work), "--fastq", str(fastq_dir), "--classifier", classifier,

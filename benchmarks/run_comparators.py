@@ -3,7 +3,9 @@
 
   Simulated  the 10k samples of seeds 1-3 (12): Kraken2 + Bracken and wf-16s (minimap2
              and kraken2 modes); Emu (about 2 CPU-s per read) on the four seed-1 samples
-             of the grid, on its own database and on NanoVI's (the 'both ways' comparison)
+             of the grid, on its own database and on NanoVI's, and NanoVI (the grid's
+             reference setting) on Emu's database (the 'both ways' comparison; real.py
+             runs NanoVI on Emu's database for the real mocks)
   Real       the sup basecalls and the three published mocks (13 samples, 10,000 reads):
              the same tools; Emu on NanoVI's database on rep1 of each ONT community
              and the three published mocks
@@ -27,9 +29,9 @@ import pandas as pd
 import comparators as cmp
 import harness
 from common import BENCH, write_tsv
-from evaluate import all_metrics, load_truth, per_species, real_metrics
-from names import load as load_crosswalk
-from real import REAL, arm_paths, subsample
+from evaluate import all_metrics, load_estimate, load_truth, per_species, real_metrics
+from names import load as load_crosswalk, to_gtdb
+from real import EMU_DB, REAL, arm_paths, subsample
 
 SIMS = [f"{shape}_{chem}_10k_s{seed:02d}" for seed in (1, 2, 3) for shape in ("even", "log")
         for chem in ("r941", "r1041")]
@@ -63,11 +65,25 @@ def jobs():
         out.append(("emu", "emu_default", s))
     for s in SIMS_EMU + REALS_BOTH_WAYS:
         out.append(("emu", "nanovi_exact", s))
+    for s in SIMS_EMU:
+        out.append(("nanovi", "emu_default", s))
     return out
+
+
+def run_nanovi(filt, sample, threads):
+    """NanoVI's reference setting (-N 3, VB) on Emu's database."""
+    run = OUT / "nanovi" / "emu_default"
+    aln, npz, est = (run / f"{sample}{ext}" for ext in (".bam", ".npz", ".json"))
+    run.mkdir(parents=True, exist_ok=True)
+    harness.align(filt, harness.index_path("emu_default"), aln, 3, threads=threads)
+    harness.likelihood(aln, npz)
+    return harness.estimate(npz, est)
 
 
 def run_job(tool, db, sample, threads):
     _, filt = inputs(sample)
+    if tool == "nanovi":
+        return run_nanovi(filt, sample, threads)
     out_dir = OUT / tool / db
     out_dir.mkdir(parents=True, exist_ok=True)
     # each tool names its output after the reads file, so stage it under the sample's name
@@ -92,6 +108,13 @@ def wf16s_dir(samples, name):
     return d
 
 
+def parse_nanovi(path, ncbi_names):
+    est = {}
+    for k, v in load_estimate(path, EMU_DB)[0].items():
+        est[to_gtdb(k, ncbi_names)] = est.get(to_gtdb(k, ncbi_names), 0.0) + v
+    return est
+
+
 def evaluate(ncbi_names):
     rows, species = [], []
 
@@ -107,14 +130,17 @@ def evaluate(ncbi_names):
         rows.append({"tool": tool, "database": db, "sample": sample, **metrics})
 
     for tool, db, sample in jobs():
-        if tool == "emu":
+        if tool == "nanovi":
+            path = OUT / tool / db / f"{sample}.json"
+            parse = parse_nanovi
+        elif tool == "emu":
             path = OUT / tool / db / f"{sample}_rel-abundance.tsv"
             parse = cmp.parse_emu
         else:
             path = OUT / tool / db / f"{sample}.bracken.tsv"
             parse = cmp.parse_bracken
         if path.exists():
-            add(tool if tool == "emu" else "kraken2_bracken", db, sample, parse(path, ncbi_names))
+            add(tool if tool in ("emu", "nanovi") else "kraken2_bracken", db, sample, parse(path, ncbi_names))
     for classifier in ("minimap2", "kraken2"):
         for group, samples in (("sims", SIMS), ("real", REALS)):
             path = OUT / "wf16s" / f"{classifier}_{group}" / "abundance_table_species.tsv"
@@ -135,7 +161,7 @@ def main():
     ap.add_argument("--threads", type=int, default=4, help="per Emu or Kraken2 run")
     ap.add_argument("--wf16s-threads", type=int, default=16)
     ap.add_argument("--nanoclust-hours", type=float, default=8.0)
-    ap.add_argument("--skip", default="", help="comma-separated: emu, kraken2, wf16s, nanoclust")
+    ap.add_argument("--skip", default="", help="comma-separated: emu, kraken2, nanovi, wf16s, nanoclust")
     ap.add_argument("--evaluate-only", action="store_true")
     args = ap.parse_args()
     skip = set(filter(None, args.skip.split(",")))
