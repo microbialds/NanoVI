@@ -607,7 +607,8 @@ def timing():
     steps = t.groupby(keys, dropna=False).agg(
         repeats=("cpu_s", "size"), reads=("reads", "first"), cpu_s=("cpu_s", "median"), cpu_s_min=("cpu_s", "min"),
         cpu_s_max=("cpu_s", "max"), wall_s=("wall_s", "median"), peak_rss_mb=("peak_rss_mb", "max"),
-        load1=("load1", "mean")).reset_index()
+        load1=("load1", "mean")).reset_index().round(2)
+    steps = steps.astype({"N": "Int64", "k": "Int64", "reads": "Int64"})  # NaN for the index rows made them floats
     write_tsv(steps, DOCS_DATA / "timing_steps.tsv")
 
     rows = []
@@ -623,7 +624,7 @@ def timing():
         rows.append({"sample": x["sample"], "N": 50, "k": 15, "tool": "emu_shipped", "reads": np.nan,
                      "cpu_s": x["cpu_s"], "wall_s": x["wall_s"], "peak_rss_mb": x["peak_rss_mb"],
                      "estimation_cpu_s": np.nan})
-    tools = pd.DataFrame(rows)
+    tools = pd.DataFrame(rows).round(2)
     write_tsv(tools, DOCS_DATA / "timing_tools.tsv")
 
     # accuracy on the same SAM (repeat 1): the estimators differ, the alignments do not
@@ -644,7 +645,7 @@ def timing():
     samples = sorted(matched["sample"].unique())
     colour = {step: f"C{i}" for i, step in enumerate(dict.fromkeys(sum(PIPELINES.values(), [])))}
     seen = set()
-    fig, axes = plt.subplots(len(samples), 2, figsize=(8, 2.6 * len(samples)), squeeze=False)
+    fig, axes = plt.subplots(len(samples), 2, figsize=(9, 3 * len(samples)), squeeze=False)
     for row, sample in zip(axes, samples):
         x = matched[matched["sample"] == sample]
         # left: everything per sample; right: without the alignment, which both tools share
@@ -670,7 +671,8 @@ def timing():
             ax.set_xticklabels(labels, fontsize=5)
             ax.set_title(f"{sample}: {'without the alignment' if skip else 'per sample'}", fontsize=7)
             ax.set_ylabel("CPU seconds (median)")
-    fig.legend(frameon=False, fontsize=5, loc="upper right")
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    fig.legend(frameon=False, fontsize=6, loc="upper center", ncol=6)
     save_figure(fig, "fig_timing", steps)
     return tools
 

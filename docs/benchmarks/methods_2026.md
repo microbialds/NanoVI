@@ -455,15 +455,48 @@ Paired on the same samples (`comparators_paired.tsv`):
 
 What this supports: NanoVI's lower error than Emu-as-shipped comes from the database
 (exact GTDB r226 vs Emu's rrnDB + NCBI RefSeq), not from the estimator. With the same
-database and alignments the two give the same abundances, and Emu reports fewer
-false positives. Emu's alignment settings (-N 50, k 15) differ from NanoVI's (-N 3,
-k 21), so this comparison alone cannot say whether that difference comes from the
-alignment or from the estimator.
-<!-- pending: the timing runs score Emu and NanoVI on the same SAM at matched -N and k -->
+database the two give the same abundances, and Emu reports fewer false positives.
+That difference comes from the alignment settings (Emu: -N 50, k 15; NanoVI: -N 3,
+k 21), not from the estimator: given the same SAM, Emu, NanoVI's VB and NanoVI's EM
+report the same species and the same false positives (`timing_matched_accuracy.tsv`:
+2 samples × 4 settings of -N and k on the exact database; identical false-positive
+species and groups in all 8, species L1 within 0.0009, group L1 within 0.0002).
 
 ## 11. Runtime (W3)
 
-<!-- pending: timing.tsv -->
+Source data: `timing_steps.tsv` (per step, medians of 3 repeats with min and max),
+`timing_tools.tsv` (per tool), `fig_timing.png`; script `benchmarks/timing.py`. Two
+real samples of about 10,000 filtered reads (ONT 2025.09 MSPlus sup rep 1; Emu
+paper SRR10391201, R9.4.1), each aligned once per setting (-N 3 or 50, k 15 or 21) to
+the exact database, and the same SAM given to NanoVI (BAM conversion, likelihood, VB
+or EM) and to Emu 3.6.2 (`emu abundance` on the SAM). Emu as shipped is timed
+separately: its minimap2 2.30 from the FASTA (it builds the index every run), -N 50,
+k 15, its own database. NanoVI as shipped is the -N 3, k 21 row with a cached index;
+the index build (25 CPU s, 1.7 GB, once per k) is reported apart. Every step ran on
+4 pinned CPUs. The host was shared (1-minute load 35-53 on 80 threads), so CPU time
+(user + system) is the number to compare; wall times are in the tables with the load.
+
+| Sample | NanoVI as shipped (-N 3, k 21) | Emu as shipped | Emu's settings (-N 50, k 15), exact database: NanoVI / Emu |
+|---|---|---|---|
+| SRR10391201 (R9.4.1) | 870 CPU s (246 s wall) | 2,750 CPU s (816 s wall) | 3,120 / 3,160 CPU s |
+| MSPlus sup rep 1 (R10.4.1) | 5,097 CPU s (1,425 s wall) | 7,077 CPU s (1,845 s wall) | 9,822 / 9,849 CPU s |
+
+- **The alignment is the cost**: 96-99.9% of CPU time for both tools at every
+  setting. k 15 costs 1.9-3.2 times the CPU of k 21; -N 50 adds 1-60% over -N 3.
+  Alignment cost depends on the sample (0.09 vs 0.52 CPU s per read at -N 3, k 21).
+  Peak memory is the alignment's (0.9-1.6 GB with the exact database's index).
+- **After the alignment** NanoVI (BAM conversion, likelihood, VB) takes 4.5-5.5 CPU s at
+  -N 3 and 13-19 at -N 50; Emu on the same SAM 8.6-11.8 and 41-59 (1.9-3.1 times
+  NanoVI). NanoVI's EM adds about 2 CPU s over VB. Peak memory below 120 MB for NanoVI
+  and 190 MB for Emu.
+- **As shipped**, NanoVI used 1.4-3.2 times less CPU than Emu on these samples, with
+  a database 4.7 times larger (232,447 vs 49,243 sequences). The saving comes
+  from -N 3 and k 21, not from the estimator; at Emu's settings on the exact database
+  the two cost the same.
+- Accuracy at these settings: §10 (identical between the estimators on the same SAM).
+  Changing -N and k moves the false-positive count by 1-2 groups on these two samples,
+  in both directions (`timing_matched_accuracy.tsv`); -N's effect on the simulations is
+  in §4.
 
 ## 12. Limitations of this benchmark
 

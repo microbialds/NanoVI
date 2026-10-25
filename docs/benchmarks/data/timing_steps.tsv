@@ -1,0 +1,53 @@
+mode	sample	N	k	step	repeats	reads	cpu_s	cpu_s_min	cpu_s_max	wall_s	peak_rss_mb	load1
+emu_shipped	emu_zymo_SRR10391201	50	15	emu_shipped	3		2749.54	2720.36	3219.84	815.87	1174.32	44.91
+emu_shipped	zymo_MSPlus_sup_rep1	50	15	emu_shipped	3		7076.63	7017.26	7255.06	1845.28	1263.77	45.06
+index			15	index	1		25.25	25.25	25.25	16.92	1748.52	39.16
+index			21	index	1		25.15	25.15	25.15	16.43	1787.34	39.16
+matched	emu_zymo_SRR10391201	3	15	align	3	9952	2772.08	2735.32	2871.17	762.02	1211.46	47.3
+matched	emu_zymo_SRR10391201	3	15	emu	3	9952	11.82	10.94	13.09	11.48	181.67	47.79
+matched	emu_zymo_SRR10391201	3	15	nanovi_em	3	9952	3.26	3.19	4.11	3.27	98.8	47.78
+matched	emu_zymo_SRR10391201	3	15	nanovi_likelihood	3	9952	1.41	1.4	1.42	1.42	81.68	47.94
+matched	emu_zymo_SRR10391201	3	15	nanovi_vb	3	9952	1.42	1.38	1.43	1.43	97.29	47.85
+matched	emu_zymo_SRR10391201	3	15	sam_to_bam	3	9952	2.56	2.5	2.62	1.73	73.16	48.22
+matched	emu_zymo_SRR10391201	3	21	align	3	9952	864.84	858.67	956.94	241.05	930.12	47.79
+matched	emu_zymo_SRR10391201	3	21	emu	3	9952	10.56	10.35	11.96	10.4	181.78	47.0
+matched	emu_zymo_SRR10391201	3	21	nanovi_em	3	9952	3.8	3.31	3.88	3.8	98.64	47.02
+matched	emu_zymo_SRR10391201	3	21	nanovi_likelihood	3	9952	1.4	1.37	1.46	1.41	81.16	47.22
+matched	emu_zymo_SRR10391201	3	21	nanovi_vb	3	9952	1.5	1.44	1.55	1.51	95.9	47.18
+matched	emu_zymo_SRR10391201	3	21	sam_to_bam	3	9952	2.63	2.53	2.76	1.72	73.07	47.39
+matched	emu_zymo_SRR10391201	50	15	align	3	9952	3100.97	3004.01	3128.04	838.43	1639.34	47.52
+matched	emu_zymo_SRR10391201	50	15	emu	3	9952	59.27	56.42	63.73	58.94	184.55	46.55
+matched	emu_zymo_SRR10391201	50	15	nanovi_em	3	9952	5.67	4.9	5.99	5.68	102.67	47.02
+matched	emu_zymo_SRR10391201	50	15	nanovi_likelihood	3	9952	9.38	9.29	9.47	9.48	114.14	47.34
+matched	emu_zymo_SRR10391201	50	15	nanovi_vb	3	9952	2.19	2.17	2.24	2.2	108.73	47.12
+matched	emu_zymo_SRR10391201	50	15	sam_to_bam	3	9952	7.8	7.47	9.85	5.3	77.32	48.01
+matched	emu_zymo_SRR10391201	50	21	align	3	9952	1379.95	1337.18	1382.58	383.66	1328.9	48.04
+matched	emu_zymo_SRR10391201	50	21	emu	3	9952	57.72	54.94	58.02	57.73	185.44	47.72
+matched	emu_zymo_SRR10391201	50	21	nanovi_em	3	9952	4.88	4.87	5.02	4.91	103.95	47.9
+matched	emu_zymo_SRR10391201	50	21	nanovi_likelihood	3	9952	9.07	8.95	9.42	9.08	111.96	48.17
+matched	emu_zymo_SRR10391201	50	21	nanovi_vb	3	9952	2.51	2.46	2.53	2.52	119.77	47.98
+matched	emu_zymo_SRR10391201	50	21	sam_to_bam	3	9952	7.58	7.51	7.61	5.55	77.67	49.09
+matched	zymo_MSPlus_sup_rep1	3	15	align	3	9850	9700.78	9423.63	10246.68	2603.65	1498.58	46.12
+matched	zymo_MSPlus_sup_rep1	3	15	emu	3	9850	8.68	8.24	10.73	8.3	182.61	45.68
+matched	zymo_MSPlus_sup_rep1	3	15	nanovi_em	3	9850	3.38	3.34	3.44	3.39	97.68	45.78
+matched	zymo_MSPlus_sup_rep1	3	15	nanovi_likelihood	3	9850	1.18	1.16	1.22	1.19	81.0	45.95
+matched	zymo_MSPlus_sup_rep1	3	15	nanovi_vb	3	9850	1.49	1.42	1.51	1.5	96.08	45.83
+matched	zymo_MSPlus_sup_rep1	3	15	sam_to_bam	3	9850	1.84	1.83	1.91	1.38	73.18	46.06
+matched	zymo_MSPlus_sup_rep1	3	21	align	3	9850	5092.21	5009.88	5093.66	1420.96	1192.07	45.61
+matched	zymo_MSPlus_sup_rep1	3	21	emu	3	9850	8.62	8.33	9.03	8.58	182.8	48.17
+matched	zymo_MSPlus_sup_rep1	3	21	nanovi_em	3	9850	3.53	3.42	3.64	3.66	98.18	48.3
+matched	zymo_MSPlus_sup_rep1	3	21	nanovi_likelihood	3	9850	1.21	1.19	1.23	1.23	81.08	48.55
+matched	zymo_MSPlus_sup_rep1	3	21	nanovi_vb	3	9850	1.48	1.47	1.5	1.5	95.55	48.45
+matched	zymo_MSPlus_sup_rep1	3	21	sam_to_bam	3	9850	1.87	1.85	1.97	1.41	73.1	48.64
+matched	zymo_MSPlus_sup_rep1	50	15	align	3	9850	9808.52	9512.45	10452.85	2667.83	1580.31	45.35
+matched	zymo_MSPlus_sup_rep1	50	15	emu	3	9850	40.93	40.35	41.41	40.66	188.3	46.0
+matched	zymo_MSPlus_sup_rep1	50	15	nanovi_em	3	9850	5.11	4.87	9.69	5.11	105.98	46.05
+matched	zymo_MSPlus_sup_rep1	50	15	nanovi_likelihood	3	9850	7.8	7.47	8.02	7.81	119.5	46.46
+matched	zymo_MSPlus_sup_rep1	50	15	nanovi_vb	3	9850	1.94	1.82	2.99	1.94	110.11	46.27
+matched	zymo_MSPlus_sup_rep1	50	15	sam_to_bam	3	9850	3.59	3.54	3.92	2.17	85.02	47.11
+matched	zymo_MSPlus_sup_rep1	50	21	align	3	9850	5283.46	5246.54	5635.2	1475.18	1288.41	45.62
+matched	zymo_MSPlus_sup_rep1	50	21	emu	3	9850	41.6	40.51	42.28	41.22	188.26	47.4
+matched	zymo_MSPlus_sup_rep1	50	21	nanovi_em	3	9850	4.92	4.84	10.17	4.93	105.96	47.13
+matched	zymo_MSPlus_sup_rep1	50	21	nanovi_likelihood	3	9850	8.32	7.75	16.44	8.32	117.96	47.44
+matched	zymo_MSPlus_sup_rep1	50	21	nanovi_vb	3	9850	1.81	1.78	1.87	1.82	106.86	47.19
+matched	zymo_MSPlus_sup_rep1	50	21	sam_to_bam	3	9850	3.7	3.54	4.29	2.2	85.36	48.42
