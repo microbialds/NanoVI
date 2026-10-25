@@ -209,6 +209,35 @@ class TestIntervalColumns:
         assert not set(['ci_lower', 'ci_upper', 'shared_read_fraction']) & set(df.columns)
 
 
+class TestIdenticalColumn:
+    """identical_16s_species: species of the same genus with an identical 16S (D24)."""
+
+    def test_column_lists_sharing_species(self, tmp_path, taxonomy_df):
+        identical = {'1': 'Escherichia fergusonii; Escherichia ruysiae', '3': 'Staphylococcus argenteus'}
+        df = freq_to_lineage_df({'1': 0.6, '3': 0.4}, str(tmp_path / 's'), taxonomy_df, 100, 5, counts=True,
+                                identical=identical)
+        assert list(df.columns) == ['species', 'abundance'] + RANKS + ['estimated_counts', 'identical_16s_species']
+        col = dict(zip(df['species'], df['identical_16s_species']))
+        assert col['Escherichia coli'] == 'Escherichia fergusonii; Escherichia ruysiae'
+        assert col['Staphylococcus aureus'] == 'Staphylococcus argenteus'
+        assert col['Below detection'] == '' and col['Unassigned'] == ''
+        written = pd.read_csv(tmp_path / 's.tsv', sep='\t', keep_default_na=False)
+        assert list(written['identical_16s_species'])[:2] == [col['Escherichia coli'], col['Staphylococcus aureus']]
+
+    def test_tax_ids_sharing_a_name_take_the_union_without_themselves(self, tmp_path, taxonomy_df):
+        # Tax IDs 1 and 2 both become 'Escherichia coli' (two words, as today); 2 lists 1's name
+        identical = {'1': 'Escherichia fergusonii', '2': 'Escherichia coli; Escherichia ruysiae'}
+        df = freq_to_lineage_df({'1': 0.3, '2': 0.2, '3': 0.5}, str(tmp_path / 's'), taxonomy_df, 100, 0,
+                                identical=identical)
+        col = dict(zip(df['species'], df['identical_16s_species']))
+        assert col['Escherichia coli'] == 'Escherichia fergusonii; Escherichia ruysiae'
+        assert col['Staphylococcus aureus'] == ''
+
+    def test_no_column_without_table(self, tmp_path, taxonomy_df):
+        df = freq_to_lineage_df({'1': 1.0}, str(tmp_path / 's'), taxonomy_df, 100, 0)
+        assert 'identical_16s_species' not in df.columns
+
+
 class TestLargestRemainder:
     @pytest.mark.parametrize('weights,total,expected', [
         ([0.5, 0.5], 10, [5, 5]),

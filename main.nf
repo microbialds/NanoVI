@@ -149,7 +149,12 @@ workflow {
             )
         }
 
-        ABUNDANCE(input_reads, fasta_file, tax_file, db_index)
+        // The database's identical-16S table (D24) matches its own taxonomy.tsv; with
+        // another --taxonomy_tsv it is rebuilt from the FASTA
+        def identical_file = file("${params.db}/identical_16s.tsv")
+        def identical_16s = identical_file.exists() && tax_file == file("${params.db}/taxonomy.tsv") ? identical_file : null
+
+        ABUNDANCE(input_reads, fasta_file, tax_file, db_index, identical_16s)
         versions = ABUNDANCE.out.versions
     }
 

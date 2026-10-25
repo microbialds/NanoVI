@@ -43,6 +43,8 @@ BELOW_DETECTION_LABEL = "Below detection"
 # summed over the tax_ids that share a species name, and the columns built from them
 POSTERIOR_COLUMNS = ["alpha", "expected_reads", "shared_reads"]
 INTERVAL_COLUMNS = ["ci_lower", "ci_upper", "shared_read_fraction"]
+# Species of the same genus that share an identical 16S with the row's species (D24)
+IDENTICAL_COLUMN = "identical_16s_species"
 
 def lineage_dict_from_tid(taxid, nodes_dict, names_dict):
     """
@@ -232,7 +234,17 @@ def unify_species_abundance(df):
 
     # Summed with abundance: the posterior quantities behind the interval columns
     summed = ['abundance'] + [c for c in POSTERIOR_COLUMNS if c in df.columns]
-    df_grouped = df.groupby(group_columns, as_index=False, sort=True).agg({c: 'sum' for c in summed})
+    agg = {c: 'sum' for c in summed}
+    if IDENTICAL_COLUMN in df.columns:
+        # The union over the row's tax IDs
+        agg[IDENTICAL_COLUMN] = lambda names: "; ".join(sorted({n for v in names for n in v.split("; ") if n}))
+    df_grouped = df.groupby(group_columns, as_index=False, sort=True).agg(agg)
+    if IDENTICAL_COLUMN in df_grouped.columns:
+        # A species never lists itself (names cut to two words can meet)
+        df_grouped[IDENTICAL_COLUMN] = [
+            "; ".join(n for n in names.split("; ") if n and n != sp)
+            for sp, names in zip(df_grouped['species'], df_grouped[IDENTICAL_COLUMN])
+        ]
     return df_grouped
 
 def largest_remainder(weights, total):
@@ -253,7 +265,7 @@ def largest_remainder(weights, total):
     return floors
 
 def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unassigned_count, counts=False,
-                       below_detection_count=0, posterior=None):
+                       below_detection_count=0, posterior=None, identical=None):
     """
     Convert frequency dict (taxid -> freq) to a DataFrame, unify taxonomy, and write to .tsv.
     freq: dict { tax_id: freq_val }
@@ -268,6 +280,9 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
         from the Bayesian VI (experimental, D7); adds ci_lower and ci_upper (95%
         interval of the mean-field Beta marginal) and shared_read_fraction, left
         empty on the Below detection and Unassigned rows
+    identical: optional { tax_id: "name; name" }, the species of the same genus
+        that share an identical 16S with each tax ID (identical_16s.tsv, D24);
+        adds the identical_16s_species column (empty for tax IDs not listed)
     The 'Below detection' and 'Unassigned' rows (abundance 0) are always written,
     in that order, as the last two rows.
     """
@@ -285,6 +300,10 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
         for col in POSTERIOR_COLUMNS:
             results_df[col] = [float(posterior[tid][col]) if tid in posterior else 0.0
                                for tid in results_df.index]
+
+    if identical is not None:
+        identical = {str(k): v for k, v in identical.items()}
+        results_df[IDENTICAL_COLUMN] = [identical.get(tid, "") for tid in results_df.index]
 
     # Join with the full taxonomy info
     results_df = results_df.join(taxonomy_df, how='left').reset_index()
@@ -343,6 +362,8 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     ]
     if counts:
         column_order.append("estimated_counts")
+    if identical is not None:
+        column_order.append(IDENTICAL_COLUMN)
     if posterior is not None:
         column_order += INTERVAL_COLUMNS
     for col in column_order:

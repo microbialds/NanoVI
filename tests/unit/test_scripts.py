@@ -156,3 +156,28 @@ def test_estimate_abundance_has_no_unknown_component(tmp_path):
     )
     assert result.returncode == 2
     assert 'unrecognized arguments: --unknown-component' in result.stderr
+
+
+# ─── write_abundance_table.py --identical-16s (D24) ─────────────────────────
+
+def test_write_abundance_table_identical_column(tmp_path):
+    (tmp_path / 'abundance.json').write_text(json.dumps({'abundance': {'1': 0.7, '2': 0.3}, 'below_detection_count': 0}))
+    (tmp_path / 'counts.json').write_text(json.dumps({'assigned_count': 10, 'unassigned_count': 2}))
+    (tmp_path / 'taxonomy.tsv').write_text(
+        'tax_id\tspecies\tgenus\tfamily\torder\tclass\tphylum\tsuperkingdom\n'
+        '1\tStaphylococcus aureus\tStaphylococcus\tF\tO\tC\tP\tBacteria\n'
+        '2\tStaphylococcus argenteus\tStaphylococcus\tF\tO\tC\tP\tBacteria\n')
+    (tmp_path / 'identical_16s.tsv').write_text(
+        'tax_id\tspecies\tgenus\tgroup\tgroup_size\tidentical_16s_species\n'
+        '2\tStaphylococcus argenteus\tStaphylococcus\tG1\t2\tStaphylococcus aureus\n'
+        '1\tStaphylococcus aureus\tStaphylococcus\tG1\t2\tStaphylococcus argenteus\n')
+    argv = [sys.executable, os.path.join(BIN, 'write_abundance_table.py'), '--abundance', 'abundance.json',
+            '--read-counts', 'counts.json', '--taxonomy', 'taxonomy.tsv']
+    for table, expected in (('identical_16s.tsv', ['Staphylococcus aureus', 'Staphylococcus argenteus']), ('', ['', ''])):
+        result = subprocess.run(argv + ['--output-prefix', 'out', '--identical-16s', table],
+                                cwd=tmp_path, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        lines = [line.split('\t') for line in (tmp_path / 'out.tsv').read_text().splitlines()]
+        assert lines[0][-1] == 'identical_16s_species'
+        # rows in name order: S. argenteus, then S. aureus
+        assert [line[-1] for line in lines[1:3]] == expected

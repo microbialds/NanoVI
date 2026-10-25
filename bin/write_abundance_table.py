@@ -3,16 +3,27 @@
 
 Joins the abundances from estimate_abundance.py with taxonomy.tsv and writes
 <prefix>.tsv: one row per species, then the 'Below detection' and 'Unassigned'
-rows, with an estimated_counts column when --counts is given, and the
-experimental ci_lower, ci_upper and shared_read_fraction columns when the
-abundance JSON holds a posterior summary (estimate_abundance.py --credible-intervals).
+rows, with an estimated_counts column when --counts is given, the
+identical_16s_species column when --identical-16s is given (the species of the
+same genus that share an identical 16S with each species, from the database's
+identical_16s.tsv; empty when the file is ''), and the experimental ci_lower,
+ci_upper and shared_read_fraction columns when the abundance JSON holds a
+posterior summary (estimate_abundance.py --credible-intervals).
 """
 import argparse
 import json
 
 import pandas as pd
 
-from taxonomy import freq_to_lineage_df
+from taxonomy import IDENTICAL_COLUMN, freq_to_lineage_df
+
+
+def read_identical(path):
+    """tax_id -> the species it shares an identical 16S with, from identical_16s.tsv ('' gives none)."""
+    if not path:
+        return {}
+    df = pd.read_csv(path, sep="\t", dtype=str, keep_default_na=False)
+    return dict(zip(df["tax_id"], df[IDENTICAL_COLUMN]))
 
 
 def main():
@@ -23,6 +34,9 @@ def main():
     parser.add_argument("--taxonomy", required=True, help="taxonomy.tsv of the database")
     parser.add_argument("--output-prefix", required=True, help="output path without .tsv (<sample>_rel-abundance)")
     parser.add_argument("--counts", action="store_true", help="add the estimated_counts column")
+    parser.add_argument("--identical-16s", metavar="FILE",
+                        help="identical_16s.tsv of the database: add the identical_16s_species column "
+                             "('' writes the column empty)")
     args = parser.parse_args()
 
     with open(args.abundance) as f:
@@ -47,7 +61,8 @@ def main():
         unassigned_count=unassigned_count,
         counts=args.counts,
         below_detection_count=below_detection_count,
-        posterior=abundance_data.get("posterior")
+        posterior=abundance_data.get("posterior"),
+        identical=read_identical(args.identical_16s) if args.identical_16s is not None else None,
     )
 
 

@@ -168,6 +168,8 @@ The pipeline produces the following output files in `--output_dir`:
 | `pipeline_info/trace.txt` | Nextflow trace file |
 | `pipeline_info/software_versions.yml` | Versions of fastplong, minimap2, Python and its packages, NanoVI and Nextflow used in the run |
 
+**Species with identical 16S.** The per-sample table's `identical_16s_species` column names, for each reported species, the species of the same genus in the database that share an identical 16S sequence with it (`; `-separated, empty for most species). 16S cannot tell such species apart: reads that match both score the same, so the reported split between them is not evidence of either. The list comes from the database's `identical_16s.tsv`, which `bin/build_gtdb_db.py` and `--cmd build-database` write; for a database without it, the pipeline builds it once from `species_taxid.fasta` and `taxonomy.tsv` and keeps it beside the cached indexes in `--index_cache_dir`. With `--db_index` and no FASTA in `--db` the column is left empty.
+
 ## Profiles
 
 | Profile | Description |

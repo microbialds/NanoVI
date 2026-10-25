@@ -27,7 +27,7 @@ nextflow_pipeline {
 
             // Every step's versions.yml is collected once (F33), not published with the results
             def versions = new org.yaml.snakeyaml.Yaml().load(file("${outputDir}/pipeline_info/software_versions.yml").text)
-            assert versions.keySet() == ['FILTER_READS', 'INDEX_DB', 'ALIGN_READS', 'LIKELIHOOD', 'RUN_VI',
+            assert versions.keySet() == ['FILTER_READS', 'INDEX_DB', 'IDENTICAL_16S', 'ALIGN_READS', 'LIKELIHOOD', 'RUN_VI',
                                          'WRITE_OUTPUT', 'GENERATE_PHYLOSEQ_TABLES', 'Workflow'] as Set
             assert versions.Workflow['microbialds/NanoVI'] ==~ /\d+\.\d+\.\d+/
             assert !file("${outputDir}/sample_outputs/versions.yml").exists()
@@ -116,9 +116,60 @@ nextflow_pipeline {
         then {
             assert workflow.success
             assert workflow.trace.tasks().count { it.name == 'ABUNDANCE:INDEX_DB' } == 0
-            assert !file("${outputDir}/index_cache").exists()
+            assert !file("${outputDir}/index_cache").listFiles().any { it.name.endsWith('.mmi') }
             def versions = new org.yaml.snakeyaml.Yaml().load(file("${outputDir}/pipeline_info/software_versions.yml").text)
             assert !versions.containsKey('INDEX_DB')
+        }
+    }
+
+    // Identical-16S table (D24): a database without identical_16s.tsv gets one built
+    // from its FASTA and taxonomy, kept in the index cache; one with the file uses it
+    test("IDENTICAL_16S builds the identical-16S table into the index cache") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().count { it.name == 'ABUNDANCE:IDENTICAL_16S' } == 1
+            def tables = file("${outputDir}/index_cache").listFiles().findAll { it.name.endsWith('.identical_16s.stub.tsv') }
+            assert tables.size() == 1
+            assert tables[0].name ==~ /species_taxid\.[0-9a-f]{12}\.[0-9a-f]{12}\.identical_16s\.stub\.tsv/
+        }
+    }
+
+    test("A database with identical_16s.tsv does not run IDENTICAL_16S") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            // (not named db: a local variable would capture the db parameter below)
+            def dbDir = new File("${outputDir}/db_with_table")
+            dbDir.mkdirs()
+            ['species_taxid.fasta', 'taxonomy.tsv'].each { f ->
+                new File(dbDir, f).text = new File("${projectDir}/tests/test_data/mock_db/${f}").text
+            }
+            new File(dbDir, 'identical_16s.tsv').text = 'tax_id\tspecies\tgenus\tgroup\tgroup_size\tidentical_16s_species\n'
+            params {
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${outputDir}/db_with_table"
+                // the test profile names the e2e fixture's taxonomy; the table goes with the database's own
+                taxonomy_tsv = "${outputDir}/db_with_table/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().count { it.name == 'ABUNDANCE:IDENTICAL_16S' } == 0
+            assert workflow.trace.tasks().count { it.name.startsWith('ABUNDANCE:WRITE_OUTPUT') } > 0
         }
     }
 
@@ -544,6 +595,8 @@ nextflow_pipeline {
             assert file(result).exists()
             def rows = readTsv(result)
             def expected = readTsv("${projectDir}/tests/test_data/e2e/expected.tsv")
+            // The fixture's 11 species share no identical 16S (D24): the column is there, empty
+            assert rows.every { it.containsKey('identical_16s_species') && it.identical_16s_species == '' }
 
             // Assigned abundances sum to 1
             def assigned = rows.findAll { it.species && it.species.toLowerCase() != 'unassigned' }
@@ -621,7 +674,7 @@ nextflow_pipeline {
             assert workflow.success
             def header = file("${outputDir}/sample_outputs/e2e_mock_rel-abundance.tsv").readLines()[0].split('\t') as List
             assert header == ['species', 'abundance', 'genus', 'family', 'order', 'class', 'phylum', 'superkingdom',
-                              'ci_lower', 'ci_upper', 'shared_read_fraction']
+                              'identical_16s_species', 'ci_lower', 'ci_upper', 'shared_read_fraction']
             assert !file("${outputDir}/consolidated_output/otu_table_counts.tsv").exists()
             assert file("${outputDir}/bam/e2e_mock_vi_alignments.bam").exists()
             assert file("${outputDir}/filtered/e2e_mock_filtered.fastq.gz").exists()
