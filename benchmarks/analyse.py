@@ -13,6 +13,8 @@
                  often each filter or the unknown component removes them than reads of
                  species in the database
   real           real mocks: each arm by sample group, and paired against the reference
+  intervals      credible interval coverage by method, depth, pair membership, abundance
+                 and shared_read_fraction, and how well that fraction flags the misses
 
 Every figure (docs/benchmarks/figures/*.png) has its source data in
 docs/benchmarks/data/ under the same name.
@@ -375,9 +377,64 @@ def real():
     return t
 
 
+# ─── Credible intervals ─────────────────────────────────────────────────────
+
+def _auc(miss, score):
+    """P(score of a miss > score of a hit), ties counted half."""
+    from scipy.stats import mannwhitneyu
+    miss = np.asarray(miss, bool)
+    score = np.asarray(score, float)
+    if miss.all() or not miss.any():
+        return np.nan
+    return mannwhitneyu(score[miss], score[~miss]).statistic / (miss.sum() * (~miss).sum())
+
+
+def intervals():
+    d = pd.read_csv(RESULTS / "intervals.tsv", sep="\t")
+    d = d[d["in_truth"]].copy()
+    d["depth"] = d["sample"].str.extract(r"_(\d+)k_")[0].astype(int) * 1000
+    d["chemistry"] = d["sample"].str.split("_").str[1]
+    d["pair_member"] = d["species"].isin({s for pair in PAIRS for s in pair})
+    d["error_over_halfwidth"] = (d["estimate"] - d["truth_design"]).abs() / (d["width"] / 2)
+    keys = ["method", "depth", "pair_member"]
+    t = d.groupby(keys).agg(n=("covers_design", "size"), coverage_design=("covers_design", "mean"),
+                            coverage_realised=("covers_realised", "mean"), median_width=("width", "median"),
+                            median_error_over_halfwidth=("error_over_halfwidth", "median")).reset_index()
+    write_tsv(t, DOCS_DATA / "intervals_coverage.tsv")
+    d["abundance_bin"] = pd.cut(d["truth_design"], [0, 0.001, 0.01, 0.05, 1])
+    d["srf_bin"] = pd.cut(d["shared_read_fraction"], [-0.01, 0.05, 0.1, 0.2, 0.5, 1.0])
+    for name, col in (("abundance", "abundance_bin"), ("shared_read_fraction", "srf_bin")):
+        x = (d.groupby(["method", "depth", col], observed=True)["covers_design"].agg(["mean", "size"])
+             .rename(columns={"mean": "coverage_design", "size": "n"}).reset_index())
+        x[col] = x[col].astype(str)
+        write_tsv(x, DOCS_DATA / f"intervals_coverage_by_{name}.tsv")
+    rows = []
+    for (method, depth), x in d.dropna(subset=["shared_read_fraction"]).groupby(["method", "depth"]):
+        rows.append({"method": method, "depth": depth, "n": len(x), "misses": int((~x["covers_design"]).sum()),
+                     "auc_shared_read_fraction": _auc(~x["covers_design"], x["shared_read_fraction"])})
+    write_tsv(pd.DataFrame(rows), DOCS_DATA / "intervals_warning_auc.tsv")
+    runtime = pd.read_csv(RESULTS / "intervals_runtime.tsv", sep="\t")
+    write_tsv(runtime, DOCS_DATA / "intervals_runtime.tsv")
+
+    plt = _plt()
+    fig, axes = plt.subplots(1, 2, figsize=(7, 2.8), sharey=True)
+    for ax, pair in zip(axes, [False, True]):
+        for method, x in t[t["pair_member"] == pair].groupby("method"):
+            ax.plot(x["depth"], x["coverage_design"], marker="o", ms=3, label=method)
+        ax.axhline(0.95, color="grey", lw=0.6, ls=":")
+        ax.set_xscale("log")
+        ax.set_xlabel("reads per sample")
+        ax.set_title("pair members" if pair else "other species")
+    axes[0].set_ylabel("coverage of the 95% interval")
+    axes[0].set_ylim(0, 1)
+    axes[0].legend(frameon=False, fontsize=6)
+    save_figure(fig, "fig_intervals", t)
+    return t
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("what", nargs="+", choices=["ablation", "contamination", "pairs", "lod", "clade", "real"])
+    ap.add_argument("what", nargs="+", choices=["ablation", "contamination", "pairs", "lod", "clade", "real", "intervals"])
     ap.add_argument("--samples", help="comma-separated (default: per analysis)")
     args = ap.parse_args()
     ofat = sorted(pd.read_csv(RESULTS / "grid_ofat.tsv", sep="\t")["sample"].unique())
@@ -394,6 +451,8 @@ def main():
             lod()
         elif what == "clade":
             clade()
+        elif what == "intervals":
+            intervals()
         else:
             real()
         print("done", what, flush=True)
