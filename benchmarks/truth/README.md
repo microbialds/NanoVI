@@ -13,6 +13,14 @@ species known only to be present.
 | zymo_d6331_16s.tsv | ONT Zymo 2025.09 GutMock | ZymoBIOMICS Gut Microbiome Standard D6331 instruction manual, Table 1, "16S Only" column (five E. coli strains summed; the two yeasts have no 16S) |
 | emu_gutmock_ont.tsv | SRR14326315 | Emu (Curry et al. 2022, Nature Methods) Supplementary Table 4, imputed ONT truth; Romboutsia hominis was absent from Emu's database |
 
+The Zymo standards' *Bacillus subtilis* is *Bacillus spizizenii* in GTDB r226: Zymo's
+reference genome of the strain (ZymoBIOMICS.STD.refseq.v2) aligns at 99.97% identity
+over its whole length to the *B. spizizenii* type strain ATCC 6633 (GCF_031316495.1,
+GTDB's representative) and at 87.8% over 94% to *B. subtilis* 168 (GCF_000009045.1)
+(minimap2 2.24 `-cx asm20`, alignments of MAPQ >= 20); five of its ten 16S copies are
+identical only to *B. spizizenii* sequences of the database and the other five to
+sequences shared with *B. subtilis* and relatives. The truth tables use *B. spizizenii*.
+
 The Emu gut mock's truth is itself an estimate (the authors imputed it from the reads
 against a database of the strains in the mock), so it is a weaker reference than
 Zymo's theoretical compositions.
