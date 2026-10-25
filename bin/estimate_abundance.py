@@ -9,8 +9,6 @@ the number of reads whose species were all pruned ("below_detection_count").
 With --credible-intervals it also writes "posterior": {tax_id: {"alpha",
 "expected_reads", "shared_reads"}}, from which write_abundance_table.py builds
 the experimental ci_lower, ci_upper and shared_read_fraction columns.
-
---no-pruning is experimental (Phase 7a benchmark, off by default).
 """
 import argparse
 import json
@@ -39,8 +37,6 @@ def main():
                         help="EM: stop when the log-likelihood rises by less (default 1e-4)")
     parser.add_argument("--credible-intervals", action="store_true",
                         help="VB only, experimental: write the posterior summary for the interval columns")
-    parser.add_argument("--no-pruning", action="store_true",
-                        help="experimental: prune only below --min-abundance, not below 1/R or 10/R (both estimators)")
     args = parser.parse_args()
     if args.credible_intervals and args.estimator != "vb":
         parser.error("--credible-intervals needs --estimator vb")
@@ -60,8 +56,7 @@ def main():
             for r, (start, end) in enumerate(zip(offsets[:-1].tolist(), offsets[1:].tolist()))
         }
         freq_full, freq_thresh, below_detection_count = em_estimator.variational_inference_iterations(
-            log_p_rgs, db_ids, lli_thresh=args.elbo_threshold, input_threshold=args.min_abundance,
-            prune=not args.no_pruning,
+            log_p_rgs, db_ids, lli_thresh=args.elbo_threshold, input_threshold=args.min_abundance
         )
     else:
         idx, logL = sparse_likelihood_from_csr(offsets, tax_ids, scores, np.array(db_ids, dtype=np.int64))
@@ -73,7 +68,6 @@ def main():
             max_inner_iterations=args.max_iterations,
             inner_tolerance=args.tolerance,
             posterior_summary=args.credible_intervals,
-            prune=not args.no_pruning,
         )
         freq_full, freq_thresh, _, below_detection_count = result[:4]
         if args.credible_intervals:

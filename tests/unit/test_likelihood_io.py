@@ -217,20 +217,18 @@ def test_read_likelihood_script(tmp_path):
     assert (assigned, unassigned) == (3, 1)
 
 
-# ─── Experimental options (Phase 7a benchmark) ──────────────────────────────
+# ─── Options removed after the Phase 7a benchmark ──────────────────────────
 
-def test_error_profile_all_counts_secondary_alignments(tmp_path):
-    path = write_sam(tmp_path / 'a.sam', MIXED)
-    from likelihood import cigar_profile, read_alignment_records
-    records = read_alignment_records(path)
-    # Mapped records, I, D, S, X: r1 secondary (0,0,0,4), r1 primary (2,0,0,1),
-    # r2 (0,1,0,1), r1 supplementary (0,0,0,1), r4 primary (0,0,5,2), r4 secondary (0,0,0,7)
-    log_p, zero_locs, _ = cigar_profile(records, 'all')
-    assert zero_locs == []
-    assert log_p == pytest.approx(log_shares([2, 1, 5, 16]))
-    assert cigar_profile(records, 'primary')[0] == pytest.approx(log_shares([2, 1, 5, 4]))
-    with pytest.raises(ValueError, match='error_profile'):
-        cigar_profile(records, 'some')
+def test_error_profile_option_is_removed(tmp_path):
+    # The error profile comes from primary alignments only (D3); 'all' lost in Phase 7a (D31)
+    path = write_sam(tmp_path / 'a.bam', MIXED, 'wb')
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'read_likelihood.py'), '--alignments', path,
+         '--scores', 'scores.npz', '--counts', 'counts.json', '--error-profile', 'all'],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert result.returncode == 2
+    assert 'unrecognized arguments: --error-profile' in result.stderr
 
 
 def test_per_base_score_is_removed(tmp_path):

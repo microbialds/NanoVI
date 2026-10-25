@@ -107,7 +107,7 @@ def test_estimate_abundance_rejects_intervals_with_em(tmp_path):
     assert '--credible-intervals needs --estimator vb' in result.stderr
 
 
-# ─── Experimental estimator options (Phase 7a benchmark) ─────────────────────
+# ─── Estimator options removed after the Phase 7a benchmark ─────────────────
 
 def write_npz(path, per_read):
     sys.path.insert(0, BIN)
@@ -128,42 +128,21 @@ def estimate(tmp_path, npz, *options):
 
 
 @pytest.mark.parametrize('estimator', ['vb', 'em'])
-def test_no_pruning_keeps_species_below_the_pruning_threshold(tmp_path, estimator):
-    # 2,005 reads: the pruning threshold is 10/2,005; species 2 has 5 reads of its own
+def test_species_below_the_pruning_threshold_are_pruned(tmp_path, estimator):
+    # 2,005 reads: the pruning threshold is 10/2,005; species 2 has 5 reads of its own.
+    # --no-pruning, which kept it, lost in the Phase 7a benchmark (D31)
     per_read = {f'a{i}': ([1], [-1.0]) for i in range(2000)}
     per_read.update({f'b{i}': ([2], [-1.0]) for i in range(5)})
     npz = write_npz(tmp_path / 's.npz', per_read)
-    default = estimate(tmp_path, npz, '--estimator', estimator, '--min-abundance', '0')
-    assert set(default['abundance']) == {'1'} and default['below_detection_count'] == 5
-    data = estimate(tmp_path, npz, '--estimator', estimator, '--min-abundance', '0', '--no-pruning')
-    assert set(data['abundance']) == {'1', '2'}
-    # VB's posterior mean adds the prior: (alpha_prior / 2 + 5) / (alpha_prior + 2,005)
-    assert data['abundance']['2'] == pytest.approx(5 / 2005, abs=3e-4)
-    assert data['below_detection_count'] == 0
-
-
-def test_no_pruning_refits_below_min_abundance_in_both_estimators(tmp_path):
-    # Species 2 (about 6%) is below --min-abundance 0.1; its 200 shared reads must go
-    # to species 3 in a refit, in VB as in EM, not be dropped with species 2
-    per_read = {f'a{i}': ([1], [-1.0]) for i in range(2000)}
-    per_read.update({f'd{i}': ([3], [-1.0]) for i in range(1000)})
-    per_read.update({f'b{i}': ([2, 3], [-1.0, -6.0]) for i in range(200)})
-    per_read.update({f'c{i}': ([2], [-1.0]) for i in range(4)})
-    npz = write_npz(tmp_path / 's.npz', per_read)
-    for estimator in ('vb', 'em'):
-        data = estimate(tmp_path, npz, '--estimator', estimator, '--min-abundance', '0.1', '--no-pruning')
-        assert set(data['abundance']) == {'1', '3'}
-        assert data['abundance']['3'] == pytest.approx(1200 / 3200, abs=1e-3)
-        assert data['below_detection_count'] == 4
-
-
-def test_em_without_pruning_does_not_report_underflowed_species(tmp_path):
-    # species 3's only reads score 800 nats below species 1's: its EM frequency is 0
-    per_read = {f'a{i}': ([1], [-1.0]) for i in range(100)}
-    per_read.update({f'b{i}': ([1, 3], [-1.0, -800.0]) for i in range(5)})
-    npz = write_npz(tmp_path / 's.npz', per_read)
-    data = estimate(tmp_path, npz, '--estimator', 'em', '--min-abundance', '0', '--no-pruning')
-    assert set(data['abundance']) == {'1'}
+    data = estimate(tmp_path, npz, '--estimator', estimator, '--min-abundance', '0')
+    assert set(data['abundance']) == {'1'} and data['below_detection_count'] == 5
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'estimate_abundance.py'), '--scores', npz,
+         '--output', str(tmp_path / 'o.json'), '--no-pruning'],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert result.returncode == 2
+    assert 'unrecognized arguments: --no-pruning' in result.stderr
 
 
 def test_estimate_abundance_has_no_unknown_component(tmp_path):

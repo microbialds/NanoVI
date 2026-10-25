@@ -457,7 +457,6 @@ def bayesian_vi(
     max_inner_iterations: int = 1000,
     inner_tolerance: float = 1e-7,
     posterior_summary: bool = False,
-    prune: bool = True,
 ):
     """
     Outer optimization loop with iterative species pruning, on the padded likelihood.
@@ -498,11 +497,6 @@ def bayesian_vi(
     posterior_summary : bool
         If True, also return a fifth value, the per-species summary that the
         experimental interval columns are built from (see posterior_read_summary).
-    prune : bool
-        Experimental (Phase 7a): False drops the read-count part of the pruning
-        threshold (1/R or 10/R), so species are pruned, and the rest refitted,
-        only below abundance_threshold; with abundance_threshold 0 the first fit
-        on every species with data is returned. EM's prune=False does the same.
 
     Returns
     -------
@@ -544,8 +538,6 @@ def bayesian_vi(
     freq_thresh = max(1.0 / n_reads, abundance_threshold)
     if n_reads > 1000:
         freq_thresh = max(10.0 / n_reads, abundance_threshold)
-    if not prune:
-        freq_thresh = abundance_threshold
 
     stdout.write(
         f"Running Bayesian VI with Dirichlet prior "

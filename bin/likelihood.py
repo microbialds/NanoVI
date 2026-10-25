@@ -82,34 +82,23 @@ class AlignmentRecords:
     def align_stats(self, i):
         return list(self.stats[4 * i:4 * i + 4])
 
-    def profile_mask(self, error_profile="primary"):
-        """The alignments an error profile is estimated from: primary mapped ones, or
-        with error_profile 'all' (experimental, Phase 7a) every mapped alignment."""
-        if error_profile == "all":
-            return np.frombuffer(self.ref, dtype=np.int64) >= 0
-        if error_profile != "primary":
-            raise ValueError(f"error_profile must be 'primary' or 'all', not {error_profile!r}")
-        return np.frombuffer(self.primary, dtype=np.int8).astype(bool)
-
 
 def read_alignment_records(sam_path):
     """Read a SAM or BAM file once into AlignmentRecords."""
     return AlignmentRecords(sam_path)
 
 
-def cigar_profile(records, error_profile="primary"):
+def cigar_profile(records):
     """Error profile and longest alignments from AlignmentRecords.
 
-    Returns what get_cigar_op_log_probabilities returns. error_profile 'all'
-    (experimental, Phase 7a) counts every mapped alignment, secondary and
-    supplementary included, as NanoVI did before F03.
+    Returns what get_cigar_op_log_probabilities returns.
     """
     longest = np.full(len(records.names), -1, dtype=np.int64)
     np.maximum.at(longest, np.frombuffer(records.read, dtype=np.int64),
                   np.frombuffer(records.length, dtype=np.int64))
     # The error profile comes from primary mapped alignments only, as in Emu (F03, D3)
-    n_mapped = int(records.profile_mask("primary").sum())
-    primary = records.profile_mask(error_profile)
+    primary = np.frombuffer(records.primary, dtype=np.int8).astype(bool)
+    n_mapped = int(primary.sum())
     stats = np.frombuffer(records.stats, dtype=np.int64).reshape(-1, len(CIGAR_OPS))
     cigar_stats_primary = [int(x) for x in stats[primary].sum(axis=0)]
 
@@ -201,22 +190,15 @@ def log_prob_rgs_dict(sam_path, log_p_cigar_op, dict_longest_align, p_cigar_op_z
         read_alignment_records(sam_path), log_p_cigar_op, dict_longest_align, p_cigar_op_zero_locs
     )
 
-def score_reads(sam_path, error_profile="primary", records=None):
+def score_reads(sam_path):
     """Error profile and read scores from one pass over a SAM or BAM file (F24).
 
     Returns (log_p_rgs, unassigned_count, assigned_count), as log_prob_rgs_dict
     does after get_cigar_op_log_probabilities, which read the file twice.
-
-    The other arguments are experimental (Phase 7a benchmark; defaults give the
-    pipeline's scores): error_profile 'all' estimates the error mix from every
-    mapped alignment.
     """
-    if records is None:
-        records = read_alignment_records(sam_path)
-    log_probs, zero_locs, dict_longest_align = cigar_profile(records, error_profile)
+    records = read_alignment_records(sam_path)
+    log_probs, zero_locs, dict_longest_align = cigar_profile(records)
     return read_scores_from_records(records, log_probs, dict_longest_align, zero_locs)
-
-
 
 def read_scores_to_arrays(log_p_rgs):
     """Per-read lists as flat arrays, in read order (the read-scores npz, F24).
