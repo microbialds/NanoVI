@@ -9,12 +9,17 @@
   pairs          near-neighbour pairs: reads whose best scores tie between the pair,
                  and how each estimator splits the pair
   lod            detection rate by realised reads, depth and chemistry
+  clade          clade exclusion: where an excluded species' reads go, and how much more
+                 often each filter or the unknown component removes them than reads of
+                 species in the database
+  real           real mocks: each arm by sample group, and paired against the reference
 
 Every figure (docs/benchmarks/figures/*.png) has its source data in
 docs/benchmarks/data/ under the same name.
 """
 import argparse
 import hashlib
+import json
 from collections import Counter
 from functools import lru_cache
 
@@ -281,8 +286,9 @@ def lod():
 
     plt = _plt()
     data = t[~t["pair_member"]]
-    fig, axes = plt.subplots(1, 2, figsize=(7, 2.6), sharey=True)
-    for ax, depth in zip(axes, [1000, 10000]):
+    depths = sorted(data["depth"].unique())
+    fig, axes = plt.subplots(1, len(depths), figsize=(3.5 * len(depths), 2.6), sharey=True)
+    for ax, depth in zip(axes, depths):
         for (arm, chem), d in data[data["depth"] == depth].groupby(["arm", "chemistry"]):
             label = {"exact_N3_primary_emu_vb_f0.001": "default", "exact_N3_primary_emu_vb_f0_noprune": "no pruning",
                      "exact_N3_primary_per-base_vb_f0.001": "per-base score"}[arm]
@@ -291,14 +297,87 @@ def lod():
         ax.set_title(f"{depth:,} reads")
         ax.set_xlabel("reads of the species")
     axes[0].set_ylabel("fraction detected")
-    axes[1].legend(frameon=False, fontsize=6)
+    axes[-1].legend(frameon=False, fontsize=6)
     save_figure(fig, "fig_lod", data)
+    return t
+
+
+# ─── Clade exclusion ────────────────────────────────────────────────────────
+
+def clade():
+    """Removal rates: an excluded species' reads that end up unassigned (filters) or in
+    the unknown component, against the same for the reads of the other 19 species. A
+    useful novelty signal removes the first far more often than the second."""
+    from clade_exclusion import db_name
+    d = pd.read_csv(RESULTS / "clade_exclusion.tsv", sep="\t")
+    d["chemistry"] = d["sample"].str.split("_").str[1]
+    d["sibling_present"] = d["sibling_in_sample"].notna()
+    d["family"] = d["arm"].str.extract(r"^(none|pid|len|unk)")[0]
+    indb = []
+    for r in d.itertuples():
+        npz = r.arm if not r.arm.startswith("unk") else "unk" + r.arm[3:]
+        c = json.loads((BENCH / "runs" / r.sample / "clade" / db_name(r.excluded) / f"{npz}.counts.json").read_text())
+        total = c["assigned_count"] + c["unassigned_count"]
+        others = total - r.excluded_reads
+        unassigned = c["unassigned_count"] - r.to_unassigned * r.excluded_reads
+        unknown = r.unknown_abundance * c["assigned_count"] - r.to_unknown * r.excluded_reads
+        indb.append((unassigned + unknown) / others)
+    d["excluded_removed"] = d["to_unassigned"] + d["to_unknown"]
+    d["indb_removed"] = indb
+    cols = ["excluded_removed", "indb_removed", "unknown_abundance", "to_unknown", "to_sibling",
+            "to_other_community", "to_absent_species", "to_below_detection", "to_unassigned",
+            "indb_l1", "indb_fp_abundance", "indb_recall", "indb_precision"]
+    t = d.groupby(["chemistry", "sibling_present", "family", "arm"])[cols].mean().reset_index()
+    t["removal_ratio"] = t["excluded_removed"] / t["indb_removed"].where(t["indb_removed"] > 0)
+    t["n"] = d.groupby(["chemistry", "sibling_present", "family", "arm"]).size().to_numpy()
+    write_tsv(t, DOCS_DATA / "clade_exclusion_summary.tsv")
+
+    plt = _plt()
+    data = d.groupby(["chemistry", "family", "arm"])[["excluded_removed", "indb_removed"]].mean().reset_index()
+    fig, axes = plt.subplots(1, 2, figsize=(7, 3.2), sharey=True)
+    for ax, chem in zip(axes, ["r941", "r1041"]):
+        for fam, label in (("pid", "identity floor"), ("len", "aligned-length floor"), ("unk", "unknown component")):
+            x = data[(data["chemistry"] == chem) & (data["family"] == fam)].sort_values("indb_removed")
+            ax.plot(x["indb_removed"], x["excluded_removed"], marker="o", ms=3, label=label)
+        ax.plot([0, 1], [0, 1], color="grey", lw=0.6, ls=":")
+        ax.set_xlim(-0.02, 1.02)
+        ax.set_ylim(-0.02, 1.02)
+        ax.set_title(chem)
+        ax.set_xlabel("in-database reads removed")
+    axes[0].set_ylabel("excluded species' reads removed")
+    axes[0].legend(frameon=False, fontsize=6)
+    save_figure(fig, "fig_clade", data)
+    return t
+
+
+# ─── Real mocks ─────────────────────────────────────────────────────────────
+
+def real():
+    d = pd.read_csv(RESULTS / "real_nanovi.tsv", sep="\t")
+    d["group"] = d["sample"].str.replace(r"_rep\d+$", "", regex=True)
+    cols = [c for c in d.columns if c.startswith(("species_", "genus_", "group_"))] + [
+        "assigned_count", "unassigned_count", "below_detection"]
+    t = d.groupby(["group", "arm"])[cols].agg(["mean", "std"])
+    t.columns = [f"{m}_{s}" for m, s in t.columns]
+    t["n_samples"] = d.groupby(["group", "arm"]).size()
+    write_tsv(t.reset_index(), DOCS_DATA / "real_arms_summary.tsv")
+    ref = d[d["arm"] == "reference"].set_index("sample")
+    rows = []
+    for arm, x in d[d["arm"] != "reference"].groupby("arm"):
+        x = x.set_index("sample")
+        for m in ("species_l1_known", "genus_l1_known", "species_fp_abundance", "species_fp_count",
+                  "species_recall", "species_precision"):
+            diff = x[m] - ref.loc[x.index, m]
+            for group, dd in diff.groupby(x["group"]):
+                rows.append({"arm": arm, "group": group, "metric": m, "n": len(dd), "mean_diff": dd.mean(),
+                             "min_diff": dd.min(), "max_diff": dd.max()})
+    write_tsv(pd.DataFrame(rows), DOCS_DATA / "real_arms_paired.tsv")
     return t
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("what", nargs="+", choices=["ablation", "contamination", "pairs", "lod"])
+    ap.add_argument("what", nargs="+", choices=["ablation", "contamination", "pairs", "lod", "clade", "real"])
     ap.add_argument("--samples", help="comma-separated (default: per analysis)")
     args = ap.parse_args()
     ofat = sorted(pd.read_csv(RESULTS / "grid_ofat.tsv", sep="\t")["sample"].unique())
@@ -311,8 +390,12 @@ def main():
             contamination(samples)
         elif what == "pairs":
             pairs(samples)
-        else:
+        elif what == "lod":
             lod()
+        elif what == "clade":
+            clade()
+        else:
+            real()
         print("done", what, flush=True)
 
 
