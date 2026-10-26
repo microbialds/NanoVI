@@ -19,6 +19,8 @@ scoring, so all three are scored against the same truth; on the simulations the
 (raw_* columns).
 
 Writes docs/benchmarks/data/confirm_7b_per_sample.tsv and confirm_7b_summary.tsv.
+
+    python benchmarks/confirm_7b.py --merged <merged output_dir> --suffixes <suffix-kept output_dir>
 """
 import argparse
 import gzip
@@ -27,8 +29,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from common import BENCH, DOCS_DATA, write_tsv  # first: puts bin/ on sys.path
 from build_gtdb_db import normalize_gtdb_name
-from common import BENCH, DOCS_DATA, write_tsv
 from evaluate import all_metrics, compare, load_estimate, load_truth, real_metrics
 
 N_READS = 10000

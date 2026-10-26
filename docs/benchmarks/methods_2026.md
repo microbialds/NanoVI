@@ -545,7 +545,8 @@ from GTDB r226 by `bin/build_gtdb_db.py`:
 - *suffixes*: the new default (F16), which keeps GTDB's names as GTDB writes them
   (84,596 species, 233,611 sequences).
 
-`benchmarks/confirm_7b.py` scores the per-sample tables with the Phase 7a metric code.
+`benchmarks/confirm_7b.py --merged <dir> --suffixes <dir>` (the two runs' output
+directories) scores the per-sample tables with the Phase 7a metric code.
 Names in the suffix-kept run are mapped to their merged names before scoring, so all
 arms are scored against the same truth. On the simulations the suffix-kept run is also
 scored against the GTDB species of the simulated genomes (`raw_*` columns).
@@ -559,8 +560,8 @@ scored against the GTDB species of the simulated genomes (`raw_*` columns).
     (SRR14326315, as in Phase 7a's own measurement, which §7 rounds to 0.0004), and
     assigned reads differ by at most 3 per 10,000.
   - Simulations: the same species on all 80. Species L1 moves by at most 0.00043, and
-    assigned reads differ by at most 1. Every §4.1 figure is unchanged to three
-    decimals.
+    assigned reads differ by at most 1. Every 1k and 10k figure in §4.1 is unchanged
+    at three decimals (50k was not rerun).
 - *Suffix-kept database*:
   - Reads now split between GTDB species that share a name once the suffix is stripped.
     *Listeria monocytogenes* and *L. monocytogenes_B* are both reported in 70 of the 93
@@ -570,7 +571,7 @@ scored against the GTDB species of the simulated genomes (`raw_*` columns).
   - Scored after mapping names to merged ones:
     - Simulations: species L1 changes by +0.002 on average (−0.021 to +0.016). On even
       communities the false-positive count rises by 0.4-2.3 species (1k R9.4.1 even:
-      11.2 to 13.5). Recall is unchanged.
+      11.2 to 13.5). Recall is unchanged or marginally higher.
     - Real samples: species L1 changes by at most 0.003 either way, and the
       false-positive count is unchanged on average.
   - Scored on the genomes' own GTDB species (simulations), where the sibling of the
