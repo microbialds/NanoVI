@@ -135,21 +135,18 @@ def likelihood(bam, out, error_profile="primary", score="emu", min_identity=None
     return _run(out, argv)
 
 
-def estimate(npz, out, estimator="vb", min_abundance=0.001, no_pruning=False, unknown=False,
-             credible_intervals=False):
+def estimate(npz, out, estimator="vb", min_abundance=0.001, no_pruning=False, unknown=False):
     argv = [PYTHON, str(BIN / "estimate_abundance.py"), "--scores", str(npz), "--output", "{OUT}",
             "--estimator", estimator, "--min-abundance", str(min_abundance)]
     if no_pruning:
         argv.append("--no-pruning")
     if unknown:
         argv.append("--unknown-component")
-    if credible_intervals:
-        argv.append("--credible-intervals")
     if not Path(out).exists() and read_counts(npz)["assigned_count"] == 0:
         # a filter that keeps no reads: the pipeline stops here; record an empty estimate
         # (tmp_ and rename as in _run, with a .time file as every other step has)
         tmp = Path(out).with_name("tmp_" + Path(out).name)
-        tmp.write_text(json.dumps({"abundance": {}, "below_detection_count": 0}))
+        tmp.write_text(json.dumps({"abundance": {}, "below_detection_count": 0, "read_summary": {}}))
         Path(str(out) + ".time").write_text("0.00\n")
         tmp.rename(out)
         return Path(out)
