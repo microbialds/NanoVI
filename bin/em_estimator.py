@@ -77,14 +77,15 @@ def count_below_detection(log_p_rgs, reported):
         if not any(reported.get(sid, 0) > 0 for sid in sids)
     )
 
-def read_summary(idx, logL, freq, species_ids):
+def read_summary(idx, logL, freq, species_ids, reported_ids):
     """Expected and shared reads of each reported species under EM's responsibilities (D27).
 
-    idx/logL are the padded likelihood over the reported species (columns in the
-    order of species_ids, as sparse_likelihood_from_csr gives them) and freq their
-    reported frequencies. A read's responsibility is ∝ freq_s × p(read | s) over
-    its reported candidates; expected and shared reads are then counted as for
-    the Bayesian VI (posterior_read_summary), without alpha.
+    idx/logL are the padded likelihood over the species that survived pruning
+    (columns in the order of species_ids, as sparse_likelihood_from_csr gives them)
+    and freq their frequencies (freq_full). A read's responsibility is
+    ∝ freq_s × p(read | s) over those species, as the Bayesian VI's φ comes from its
+    final fit; expected and shared reads are then counted over the reported species
+    (reported_ids) as in posterior_read_summary, without alpha.
     """
     finite = np.isfinite(logL)
     with np.errstate(divide="ignore"):
@@ -94,8 +95,10 @@ def read_summary(idx, logL, freq, species_ids):
     phi = np.exp(score - np.where(np.isfinite(top), top, 0.0))
     total = phi.sum(axis=1, keepdims=True)
     phi = np.divide(phi, total, out=np.zeros_like(phi), where=total > 0)
-    on = np.isfinite(score)
-    return posterior_read_summary(None, np.where(on, idx, -1), np.where(on, phi, 0.0), list(species_ids))
+    column = {sid: i for i, sid in enumerate(reported_ids)}
+    reported_col = np.array([column.get(sid, -1) for sid in species_ids], dtype=np.int64)
+    idx_reported = np.where(np.isfinite(score), reported_col[idx], -1)
+    return posterior_read_summary(None, idx_reported, np.where(idx_reported >= 0, phi, 0.0), list(reported_ids))
 
 
 def variational_inference_iterations(log_p_rgs, db_ids, lli_thresh, input_threshold):

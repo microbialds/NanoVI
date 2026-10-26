@@ -54,10 +54,6 @@ def main():
         freq_full, freq_thresh, below_detection_count = em_estimator.variational_inference_iterations(
             log_p_rgs, db_ids, lli_thresh=args.elbo_threshold, input_threshold=args.min_abundance
         )
-        reported = freq_thresh if freq_thresh else freq_full
-        reported_ids = list(reported)
-        idx, logL = sparse_likelihood_from_csr(offsets, tax_ids, scores, np.array(reported_ids, dtype=np.int64))
-        read_summary = em_estimator.read_summary(idx, logL, [reported[t] for t in reported_ids], reported_ids)
     else:
         idx, logL = sparse_likelihood_from_csr(offsets, tax_ids, scores, np.array(db_ids, dtype=np.int64))
         result = bayesian_vi(
@@ -71,8 +67,15 @@ def main():
         )
         freq_full, freq_thresh, _, below_detection_count, read_summary = result
 
+    reported = freq_thresh if freq_thresh else freq_full
+    if args.estimator == "em":
+        surviving = list(freq_full)
+        idx, logL = sparse_likelihood_from_csr(offsets, tax_ids, scores, np.array(surviving, dtype=np.int64))
+        read_summary = em_estimator.read_summary(idx, logL, [freq_full[t] for t in surviving], surviving,
+                                                 list(reported))
+
     output = {
-        "abundance": freq_thresh if freq_thresh else freq_full,
+        "abundance": reported,
         "below_detection_count": below_detection_count,
         "read_summary": read_summary,
     }
