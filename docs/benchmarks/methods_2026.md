@@ -532,3 +532,56 @@ the index build (25 CPU s, 1.7 GB, once per k) is reported apart. Every step ran
 - The clade exclusion removes species, not genera.
 - Simulated depths and shapes with the same seed share each species' reads (Section 3),
   so differences between depths are paired, not independent, comparisons.
+
+## 13. Phase 7b confirmation (D30, D4; `confirm_7b_per_sample.tsv`, `confirm_7b_summary.tsv`)
+
+Phase 7b applied decisions D21-D31 and then ran the shipped pipeline (`nextflow run
+main.nf` at commit b6fb34f: fastplong 0.7.0, minimap2 2.31, every default) on the 13 real
+sup samples and the 80 simulated samples at 1k and 10k reads, with two databases built
+from GTDB r226 by `bin/build_gtdb_db.py`:
+
+- *merged*: `--merge-gtdb-suffixes`, which rebuilds the Phase 7a database byte for byte
+  (the run reused its minimap2 2.31 index);
+- *suffixes*: the new default (F16), which keeps GTDB's names as GTDB writes them
+  (84,596 species, 233,611 sequences).
+
+`benchmarks/confirm_7b.py` scores the per-sample tables with the Phase 7a metric code.
+Names in the suffix-kept run are mapped to their merged names before scoring, so all
+arms are scored against the same truth. On the simulations the suffix-kept run is also
+scored against the GTDB species of the simulated genomes (`raw_*` columns).
+
+- *Merged database against Phase 7a's arm for the new tools* (`tools_new`, D30): the
+  same species and the same assigned and unassigned reads on all 13 real samples, and
+  the abundances agree to 1e-15. The pipeline gives the numbers of the arm the benchmark
+  chose.
+- *Merged database against the Phase 7a reference* (fastplong 0.2.2, minimap2 2.24):
+  - Real samples: the same species on all 13. Species L1 moves by at most 0.00045
+    (SRR14326315, as in Phase 7a's own measurement, which §7 rounds to 0.0004), and
+    assigned reads differ by at most 3 per 10,000.
+  - Simulations: the same species on all 80. Species L1 moves by at most 0.00043, and
+    assigned reads differ by at most 1. Every §4.1 figure is unchanged to three
+    decimals.
+- *Suffix-kept database*:
+  - Reads now split between GTDB species that share a name once the suffix is stripped.
+    *Listeria monocytogenes* and *L. monocytogenes_B* are both reported in 70 of the 93
+    samples, *Streptococcus mitis* and its suffixed siblings in 36, and *S. pneumoniae*,
+    *S. pseudopneumoniae*, *E. coli* and *C. difficile* in a few. The smaller share in
+    each split averages 0.1-1% of the sample.
+  - Scored after mapping names to merged ones:
+    - Simulations: species L1 changes by +0.002 on average (−0.021 to +0.016). On even
+      communities the false-positive count rises by 0.4-2.3 species (1k R9.4.1 even:
+      11.2 to 13.5). Recall is unchanged.
+    - Real samples: species L1 changes by at most 0.003 either way, and the
+      false-positive count is unchanged on average.
+  - Scored on the genomes' own GTDB species (simulations), where the sibling of the
+    true species counts as a false positive: species L1 is 0.035 on 1k R9.4.1 log and
+    0.345 on 1k R9.4.1 even (merged arm on merged truth: 0.030 and 0.306). The
+    false-positive count is 18.8 against 11.2.
+  - This is the cost of D4's default on GTDB. `--merge-gtdb-suffixes` keeps the Phase 7a
+    behaviour.
+- *Identical-16S groups* (D24): `identical_16s.tsv` links the species of one genus whose
+  carriers of a sequence share it, even when the same sequence also occurs in another
+  genus. A contaminant contig no longer hides the identity. On the merged r226 database
+  this gives 4,335 species in 1,264 groups, against §2's 3,925 species in 1,238 groups,
+  which left out every sequence found in more than one genus. The cross-genus report
+  (`cross_genus_identical.tsv`, D23) still gives §2's 1,360 sequences.
