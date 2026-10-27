@@ -158,7 +158,7 @@ On the ofat samples (`ablation_ofat_summary.tsv`), mean over seeds:
 | 10k | R9.4.1 | even | 0.275 | 0.014 | 0.008 | 0.950 | 0.832 | 3.9 | 0.012 |
 | 10k | R10.4.1 | log | 0.030 | 0.005 | 0.005 | 0.655 | 1.000 | 0.0 | 0.000 |
 | 10k | R9.4.1 | log | 0.026 | 0.016 | 0.015 | 0.665 | 0.970 | 0.4 | 0.001 |
-| 50k | R10.4.1 | even | 0.188 | 0.005 | 0.005 | 0.950 | 0.983 | 0.3 | 0.001 |
+| 50k | R10.4.1 | even | 0.187 | 0.005 | 0.005 | 0.950 | 0.983 | 0.3 | 0.000 |
 | 50k | R9.4.1 | even | 0.278 | 0.013 | 0.007 | 0.950 | 0.827 | 4.0 | 0.013 |
 
 Species L1 on even communities is almost all in the two non-identifiable pairs (group
@@ -339,7 +339,7 @@ the reported species (`intervals_coverage*.tsv`, `fig_intervals.png`).
 | Method | 1k | 10k | 50k | 10k, pair members |
 |---|---|---|---|---|
 | mean-field | 0.93 | 0.81 | 0.38 | 0.42 |
-| bootstrap | 0.91 | 0.79 | 0.39 | 0.41 |
+| bootstrap | 0.90 | 0.79 | 0.39 | 0.41 |
 | collapsed Gibbs | 0.93 | 0.81 | 0.39 | 0.42 |
 
 (Species outside the pairs, except the last column.) The three methods agree in width

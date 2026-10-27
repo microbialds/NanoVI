@@ -211,7 +211,7 @@ true abundance falls with depth:
 | | 1,000 reads | 10,000 reads | 50,000 reads | 10,000, pair members |
 |---|---|---|---|---|
 | mean-field (shipped) | 0.93 | 0.81 | 0.38 | 0.42 |
-| read bootstrap (100 resamples) | 0.91 | 0.79 | 0.39 | 0.41 |
+| read bootstrap (100 resamples) | 0.90 | 0.79 | 0.39 | 0.41 |
 | collapsed Gibbs (exact posterior) | 0.93 | 0.81 | 0.39 | 0.42 |
 
 (95% intervals, species outside the near-neighbour pairs except the last column; §8.)
