@@ -202,10 +202,12 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
     n_short, n_dup = 0, 0
     seq_counter = 0
 
+    # With merge_suffixes: the GTDB species with a sequence of at least min_length
+    with_sequence = set()
+
     for header, seq in fasta_records(ssu_path):
-        _, lineage = parse_ssu_header(header)
-        if lineage is not None and merge_suffixes:
-            lineage = merged_lineage(lineage)
+        _, raw = parse_ssu_header(header)
+        lineage = merged_lineage(raw) if raw is not None and merge_suffixes else raw
         if lineage is None or not lineage.get("species"):
             continue
         sp = lineage["species"]
@@ -214,6 +216,8 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
         if len(seq) < min_length:
             n_short += 1
             continue
+        if merge_suffixes:
+            with_sequence.add(raw["species"])
 
         taxid = species_to_taxid[sp]
         seq_hash = hashlib.md5(seq.upper().encode()).hexdigest()
@@ -265,7 +269,7 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
 
     if merge_suffixes:
         n_merged = write_merged_species(merged_sources, species_to_taxid,
-                                        os.path.join(output_dir, "merged_species.tsv"))
+                                        os.path.join(output_dir, "merged_species.tsv"), with_sequence)
         print(f"  GTDB species merged by suffix stripping: {n_merged:,} names (merged_species.tsv)")
 
     print("\n" + "=" * 60)
@@ -281,23 +285,24 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
     print(f"  minimap2 -x map-ont -k 21 -d {output_dir}/species_taxid.map-ont.k21.mmi {fasta_out}")
 
 
-def write_merged_species(merged_sources, species_to_taxid, path):
+def write_merged_species(merged_sources, species_to_taxid, path, with_sequence):
     """Write merged_species.tsv: the names that --merge-gtdb-suffixes built from more than one GTDB species.
 
-    One row per merged name: its tax ID, the GTDB species merged into it and their
-    genera (suffixes kept), the ranks at which their lineages still differ after
-    stripping, and the GTDB species whose lineage taxonomy.tsv keeps (the first
-    seen in the input). Returns the number of rows.
+    Only GTDB species with a sequence in species_taxid.fasta (with_sequence) count:
+    one row per name that merges two or more of them, with its tax ID, those GTDB
+    species and their genera (suffixes kept), the ranks at which their lineages
+    still differ after stripping, and the GTDB species whose lineage taxonomy.tsv
+    keeps (the first seen in the input, with or without a sequence). Returns the
+    number of rows.
     """
     rows = []
     for sp in sorted(merged_sources):
-        sources = merged_sources[sp]
+        first = next(iter(merged_sources[sp]))
+        sources = {name: lin for name, lin in merged_sources[sp].items() if name in with_sequence}
         if len(sources) < 2:
             continue
         conflicts = [rank for rank in RANKS_OUT[2:]
                      if len({normalize_gtdb_name(lin[rank]) for lin in sources.values()}) > 1]
-        # sources is in input order, and its first species set the kept lineage
-        first = next(iter(sources))
         rows.append([
             str(species_to_taxid[sp]), sp, str(len(sources)), ";".join(sorted(sources)),
             ";".join(sorted({lin["genus"] for lin in sources.values()})), ",".join(conflicts), first,

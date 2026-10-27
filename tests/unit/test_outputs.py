@@ -620,6 +620,24 @@ class TestBuildDatabase:
             'ranks_in_conflict': 'family', 'lineage_from': 'Alpha_A beta',
         }]
 
+    def test_merged_species_counts_only_species_with_a_sequence(self, tmp_path):
+        # 'Alpha_A beta' has only a short 16S: 'Alpha beta' merges nothing in the database
+        lin = 'd__Bacteria;p__P;c__C;o__O;f__F;g__{g};s__{s}'
+        records = [
+            (f'>g1~c1 {lin.format(g="Alpha_A", s="Alpha_A beta")} [ssu_len=40]', 'ACGT' * 10),
+            (f'>g2~c2 {lin.format(g="Alpha", s="Alpha beta")} [ssu_len=1200]', 'TTGCA' * 240),
+            (f'>g3~c3 {lin.format(g="Gamma_B", s="Gamma_B delta")} [ssu_len=1200]', 'ACGT' * 300),
+            (f'>g4~c4 {lin.format(g="Gamma", s="Gamma delta")} [ssu_len=1200]', 'GGCAT' * 240),
+        ]
+        ssu = tmp_path / 'ssu.fna'
+        ssu.write_text(''.join(f'{h}\n{s}\n' for h, s in records))
+        out = tmp_path / 'db'
+        build_gtdb_db.build_database(str(ssu), 'testdb', str(out), merge_suffixes=True)
+        merged = pd.read_csv(out / 'merged_species.tsv', sep='\t', dtype=str, keep_default_na=False)
+        assert list(merged['species']) == ['Gamma delta']
+        assert list(merged['gtdb_species']) == ['Gamma delta;Gamma_B delta']
+        assert list(merged['lineage_from']) == ['Gamma_B delta']
+
 
 class TestNcbiTaxonomyOrder:
     """build-database --ncbi-taxonomy writes taxonomy.tsv sorted by tax_id (F41)."""
