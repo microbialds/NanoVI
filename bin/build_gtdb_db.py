@@ -20,7 +20,6 @@ contaminant contigs; D23), from identical_16s.py.
 
 import os
 import sys
-import gzip
 import hashlib
 import argparse
 from collections import defaultdict
@@ -123,29 +122,9 @@ def parse_ssu_header(header: str, merge_suffixes: bool = False):
 
 # ─── File helpers ─────────────────────────────────────────────────────────────
 
-def open_fasta(path: str):
-    """Open a FASTA file, transparently handling .gz compression."""
-    if path.endswith(".gz"):
-        return gzip.open(path, "rt")
-    return open(path, "r", encoding="utf-8")
-
-
-def fasta_records(path: str):
-    """Yield (header_line, sequence_str) tuples from a FASTA file."""
-    header = None
-    seq_parts = []
-    with open_fasta(path) as fh:
-        for line in fh:
-            line = line.rstrip()
-            if line.startswith(">"):
-                if header is not None:
-                    yield header, "".join(seq_parts)
-                header = line
-                seq_parts = []
-            else:
-                seq_parts.append(line)
-    if header is not None:
-        yield header, "".join(seq_parts)
+# One FASTA reader for the builder and identical_16s.py (benchmarks/ import it from here)
+open_fasta = identical_16s.open_fasta
+fasta_records = identical_16s.fasta_records
 
 
 # ─── Main build function ──────────────────────────────────────────────────────

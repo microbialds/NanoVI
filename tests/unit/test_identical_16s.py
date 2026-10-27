@@ -120,3 +120,7 @@ def test_genera_of_other_databases_are_not_cut(tmp_path):
     assert rows == []
     assert len(cross) == 1
 
+
+def test_fasta_records_is_the_builders_reader():
+    import build_gtdb_db
+    assert build_gtdb_db.fasta_records is identical_16s.fasta_records

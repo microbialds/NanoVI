@@ -44,21 +44,27 @@ def strip_gtdb_suffixes(name):
     return GTDB_SUFFIX.sub("", name).strip()
 
 
+def open_fasta(path):
+    """Open a FASTA file, transparently handling .gz compression."""
+    if path.endswith(".gz"):
+        return gzip.open(path, "rt")
+    return open(path, "r", encoding="utf-8")
+
+
 def fasta_records(path):
-    """Yield (record id, sequence) from a FASTA file, gzipped or not."""
-    opener = gzip.open if path.endswith(".gz") else open
-    seq_id, parts = None, []
-    with opener(path, "rt") as fh:
+    """Yield (header line, sequence) from a FASTA file, gzipped or not (build_gtdb_db.py uses it too)."""
+    header, parts = None, []
+    with open_fasta(path) as fh:
         for line in fh:
             line = line.rstrip()
             if line.startswith(">"):
-                if seq_id is not None:
-                    yield seq_id, "".join(parts)
-                seq_id, parts = line[1:].split()[0], []
+                if header is not None:
+                    yield header, "".join(parts)
+                header, parts = line, []
             else:
                 parts.append(line)
-    if seq_id is not None:
-        yield seq_id, "".join(parts)
+    if header is not None:
+        yield header, "".join(parts)
 
 
 def read_taxonomy(path):
@@ -72,7 +78,8 @@ def read_taxonomy(path):
 def sequence_carriers(fasta_path):
     """md5 of each distinct sequence -> (tax IDs carrying it, record IDs), in file order."""
     carriers = defaultdict(lambda: ({}, []))
-    for seq_id, seq in fasta_records(fasta_path):
+    for header, seq in fasta_records(fasta_path):
+        seq_id = header[1:].split()[0]
         tax_ids, seq_ids = carriers[hashlib.md5(seq.upper().encode()).hexdigest()]
         tax_ids.setdefault(seq_id.split(":")[0], None)
         seq_ids.append(seq_id)
