@@ -6,6 +6,7 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 
 ### Added
 
+- `CITATION.cff` with the preprint (bioRxiv, doi:10.64898/2026.03.07.710315) as the preferred citation and Emu as a reference; the README's Citation section cites the preprint instead of a placeholder (W11).
 - Every process writes an nf-core style `versions.yml`, and each run collects them into `pipeline_info/software_versions.yml`: the fastplong and minimap2 versions, the Python and package versions of every Python step, and the NanoVI and Nextflow versions (F33).
 - Unit tests for the code the pipeline runs: the Bayesian VI (every update against a hand or Monte Carlo calculation, the ELBO, the stopping and pruning rules, known proportions recovered from synthetic reads, and agreement within 1e-9 with the earlier dense implementation), the likelihood on small SAM files, the output and consolidated tables, the database reports and every `bin/` script; 227 tests, run in CI on Python 3.11 and 3.13 (F36).
 - `docs/methods.md`: the model in equations (Emu's read score, the Dirichlet-categorical model, the mean-field updates, pruning, `shared_read_fraction` and the sampling intervals), what differs from Emu and why, each default with its benchmark evidence, the database construction and the limitations (M10).
