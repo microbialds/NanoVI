@@ -5,7 +5,8 @@ A small real database and simulated ONT-like reads with known proportions. The
 run the full pipeline on it: fastplong, minimap2 and every Python step.
 
 ```
-nf-test test tests/main.nf.test --tag e2e          # needs Docker
+nf-test test tests/main.nf.test --tag e2e          # with Docker
+NANOVI_E2E_PROFILE=conda nf-test test tests/main.nf.test --tag e2e   # with conda
 nextflow run main.nf -profile test,docker          # same data, outputs in test_results/
 ```
 
@@ -75,20 +76,28 @@ python3 tests/test_data/e2e/make_reads.py
 The `e2e` test checks that the assigned abundances sum to 1, that every species
 at 10 % or more is reported within 5 percentage points of `expected.tsv`, that
 every species in the sample is reported (so a near-neighbour pair is not merged
-into one species), that no absent species reaches 1 %, and that
-`consolidated_output/` holds the four tables. The Unassigned row (30 non-16S
-reads) is not checked until F01 is fixed.
+into one species), that no absent species reaches 1 %, that the `Unassigned` row
+holds at least the 30 non-16S reads and the `Below detection` row comes just before
+it, that every read that passed fastplong is counted in `estimated_counts`, that
+`consolidated_output/` holds the four tables, and that the tools and the Python image
+report their versions. A second e2e test runs with `--keep_counts false --keep_files
+true --credible_intervals true --binomial_names true` on the command line and checks
+that each takes effect.
 
-Reference output (`-profile test,docker`, which uses the pipeline defaults k = 21 and N = 3; NanoVI 1.0.0 code, October 2026):
+Reference output (`-profile test,docker`, which uses the pipeline defaults k = 21 and N = 3; dev at 208349f, 27 October 2026; fastplong 0.7.0, minimap2 2.31):
 
 | Species | Expected | Reported | estimated_counts |
 |---|---|---|---|
-| *Staphylococcus aureus* | 0.40 | 0.3996 | 239 |
-| *Escherichia coli* | 0.25 | 0.2466 | 147 |
-| *Streptococcus pneumoniae* | 0.15 | 0.1499 | 89 |
+| *Staphylococcus aureus* | 0.40 | 0.3996 | 240 |
+| *Escherichia coli* | 0.25 | 0.2635 | 158 |
+| *Streptococcus pneumoniae* | 0.15 | 0.1501 | 90 |
 | *Pseudomonas aeruginosa* | 0.10 | 0.1001 | 60 |
-| *Shigella flexneri* | 0.05 | 0.0535 | 32 |
-| *Streptococcus mitis* | 0.05 | 0.0503 | 30 |
+| *Shigella flexneri* | 0.05 | 0.0365 | 22 |
+| *Streptococcus mitis* | 0.05 | 0.0501 | 30 |
+| Below detection | | 0 | 0 |
+| Unassigned | | 0 | 30 |
 
-600 reads assigned, 30 unassigned. No absent species is reported. The table has
-no Unassigned row (F01) and the counts sum to 597, not 600 (F08).
+600 reads assigned, 30 unassigned. No absent species is reported. 51 of the 180
+*E. coli* / *S. flexneri* reads score the same against both species and go mostly
+to the more abundant *E. coli*, so *S. flexneri* is low (its `shared_read_fraction`
+is 0.77).
