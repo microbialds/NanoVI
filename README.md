@@ -13,8 +13,15 @@ NanoVI is a Nextflow DSL2 pipeline that performs taxonomic classification of ful
 ### Pipeline Workflow
 
 ```
-Input FASTQs → Quality Filter (FastpLong) → Align (minimap2) → Read likelihoods (CIGAR error profile and read scores) → VI → Abundance Tables
+Input FASTQs
+  → Length filter (fastplong, 500-2,000 bp; quality filter off unless --min_quality)
+  → Align (minimap2 -ax map-ont -N 3 -p 0.9, against the cached database index)
+  → Read likelihoods (error profile from primary alignments, Emu's CIGAR read score)
+  → Abundance estimation (Bayesian VI with pruning; --estimator em for Emu's EM)
+  → Per-sample tables → Consolidated tables (phyloseq)
 ```
+
+Reads are filtered by length only: the 2026 benchmark found that a mean-quality filter changed little on real data and distorted the composition where it removed reads ([docs/benchmarks/methods_2026.md](docs/benchmarks/methods_2026.md), section 7). `--min_quality` turns fastplong's quality filter on.
 
 **Subcommands:**
 
