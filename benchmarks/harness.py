@@ -14,9 +14,11 @@ name (tmp_ prefix) and renamed when complete, so an interrupted run never leaves
 and a step whose output exists is skipped. Each step writes <output>.time with its
 wall time in seconds.
 """
+import functools
 import gzip
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -118,11 +120,11 @@ def subset_bam(bam, reads, out):
     return out
 
 
-def likelihood(bam, out, error_profile="primary", score="emu", min_identity=None, min_aligned_length=None,
-               unknown_delta=None):
+def _likelihood_argv(bam, out, error_profile="primary", score="emu", min_identity=None, min_aligned_length=None,
+                     unknown_delta=None):
     # Only options that differ from the defaults are passed: Phase 7b removed the
-    # experimental ones from bin/, so those arms need bin/ at commit 34d0411, while
-    # the reference arm runs with the current bin/ too
+    # experimental ones from bin/, so those arms need bin/ at commit 34d0411 (NANOVI_BIN),
+    # while the reference arm runs with the current bin/ too
     out = Path(out)
     argv = [PYTHON, str(BIN / "read_likelihood.py"), "--alignments", str(bam), "--scores", "{OUT}",
             "--counts", str(out.with_suffix(".counts.json"))]
@@ -132,16 +134,46 @@ def likelihood(bam, out, error_profile="primary", score="emu", min_identity=None
                         ("--unknown-delta", unknown_delta)):
         if value is not None:
             argv += [flag, str(value)]
-    return _run(out, argv)
+    return argv
 
 
-def estimate(npz, out, estimator="vb", min_abundance=0.001, no_pruning=False, unknown=False):
+def likelihood(bam, out, **options):
+    return _run(out, _likelihood_argv(bam, out, **options))
+
+
+def _estimate_argv(npz, out, estimator="vb", min_abundance=0.001, no_pruning=False, unknown=False):
     argv = [PYTHON, str(BIN / "estimate_abundance.py"), "--scores", str(npz), "--output", "{OUT}",
             "--estimator", estimator, "--min-abundance", str(min_abundance)]
     if no_pruning:
         argv.append("--no-pruning")
     if unknown:
         argv.append("--unknown-component")
+    return argv
+
+
+@functools.lru_cache(maxsize=None)
+def _help(script):
+    return subprocess.run([PYTHON, str(BIN / script), "--help"], capture_output=True, text=True).stdout
+
+
+def check_options(likelihood_options, estimate_options):
+    """Stop before any work when bin/ lacks an option an arm passes.
+
+    The arms whose options Phase 7b removed (D22, D25, D29, D31) need NANOVI_BIN set
+    to bin/ of commit 34d0411; without it they would fail only when their turn came.
+    """
+    for script, argv in (("read_likelihood.py", _likelihood_argv("x.bam", "x.npz", **likelihood_options)),
+                         ("estimate_abundance.py", _estimate_argv("x.npz", "x.json", **estimate_options))):
+        # '--score' must not match '--scores'
+        missing = [a for a in argv
+                   if a.startswith("--") and not re.search(re.escape(a) + r"(?![\w-])", _help(script))]
+        if missing:
+            sys.exit(f"{BIN / script} has no {', '.join(missing)}: this arm needs NANOVI_BIN set to bin/ "
+                     "of commit 34d0411 (Phase 7b removed the option)")
+
+
+def estimate(npz, out, **options):
+    argv = _estimate_argv(npz, out, **options)
     if not Path(out).exists() and read_counts(npz)["assigned_count"] == 0:
         # a filter that keeps no reads: the pipeline stops here; record an empty estimate
         # (tmp_ and rename as in _run, with a .time file as every other step has)

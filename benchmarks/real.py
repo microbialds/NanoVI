@@ -140,6 +140,8 @@ def main():
     args = ap.parse_args()
     names = args.samples.split(",") if args.samples else samples()
     arms = args.arms.split(",")
+    for arm in arms:
+        harness.check_options(ARMS[arm][3], ARMS[arm][4])
     # Indexes first, one at a time: two workers must not build the same one
     for arm in arms:
         db, version = ARMS[arm][1], ALIGN_VERSION.get(arm, "2.24")
