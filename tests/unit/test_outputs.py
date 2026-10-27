@@ -515,6 +515,9 @@ class TestGtdbParsers:
         ('Pseudomonas_E aeruginosa', 'Pseudomonas aeruginosa'),
         ('Listeria monocytogenes_B', 'Listeria monocytogenes'),
         ('Escherichia coli', 'Escherichia coli'),
+        # Only a suffix that ends a word is GTDB's: other databases' names stay whole
+        ('Lachnospiraceae_NK4A136_group sp1', 'Lachnospiraceae_NK4A136_group sp1'),
+        ('Candidatus_Saccharimonas sp1', 'Candidatus_Saccharimonas sp1'),
     ])
     def test_normalize_gtdb_name(self, name, expected):
         assert build_gtdb_db.normalize_gtdb_name(name) == expected

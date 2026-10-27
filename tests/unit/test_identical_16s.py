@@ -104,5 +104,19 @@ def test_a_contaminant_in_another_genus_does_not_hide_an_identity(tmp_path):
 
 def test_strip_gtdb_suffixes_matches_the_builder():
     import build_gtdb_db
-    for name in ('Pseudomonas_E aeruginosa', 'Listeria monocytogenes_B', 'Escherichia coli'):
+    for name in ('Pseudomonas_E aeruginosa', 'Listeria monocytogenes_B', 'Escherichia coli',
+                 'Lachnospiraceae_NK4A136_group'):
         assert build_gtdb_db.normalize_gtdb_name(name) == identical_16s.strip_gtdb_suffixes(name)
+
+
+def test_genera_of_other_databases_are_not_cut(tmp_path):
+    # Two genera that differ only inside the name stay two genera (an unanchored
+    # suffix pattern made both 'Lachnospiraceae4A136_group')
+    fasta, tax = write_db(tmp_path, [('1', S1), ('2', S1)], {
+        '1': ('Lachnospiraceae_NK4A136_group sp1', 'Lachnospiraceae_NK4A136_group', 'F', 'P'),
+        '2': ('Lachnospiraceae_XY4A136_group sp2', 'Lachnospiraceae_XY4A136_group', 'F', 'P'),
+    })
+    rows, cross = identical_16s.identical_reports(fasta, tax)
+    assert rows == []
+    assert len(cross) == 1
+
