@@ -86,7 +86,7 @@ and `test_scripts.py` that both give the same `shared_read_fraction`.
 **Continuous integration.** GitHub Actions runs the unit tests on Python 3.11 and 3.13,
 a check that the version strings agree, the stub tests, and the end-to-end tests twice
 (with Docker, on the Python image built from the commit under test, and with conda) on
-every push to the main and development branches and on every pull request.
+every push to the main and development branches and on every pull request into them.
 
 ---
 
@@ -111,7 +111,7 @@ images (from bioconda with `-profile conda`).
   `pipeline_info/software_versions.yml`.
 
 Singularity images can be built from `containers/Singularity.def`, which installs from
-the same requirements file, or pulled from the published Docker image.
+the same requirements file, or, once a release has published the image, pulled from it.
 
 ---
 

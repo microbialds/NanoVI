@@ -10,8 +10,9 @@ its source data in `benchmarks/data/`. Decisions are cited by their roadmap keys
 **In one paragraph.** NanoVI scores each read against the species it aligns to with
 Emu's CIGAR-based read score, and estimates species abundances with a Bayesian
 (Dirichlet-categorical) model fitted by mean-field variational inference, with Emu's
-pruning of low-abundance species. Its point estimates equal those of Emu's EM: the two
-estimators gave the same abundances on every sample of the benchmark. With its exact
+pruning of low-abundance species. Its point estimates match those of Emu's EM: the two
+estimators agreed to three decimals on the simulations and within 0.002 in group L1 on
+the real samples. With its exact
 GTDB r226 reference, NanoVI was more accurate than Emu with Emu's default database on
 all 13 real mock communities tested; with the same reference the two agree, and the
 gain comes from the database, not the model (§10). The posterior gives sampling
@@ -112,8 +113,8 @@ iterations, $\max_s |\Delta\, \alpha_s / \sum_j \alpha_j|$, is below `--vi_toler
 ($10^{-7}$), or after `--vi_max_iterations` (1,000) iterations. A relative ELBO rule
 was used before and stopped large samples after a couple of iterations (F05).
 
-The likelihood is stored as padded reads × candidates arrays (a read has at most
-$N + 1$ candidates), so memory grows with the number of reads and not with reads ×
+The likelihood is stored as padded reads × candidates arrays (a read's candidates come
+from its primary, up to $N$ secondary and any supplementary alignments, so they are few), so memory grows with the number of reads and not with reads ×
 species: 58 MB instead of 24 GB at 200,000 reads over 2,000 species, with identical
 results (F23).
 
@@ -262,7 +263,7 @@ on the released code (Phase 7b, §13).
 | Read score | Emu's | D29 | A per-base score raised recall on the simulations (10k even: 0.990 vs 0.950) but added false positives on real mocks (L1 −0.004 to +0.012, 0-2 more false-positive species) (§4.4) |
 | Identity and aligned-length filters | none | D25 | Identity ≥ 97% removes 93% of R9.4.1 reads and every read of the two R9.4 published mocks; an aligned-length minimum of 1,000-1,400 bp changed nothing useful (§9) |
 | Unknown-taxon component | none | D22, D10 | It removed reads of a species missing from the database at 0.9-1.8 times the rate of in-database reads, and reported 14-35% of reads as unknown on mocks whose species are all in the database (§9; `docs/design/unknown_component.md`) |
-| Estimator | VB (`em` available) | D2 | VB = EM to three decimals (§4.3, §10) |
+| Estimator | VB (`em` available) | D2 | VB and EM agree to three decimals on the simulations (§4.3) and within 0.002 in group L1, 0-1 false-positive group apart, on the real samples (§10) |
 | Prior, convergence | α₀ = 1, tolerance 1e-7, ≤ 1,000 iterations | F05 | The estimator runs to its fixed point; α₀ = 1 pseudo-read in total matters only for species with a few reads (section 5). Not varied in the benchmark |
 | Pruning and floor | Emu's 1/R, 10/R rule; `--min_abundance` 0.001 | D26, D31 | Pruning off reported 94-409 species on real mocks; floors of 1e-4 or 0 at 50k reads raised recall by 0.05-0.07 with 2-8 more false-positive species (§4.3, §5, §6) |
 | Intervals | off (`--credible_intervals`) | D7, D27 | 95% coverage 93% / 81% / 38% at 1k / 10k / 50k reads (section 6, §8) |

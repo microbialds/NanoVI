@@ -16,8 +16,11 @@ taxonomy.tsv and writes:
                              that carry it, never species across genera.
 
 Genera are compared with GTDB's clade suffixes stripped ('Pseudomonas_E' is
-'Pseudomonas'), so a GTDB database gives the same groups whether or not it was
-built with --merge-gtdb-suffixes. Species with no genus in taxonomy.tsv are
+'Pseudomonas'), so genera are grouped the same way whether or not a GTDB
+database was built with --merge-gtdb-suffixes. The species differ: with the
+suffixes kept, GTDB siblings such as 'Listeria monocytogenes' and 'Listeria
+monocytogenes_B' are separate species of one genus and can form groups (GTDB
+r226: 5,215 species in 1,513 groups, against 4,335 in 1,264 merged). Species with no genus in taxonomy.tsv are
 left out of both files. build_gtdb_db.py and 'main.py build-database' write
 both files into the database directory; the pipeline builds identical_16s.tsv
 for a database that lacks it (IDENTICAL_16S) and names the sharing species in

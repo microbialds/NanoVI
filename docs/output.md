@@ -31,9 +31,9 @@ from different samples have the same placeholder rows. Species rows are sorted b
 | Column | When | Meaning |
 |---|---|---|
 | `species` | always | Species name as the database's `taxonomy.tsv` gives it: whole, GTDB clade suffixes included (`Listeria monocytogenes_B`). With `--binomial_names`, cut to genus and epithet (`Candidatus` names keep three words) and rows that then share a name summed. A tax ID that `taxonomy.tsv` lacks, or that has no species name there, is reported as `Unknown taxid <id>` with a warning |
-| `abundance` | always | Posterior mean relative abundance of the species among the reads with an alignment, renormalised over the reported species, so the species rows sum to 1. It is a share of 16S reads, not of cells (no copy-number correction). `0` on the two placeholder rows |
+| `abundance` | always | Posterior mean relative abundance of the species among the reads with at least one scored alignment, renormalised over the reported species, so the species rows sum to 1. It is a share of 16S reads, not of cells (no copy-number correction). `0` on the two placeholder rows |
 | `genus` … `superkingdom` | always | Lineage from `taxonomy.tsv` (`genus`, `family`, `order`, `class`, `phylum`, `superkingdom`). On the placeholder rows and on `Unknown taxid` rows with blank ranks, each rank repeats the row's label, so collapsing to a higher rank keeps them apart |
-| `estimated_counts` | `--keep_counts` (default on) | Reads attributed to the species: `abundance` × (reads with an alignment − reads below detection), rounded by largest remainder so the species rows add up exactly. `Below detection` holds the reads whose candidate species were all pruned; `Unassigned` the reads with no scored alignment (no alignment, or only alignments using an error operation absent from the sample's error profile). All rows together add up to the reads that passed the length filter |
+| `estimated_counts` | `--keep_counts` (default on) | Reads attributed to the species: `abundance` × (reads with a scored alignment − reads below detection), rounded by largest remainder so the species rows add up exactly. `Below detection` holds the reads whose candidate species were all pruned; `Unassigned` the reads with no scored alignment (no alignment, or only alignments using an error operation absent from the sample's error profile). All rows together add up to the reads that passed the length filter |
 | `identical_16s_species` | always | The species of the same genus that share at least one identical 16S sequence with this species in the database, `; `-separated; empty for most species and on the placeholder rows. 16S cannot separate these species, so the split between them is not evidence for either (see below) |
 | `shared_read_fraction` | always | The share of this species' expected reads whose responsibility it splits with another reported species (another species takes at least 1% of the read). 0 means every read is the species' own; a high value means the abundance rests on reads another species explains as well. Empty on the placeholder rows |
 | `ci_lower`, `ci_upper` | `--credible_intervals` (VB only) | 2.5% and 97.5% quantiles of the species' mean-field posterior marginal: 95% **sampling** intervals, not calibrated uncertainty (they covered the true abundance in 93%, 81% and 38% of cases at 1,000, 10,000 and 50,000 reads). Empty on the placeholder rows |
@@ -62,7 +62,9 @@ lists *Staphylococcus aureus; Staphylococcus schweitzeri; Staphylococcus singapo
 (below). For a database directory without one, the pipeline's IDENTICAL_16S step builds
 it once from `species_taxid.fasta` and `taxonomy.tsv` and keeps it in the index cache as
 `species_taxid.<fasta md5>.<taxonomy md5>.identical_16s-<script md5>.tsv` (first 12 hex
-digits of each MD5). An `identical_16s.tsv` in `--db` is used as it is. With `--db_index`
+digits of each MD5). An `identical_16s.tsv` in `--db` is used as it is when the run's taxonomy is
+`<db>/taxonomy.tsv`; with another `--taxonomy_tsv` it is ignored and the table is built
+from the FASTA and that taxonomy. With `--db_index`
 and no FASTA in `--db`, the column is left empty. Species whose 16S genes are nearly,
 but not exactly, identical (for example the *Bacillus subtilis* complex on R9.4.1
 reads) are not listed.
@@ -86,7 +88,7 @@ columns are left out.
 | `otu_table_abundance.tsv` | `species` and one column per sample: `abundance`, 0 where the sample lacks the species |
 | `otu_table_counts.tsv` | The same with `estimated_counts` (the placeholder rows hold their reads). Written only when at least one sample has counts; samples without them get 0, with a warning |
 | `tax_table.tsv` | `species`, `genus`, `family`, `order`, `class`, `phylum`, `superkingdom`. A species whose lineage differs between samples gets its most common lineage. The placeholder rows have blank ranks |
-| `sample_metadata.tsv` | `sample_id`; `total_abundance` (sum of the species rows, 1.0); `n_taxa_detected` (species with abundance above 0); `assigned_counts` (reads with an alignment, below-detection reads included); `unassigned_counts`. The two counts are 0 when the sample has no counts |
+| `sample_metadata.tsv` | `sample_id`; `total_abundance` (sum of the species rows, 1.0); `n_taxa_detected` (species with abundance above 0); `assigned_counts` (reads with a scored alignment, below-detection reads included); `unassigned_counts`. The two counts are 0 when the sample has no counts |
 
 e2e fixture: `sample_metadata.tsv` reads `e2e_mock  1.0  6  600  30`.
 
@@ -96,7 +98,7 @@ e2e fixture: `sample_metadata.tsv` reads `e2e_mock  1.0  6  600  30`.
 |---|---|
 | `qc/fastplong/<sample>_report.html.gz`, `.json.gz` | fastplong's reports (gzipped): reads, bases, length and quality distributions before and after filtering. `summary.after_filtering.total_reads` in the JSON is the number of reads the pipeline goes on with |
 | `filtered/<sample>_filtered.fastq.gz` | With `--keep_files`: the reads that passed the length filter (and `--min_quality`, when set) |
-| `bam/<sample>_vi_alignments.bam` | With `--keep_files`: minimap2's alignments, unsorted, primary and up to `--N` secondary per read, unmapped reads included |
+| `bam/<sample>_vi_alignments.bam` | With `--keep_files`: minimap2's alignments, unsorted: per read the primary, up to `--N` secondary and any supplementary alignments, unmapped reads included |
 | `index_cache/<fasta stem>.<md5>.<type>.k<k>.minimap2-<version>.mmi` | The minimap2 index built with `-x <type> -k <kmer_size>`, and its `.versions.yml`. A later run with the same database, settings and minimap2 version reuses it. Not built with `--db_index`. A `-stub-run` adds `.stub` to the name |
 | `index_cache/...identical_16s-<md5>.tsv` | The identical-16S table built for a database without one, and its `.versions.yml` (above) |
 | `pipeline_info/timeline.html`, `report.html`, `trace.txt` | Nextflow's timeline, report and trace; the trace also records each task's requested `cpus`, `memory` and `time` |
@@ -109,7 +111,7 @@ Writes `<output_dir>/<db_name>/`, the directory to pass as `--db`:
 | File | Content |
 |---|---|
 | `species_taxid.fasta` | One record per distinct sequence of each species (identical sequences and reverse complements within a species kept once), headers `>taxid:db_name:n` |
-| `taxonomy.tsv` | `tax_id`, `species`, `genus`, `family`, `order`, `class`, `phylum`, `superkingdom`; one row per species. With `--ncbi_taxonomy`, sorted by tax ID |
+| `taxonomy.tsv` | With `--ncbi_taxonomy`: `tax_id`, `species`, `genus`, `family`, `order`, `class`, `phylum`, `superkingdom`, one row per species-level tax ID in `--seq2tax`, sorted by tax ID. With `--taxonomy_list`: that file's header (its first column renamed `tax_id`) and its rows for the tax IDs in `--seq2tax`, in its order, so give it these rank columns and species-level tax IDs |
 | `identical_16s.tsv` | As written by `bin/build_gtdb_db.py` (below) |
 | `cross_genus_identical.tsv` | As written by `bin/build_gtdb_db.py` (below) |
 
