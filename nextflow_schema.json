@@ -126,7 +126,7 @@
         "binomial_names": {
           "type": "boolean",
           "default": false,
-          "description": "Cut species names in the output tables to genus and epithet ('Candidatus' names keep three words) and sum the species that then share a name. Off: names as in the database's taxonomy.tsv"
+          "description": "Cut species names in the output tables to genus and epithet ('Candidatus' names keep three words) and sum the species that then share a name (their shared_read_fraction also counts the reads split among them). Off: names as in the database's taxonomy.tsv"
         }
       }
     },

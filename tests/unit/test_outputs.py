@@ -209,6 +209,7 @@ class TestIntervalColumns:
         assert df.loc['Escherichia coli', 'abundance'] == pytest.approx(90.4 / total)
         assert df.loc['Escherichia coli', 'ci_lower'] == pytest.approx(lower)
         assert df.loc['Escherichia coli', 'ci_upper'] == pytest.approx(upper)
+        # Shared reads add up per tax ID: reads split between the two strains count as shared (README)
         assert df.loc['Escherichia coli', 'shared_read_fraction'] == pytest.approx(6.0 / 90.0)
 
     def test_shared_read_fraction_without_intervals(self, tmp_path):
