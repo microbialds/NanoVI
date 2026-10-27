@@ -105,7 +105,7 @@ def test_a_contaminant_in_another_genus_does_not_hide_an_identity(tmp_path):
 def test_strip_gtdb_suffixes_matches_the_builder():
     import build_gtdb_db
     for name in ('Pseudomonas_E aeruginosa', 'Listeria monocytogenes_B', 'Escherichia coli',
-                 'Lachnospiraceae_NK4A136_group'):
+                 'Lachnospiraceae_NK4A136_group', 'Clostridium_AQ', 'Family_XIII', 'Ruminococcaceae_UCG'):
         assert build_gtdb_db.normalize_gtdb_name(name) == identical_16s.strip_gtdb_suffixes(name)
 
 

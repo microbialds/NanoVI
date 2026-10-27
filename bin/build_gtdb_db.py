@@ -48,7 +48,7 @@ def normalize_gtdb_name(name: str) -> str:
     """
     Remove GTDB-specific clade suffixes from taxon names.
 
-    GTDB uses underscore + uppercase letters to resolve polyphyletic groups,
+    GTDB uses underscore + one or two uppercase letters to resolve polyphyletic groups,
     e.g. 'Pseudomonas_E', 'Listeria monocytogenes_B', 'Methanobrevibacter_A'.
     Stripping them gives the names of standard nomenclature, but merges species
     and genera that GTDB keeps apart, so the builder does it only with

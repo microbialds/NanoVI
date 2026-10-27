@@ -30,10 +30,10 @@ import hashlib
 import re
 from collections import defaultdict
 
-# GTDB clade suffix ('Pseudomonas_E', 'Listeria monocytogenes_B'), at the end of a word
-# only, so other databases' names ('Lachnospiraceae_NK4A136_group') stay whole;
-# build_gtdb_db.py strips it with strip_gtdb_suffixes too
-GTDB_SUFFIX = re.compile(r"_[A-Z]+(?=\s|$)")
+# GTDB clade suffix ('Pseudomonas_E', 'Clostridium_AQ'): one or two capitals that end a
+# word (GTDB r226 has no longer ones), so other databases' names ('Lachnospiraceae_NK4A136_group',
+# 'Family_XIII') stay whole; build_gtdb_db.py strips it with strip_gtdb_suffixes too
+GTDB_SUFFIX = re.compile(r"_[A-Z]{1,2}(?=\s|$)")
 
 GROUP_COLUMNS = ["tax_id", "species", "genus", "group", "group_size", "identical_16s_species"]
 CROSS_GENUS_COLUMNS = ["md5", "species_count", "sequence_ids", "tax_ids", "species", "genera", "families", "phyla"]
