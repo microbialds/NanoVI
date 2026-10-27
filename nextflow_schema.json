@@ -121,7 +121,7 @@
         "keep_files": {
           "type": "boolean",
           "default": false,
-          "description": "Retain intermediate files (SAM alignments, filtered FASTQs) in output directory"
+          "description": "Publish the alignments (bam/<sample>_vi_alignments.bam) and the length-filtered reads (filtered/<sample>_filtered.fastq.gz)"
         },
         "binomial_names": {
           "type": "boolean",
