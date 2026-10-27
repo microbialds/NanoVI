@@ -27,7 +27,7 @@ nextflow_pipeline {
 
             // Every step's versions.yml is collected once (F33), not published with the results
             def versions = new org.yaml.snakeyaml.Yaml().load(file("${outputDir}/pipeline_info/software_versions.yml").text)
-            assert versions.keySet() == ['FILTER_READS', 'INDEX_DB', 'ALIGN_READS', 'LIKELIHOOD', 'RUN_VI',
+            assert versions.keySet() == ['FILTER_READS', 'INDEX_DB', 'IDENTICAL_16S', 'ALIGN_READS', 'LIKELIHOOD', 'RUN_VI',
                                          'WRITE_OUTPUT', 'GENERATE_PHYLOSEQ_TABLES', 'Workflow'] as Set
             assert versions.Workflow['microbialds/NanoVI'] ==~ /\d+\.\d+\.\d+/
             assert !file("${outputDir}/sample_outputs/versions.yml").exists()
@@ -116,9 +116,61 @@ nextflow_pipeline {
         then {
             assert workflow.success
             assert workflow.trace.tasks().count { it.name == 'ABUNDANCE:INDEX_DB' } == 0
-            assert !file("${outputDir}/index_cache").exists()
+            assert !file("${outputDir}/index_cache").listFiles().any { it.name.endsWith('.mmi') }
             def versions = new org.yaml.snakeyaml.Yaml().load(file("${outputDir}/pipeline_info/software_versions.yml").text)
             assert !versions.containsKey('INDEX_DB')
+        }
+    }
+
+    // Identical-16S table (D24): a database without identical_16s.tsv gets one built
+    // from its FASTA and taxonomy, kept in the index cache; one with the file uses it
+    test("IDENTICAL_16S builds the identical-16S table into the index cache") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            params {
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().count { it.name == 'ABUNDANCE:IDENTICAL_16S' } == 1
+            def tables = file("${outputDir}/index_cache").listFiles().findAll { it.name.endsWith('.stub.tsv') }
+            assert tables.size() == 1
+            // FASTA, taxonomy and bin/identical_16s.py MD5s
+            assert tables[0].name ==~ /species_taxid\.[0-9a-f]{12}\.[0-9a-f]{12}\.identical_16s-[0-9a-f]{12}\.stub\.tsv/
+        }
+    }
+
+    test("A database with identical_16s.tsv does not run IDENTICAL_16S") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            // (not named db: a local variable would capture the db parameter below)
+            def dbDir = new File("${outputDir}/db_with_table")
+            dbDir.mkdirs()
+            ['species_taxid.fasta', 'taxonomy.tsv'].each { f ->
+                new File(dbDir, f).text = new File("${projectDir}/tests/test_data/mock_db/${f}").text
+            }
+            new File(dbDir, 'identical_16s.tsv').text = 'tax_id\tspecies\tgenus\tgroup\tgroup_size\tidentical_16s_species\n'
+            params {
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${outputDir}/db_with_table"
+                // the test profile names the e2e fixture's taxonomy; the table goes with the database's own
+                taxonomy_tsv = "${outputDir}/db_with_table/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().count { it.name == 'ABUNDANCE:IDENTICAL_16S' } == 0
+            assert workflow.trace.tasks().count { it.name.startsWith('ABUNDANCE:WRITE_OUTPUT') } > 0
         }
     }
 
@@ -234,6 +286,9 @@ nextflow_pipeline {
             // Published into <output_dir>/<db_name>/, not <db_name>/<db_name>/ (F41)
             assert file("${outputDir}/db_custom/species_taxid.fasta").exists()
             assert file("${outputDir}/db_custom/taxonomy.tsv").exists()
+            // Species sharing an identical 16S and sequences shared across genera (D23, D24)
+            assert file("${outputDir}/db_custom/identical_16s.tsv").exists()
+            assert file("${outputDir}/db_custom/cross_genus_identical.tsv").exists()
             assert !file("${outputDir}/db_custom/db_custom").exists()
         }
     }
@@ -541,6 +596,12 @@ nextflow_pipeline {
             assert file(result).exists()
             def rows = readTsv(result)
             def expected = readTsv("${projectDir}/tests/test_data/e2e/expected.tsv")
+            // The fixture's 11 species share no identical 16S (D24): the column is there, empty
+            assert rows.every { it.containsKey('identical_16s_species') && it.identical_16s_species == '' }
+            // shared_read_fraction by default (D27); the interval columns only with --credible_intervals
+            assert rows.every { it.containsKey('shared_read_fraction') && !it.containsKey('ci_lower') }
+            def flexneri = rows.find { it.species == 'Shigella flexneri' }
+            assert (flexneri.shared_read_fraction as double) > 0.1
 
             // Assigned abundances sum to 1
             def assigned = rows.findAll { it.species && it.species.toLowerCase() != 'unassigned' }
@@ -588,6 +649,11 @@ nextflow_pipeline {
             assert versions.FILTER_READS.fastplong ==~ /\d+\.\d+\.\d+/
             assert versions.ALIGN_READS.minimap2 ==~ /\d+\.\d+.*/
             assert versions.ALIGN_READS.samtools ==~ /\d+\.\d+.*/
+            // The cached index is named after the minimap2 that aligned (ext.minimap2_version, D30)
+            def indexes = file("${outputDir}/index_cache").listFiles().findAll { it.name.endsWith('.mmi') }
+            assert indexes.size() == 1
+            def cached = (indexes[0].name =~ /\.minimap2-(.+)\.mmi$/)[0][1]
+            assert versions.ALIGN_READS.minimap2 == cached || versions.ALIGN_READS.minimap2.startsWith(cached + '-')
             assert versions.RUN_VI.python.toString().startsWith('3.11.')
             ['numpy', 'pandas', 'scipy', 'pysam', 'biopython'].each { pkg ->
                 assert versions.RUN_VI[pkg] && versions.RUN_VI[pkg] != 'not installed'
@@ -599,9 +665,9 @@ nextflow_pipeline {
     // 26.04+, so `--keep_counts false` used to keep the counts; the typed params
     // block in main.nf converts them (F40). This needs the real RUN_VI and
     // WRITE_OUTPUT scripts; the interval columns are experimental (F20)
-    test("--keep_counts false, --keep_files true and --credible_intervals true on the command line") {
+    test("--keep_counts false, --keep_files true, --credible_intervals true and --binomial_names true on the command line") {
         tag "e2e"
-        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --keep_counts false --keep_files true --credible_intervals true"
+        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --keep_counts false --keep_files true --credible_intervals true --binomial_names true"
 
         when {
             params {
@@ -613,10 +679,18 @@ nextflow_pipeline {
             assert workflow.success
             def header = file("${outputDir}/sample_outputs/e2e_mock_rel-abundance.tsv").readLines()[0].split('\t') as List
             assert header == ['species', 'abundance', 'genus', 'family', 'order', 'class', 'phylum', 'superkingdom',
-                              'ci_lower', 'ci_upper', 'shared_read_fraction']
+                              'identical_16s_species', 'shared_read_fraction', 'ci_lower', 'ci_upper']
             assert !file("${outputDir}/consolidated_output/otu_table_counts.tsv").exists()
             assert file("${outputDir}/bam/e2e_mock_vi_alignments.bam").exists()
             assert file("${outputDir}/filtered/e2e_mock_filtered.fastq.gz").exists()
+            // The fixture's names are already binomials, so check that WRITE_OUTPUT got the option (F17)
+            def lines = file("${metaDir}/trace.csv").readLines()
+            def fields = lines[0].split('\t') as List
+            def task = lines.drop(1).collect { [fields, it.split('\t') as List].transpose().collectEntries { it } }
+                .find { it.name.startsWith('ABUNDANCE:WRITE_OUTPUT') }
+            def (prefix, rest) = task.hash.split('/')
+            def taskDir = new File("${metaDir}/../work/${prefix}").listFiles().find { it.name.startsWith(rest) }
+            assert new File(taskDir, '.command.sh').text.contains('--binomial-names')
         }
     }
 }

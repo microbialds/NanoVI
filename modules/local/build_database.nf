@@ -27,6 +27,7 @@ process BUILD_DB {
     """
     mkdir -p ${params.db_name}
     touch ${params.db_name}/species_taxid.fasta ${params.db_name}/taxonomy.tsv
+    touch ${params.db_name}/identical_16s.tsv ${params.db_name}/cross_genus_identical.tsv
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: stub

@@ -19,7 +19,10 @@ from pathlib import Path
 import pandas as pd
 
 from common import BENCH, read_taxonomy
-from estimate_abundance import UNKNOWN_TAX_ID
+
+# Tax ID of the unknown-taxon prototype in the Phase 7a estimates (bin/ at 34d0411;
+# the prototype was removed afterwards, D22)
+UNKNOWN_TAX_ID = 0
 
 UNKNOWN = "Unknown (not in database)"
 

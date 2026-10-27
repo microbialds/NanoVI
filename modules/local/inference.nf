@@ -19,14 +19,13 @@ process RUN_VI {
         --tolerance ${params.vi_tolerance} \\
         --max-iterations ${params.vi_max_iterations} \\
         --alpha-prior ${params.alpha_prior} \\
-        --elbo-threshold ${params.vi_elbo_threshold} \\
-        ${params.credible_intervals ? '--credible-intervals' : ''}
+        --elbo-threshold ${params.vi_elbo_threshold}
     python_versions.py "${task.process}" > versions.yml
     """
 
     stub:
     """
-    echo '{"abundance": {}, "below_detection_count": 0}' > ${sample_id}_abundance.json
+    echo '{"abundance": {}, "below_detection_count": 0, "read_summary": {}}' > ${sample_id}_abundance.json
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: stub

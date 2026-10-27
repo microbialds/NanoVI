@@ -18,6 +18,8 @@ import math
 import numpy as np
 from sys import stdout
 
+from variational_inference_bayesian import posterior_read_summary
+
 
 def variational_inference(log_p_rgs, freq, max_iterations=20, tolerance=5e-4):
     """Run inner VI/EM loop: update q(s|r) and frequencies until convergence."""
@@ -75,7 +77,31 @@ def count_below_detection(log_p_rgs, reported):
         if not any(reported.get(sid, 0) > 0 for sid in sids)
     )
 
-def variational_inference_iterations(log_p_rgs, db_ids, lli_thresh, input_threshold, prune=True):
+def read_summary(idx, logL, freq, species_ids, reported_ids):
+    """Expected and shared reads of each reported species under EM's responsibilities (D27).
+
+    idx/logL are the padded likelihood over the species that survived pruning
+    (columns in the order of species_ids, as sparse_likelihood_from_csr gives them)
+    and freq their frequencies (freq_full). A read's responsibility is
+    ∝ freq_s × p(read | s) over those species, as the Bayesian VI's φ comes from its
+    final fit; expected and shared reads are then counted over the reported species
+    (reported_ids) as in posterior_read_summary, without alpha.
+    """
+    finite = np.isfinite(logL)
+    with np.errstate(divide="ignore"):
+        log_w = np.log(np.asarray(freq, dtype=np.float64))
+    score = np.where(finite, logL + log_w[idx], -np.inf)
+    top = score.max(axis=1, keepdims=True)
+    phi = np.exp(score - np.where(np.isfinite(top), top, 0.0))
+    total = phi.sum(axis=1, keepdims=True)
+    phi = np.divide(phi, total, out=np.zeros_like(phi), where=total > 0)
+    column = {sid: i for i, sid in enumerate(reported_ids)}
+    reported_col = np.array([column.get(sid, -1) for sid in species_ids], dtype=np.int64)
+    idx_reported = np.where(np.isfinite(score), reported_col[idx], -1)
+    return posterior_read_summary(None, idx_reported, np.where(idx_reported >= 0, phi, 0.0), list(reported_ids))
+
+
+def variational_inference_iterations(log_p_rgs, db_ids, lli_thresh, input_threshold):
     """EM with pruning, as in Emu.
 
     Returns (freq_full, freq_set_thresh, below_detection_count): the frequencies
@@ -84,10 +110,6 @@ def variational_inference_iterations(log_p_rgs, db_ids, lli_thresh, input_thresh
     threshold is not above the pruning one; and the number of reads whose
     species are all missing from the reported set (the second if given, else
     the first), which are reported as 'Below detection' (F06).
-
-    prune=False (experimental, Phase 7a) sets the pruning threshold to 0, so
-    every species with a non-zero frequency is kept until input_threshold applies
-    (species are then refitted, as in VB's prune=False).
     """
     n_db = len(db_ids)
     n_reads = len(log_p_rgs)
@@ -102,8 +124,6 @@ def variational_inference_iterations(log_p_rgs, db_ids, lli_thresh, input_thresh
     freq_thresh = 1 / n_reads
     if n_reads > 1000:
         freq_thresh = 10 / n_reads
-    if not prune:
-        freq_thresh = 0.0
     total_elbo = -math.inf
     while True:
         freq, _ = variational_inference(log_p_rgs, freq)
@@ -117,9 +137,7 @@ def variational_inference_iterations(log_p_rgs, db_ids, lli_thresh, input_thresh
             )
         if elbo_diff < lli_thresh:
             stdout.write(f"Number of VI iterations: {counter}\n")
-            # v > 0: with prune=False the threshold is 0, and frequencies that
-            # underflowed to 0 must not be reported
-            freq = {k: v for k, v in freq.items() if v >= freq_thresh and v > 0}
+            freq = {k: v for k, v in freq.items() if v >= freq_thresh}
             freq_full, _ = variational_inference(log_p_rgs, freq)
             freq_set_thresh = None
             if freq_thresh < input_threshold:

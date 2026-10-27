@@ -11,7 +11,10 @@ import os
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'bin'))
+import numpy as np
+
 from em_estimator import (
+    read_summary,
     update_q_distribution,
     maximize_elbo,
     variational_inference,
@@ -164,3 +167,29 @@ class TestEmAgainstBayesianVi:
             assert em_freq[sid] == pytest.approx(p, abs=0.02)
             assert em_freq[sid] == pytest.approx(vb_freq[sid], abs=0.001)
         assert em_below == vb_below == 0
+
+
+class TestReadSummary:
+    """EM's read summary uses the responsibilities over every species that survived
+    pruning, as the Bayesian VI's φ does (D27)."""
+
+    # Read 0 ties species 10 and 30, read 1 aligns to 10 only, read 2 ties 10 and 20
+    IDX = np.array([[0, 2], [0, 0], [0, 1]])
+    LOGL = np.array([[-1.0, -1.0], [-1.0, -np.inf], [-1.0, -1.0]])
+    SPECIES = [10, 20, 30]
+    FREQ = [0.6, 0.3, 0.1]
+
+    def test_responsibility_on_a_dropped_species_is_not_counted(self):
+        # 30 is below the abundance threshold: read 0 counts 0.6/0.7 for 10, not 1
+        summary = read_summary(self.IDX, self.LOGL, self.FREQ, self.SPECIES, [10, 20])
+        assert set(summary) == {10, 20}
+        assert summary[10]['expected_reads'] == pytest.approx(0.6 / 0.7 + 1 + 0.6 / 0.9)
+        assert summary[20]['expected_reads'] == pytest.approx(0.3 / 0.9)
+        # Read 0 is not shared among the reported species; read 2 is
+        assert summary[10]['shared_reads'] == pytest.approx(0.6 / 0.9)
+        assert 'alpha' not in summary[10]
+
+    def test_all_species_reported(self):
+        summary = read_summary(self.IDX, self.LOGL, self.FREQ, self.SPECIES, self.SPECIES)
+        assert sum(v['expected_reads'] for v in summary.values()) == pytest.approx(3.0)
+        assert summary[30]['expected_reads'] == pytest.approx(0.1 / 0.7)

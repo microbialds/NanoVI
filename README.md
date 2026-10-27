@@ -95,8 +95,8 @@ Parameters are checked against `nextflow_schema.json` at the start of every run 
 |-----------|---------|-------------|
 | `--input` | required | Path to samplesheet CSV or FASTQ directory |
 | `--db` | required | Path to NanoVI/GTDB reference database |
-| `--db_index` | none | Prebuilt minimap2 index (`.mmi`) of the database's `species_taxid.fasta`; INDEX_DB is skipped. Build it with the pipeline's minimap2 (2.24) and the same `-x <type> -k <kmer_size>`, or take it from the index cache of an earlier run |
-| `--index_cache_dir` | `<output_dir>/index_cache` | Where INDEX_DB keeps the indexes it builds. The file name records the database (the first 12 digits of the FASTA's MD5), `--type`, `--kmer_size` and the minimap2 version, e.g. `species_taxid.3f9c0a12b7de.map-ont.k21.minimap2-2.24.mmi`, so a later run with the same settings reuses the index instead of rebuilding it. Point several runs at one directory to share it, but let the first run that builds an index finish before starting others: a run reuses any file with the right name, and nothing checks that it is complete |
+| `--db_index` | none | Prebuilt minimap2 index (`.mmi`) of the database's `species_taxid.fasta`; INDEX_DB is skipped. Build it with the pipeline's minimap2 (2.31) and the same `-x <type> -k <kmer_size>`, or take it from the index cache of an earlier run |
+| `--index_cache_dir` | `<output_dir>/index_cache` | Where INDEX_DB keeps the indexes it builds. The file name records the database (the first 12 digits of the FASTA's MD5), `--type`, `--kmer_size` and the minimap2 version, e.g. `species_taxid.3f9c0a12b7de.map-ont.k21.minimap2-2.31.mmi`, so a later run with the same settings reuses the index instead of rebuilding it. Point several runs at one directory to share it, but let the first run that builds an index finish before starting others: a run reuses any file with the right name, and nothing checks that it is complete |
 | `--taxonomy_tsv` | `<db>/taxonomy.tsv` | Path to taxonomy TSV |
 | `--kmer_size` | `21` | K-mer size for minimap2 indexing |
 | `--N` | `3` | Maximum secondary alignments per read |
@@ -107,6 +107,7 @@ Parameters are checked against `nextflow_schema.json` at the start of every run 
 | `--min_quality` | off | Minimum mean read quality (Phred). Off: fastplong filters by length only. Set: fastplong's quality filter drops reads with a lower mean quality (its per-base rule is switched off; its limit of 5 N bases per read still applies) |
 | `--keep_counts` | `false` | Include read count column in output |
 | `--keep_files` | `false` | Publish the alignments (`bam/<sample>_vi_alignments.bam`) and the filtered reads (`filtered/<sample>_filtered.fastq.gz`) |
+| `--binomial_names` | `false` | Cut species names in the output tables to genus and epithet (`Escherichia coli O157` → `Escherichia coli`; `Candidatus` names keep three words) and sum the species that then share a name (their `shared_read_fraction` then also counts the reads split among the summed species). Off: names are kept as the database's `taxonomy.tsv` gives them |
 
 ### Inference
 
@@ -118,11 +119,11 @@ Parameters are checked against `nextflow_schema.json` at the start of every run 
 | `--vi_max_iterations` | `1000` | vb | Most CAVI iterations in each pruning round |
 | `--alpha_prior` | `1.0` | vb | Total concentration of the symmetric Dirichlet prior; each of the S candidate species gets `alpha_prior / S` |
 | `--vi_elbo_threshold` | `1e-4` | em | The EM loop stops when the log-likelihood rises by less than this. Its inner loop keeps Emu's settings (at most 20 iterations, total change in frequencies below 5e-4) |
-| `--credible_intervals` | `false` | vb | Experimental: adds `ci_lower`, `ci_upper` and `shared_read_fraction` columns (below) |
+| `--credible_intervals` | `false` | vb | Adds `ci_lower` and `ci_upper`, 95% sampling intervals of each species' abundance (below) |
 
 **Detection floor.** R is the number of reads with at least one scored alignment. With `vb`, species whose posterior mean abundance falls below the pruning threshold are removed and the rest refitted, until none is below it: the threshold is max(1/R, `min_abundance`) up to 1,000 reads and max(10/R, `min_abundance`) above. With the default, the floor is 1/R up to 1,000 reads, 10/R up to 10,000 reads and 0.1% above that: nothing below 0.1% is reported at any depth (Emu's floor of 10/R would be 0.01% at 100,000 reads). With `em`, species are pruned below 1/R (10/R above 1,000 reads), as in Emu, and if `min_abundance` is higher the species at or above it are refitted and reported. With either estimator, reads whose candidate species were all pruned are reported in the `Below detection` row.
 
-**Credible intervals (experimental).** With `--credible_intervals`, the per-sample table gains three columns for each species: `ci_lower` and `ci_upper`, the 2.5% and 97.5% quantiles of the species' mean-field posterior marginal, Beta(α_s, Σα − α_s) over the reported species (tax IDs that share a species name add their α), and `shared_read_fraction`, the share of the species' expected reads whose responsibility is split with another reported species, that is, where the other species get at least 1% of the read. The mean-field approximation treats read assignments and abundances as independent, so the intervals carry only sampling noise: they are too narrow for species that share reads with a close relative, and a high `shared_read_fraction` marks those species. Their coverage has not been measured yet. The columns are left empty on the `Below detection` and `Unassigned` rows, and `collapse-taxonomy`, `combine-outputs` and the consolidated tables leave them out.
+**Shared reads and intervals.** Every per-sample table has a `shared_read_fraction` column: the share of the species' expected reads whose responsibility is split with another reported species, that is, where the other species get at least 1% of the read. It is counted per tax ID, so a row that sums several tax IDs (with `--binomial_names`, or a name repeated in a custom taxonomy) also counts the reads split among them. A high value means the species' abundance rests on reads that another species explains as well; in the 2026 benchmark it flagged the estimates that missed the truth (AUC 0.75-0.84; `docs/benchmarks/methods_2026.md`). With `--credible_intervals` (`vb` only) the table also gets `ci_lower` and `ci_upper`, the 2.5% and 97.5% quantiles of the species' mean-field posterior marginal, Beta(α_s, Σα − α_s) over the reported species (tax IDs that share a species name add their α). These are sampling intervals, not calibrated uncertainty: they shrink as 1/√reads while the error from assigning reads between close relatives does not, so they covered the true abundance in 93%, 81% and 38% of cases at 1,000, 10,000 and 50,000 reads (42% for species with a close relative at 10,000), and the exact posterior (collapsed Gibbs) and a read bootstrap gave the same intervals. The columns are left empty on the `Below detection` and `Unassigned` rows, and `collapse-taxonomy`, `combine-outputs` and the consolidated tables leave them out.
 
 ### Resources
 
@@ -168,13 +169,15 @@ The pipeline produces the following output files in `--output_dir`:
 | `pipeline_info/trace.txt` | Nextflow trace file |
 | `pipeline_info/software_versions.yml` | Versions of fastplong, minimap2, Python and its packages, NanoVI and Nextflow used in the run |
 
+**Species with identical 16S.** The per-sample table's `identical_16s_species` column names, for each reported species, the species of the same genus in the database that share an identical 16S sequence with it (`; `-separated, empty for most species). 16S cannot tell such species apart: reads that match both score the same, so the reported split between them is not evidence of either. The list comes from the database's `identical_16s.tsv`, which `bin/build_gtdb_db.py` and `--cmd build-database` write; for a database without it, the pipeline builds it once from `species_taxid.fasta` and `taxonomy.tsv` and keeps it beside the cached indexes in `--index_cache_dir`, under a name made of the MD5s of the FASTA, the taxonomy and `bin/identical_16s.py`. An `identical_16s.tsv` in `--db` is used as it is; delete it to have the pipeline build the table again. With `--db_index` and no FASTA in `--db` the column is left empty.
+
 ## Profiles
 
 | Profile | Description |
 |---------|-------------|
 | `docker` | Run with Docker containers (default if no profile specified) |
 | `singularity` | Run with Singularity containers |
-| `conda` | Run with Conda environments: fastplong 0.2.2 and minimap2 2.24 from bioconda, and `containers/environment.yml` (the image's Python and package versions) for the Python steps. Creating the environments with conda's classic solver can take a long time; a recent conda (libmamba solver) or `-c` with `conda.useMicromamba = true` is much faster |
+| `conda` | Run with Conda environments: fastplong 0.7.0 and minimap2 2.31 (with samtools 1.24) from bioconda, and `containers/environment.yml` (the image's Python and package versions) for the Python steps. Creating the environments with conda's classic solver can take a long time; a recent conda (libmamba solver) or `-c` with `conda.useMicromamba = true` is much faster |
 | `slurm` | Submit jobs to SLURM scheduler (uses Singularity) |
 | `sge` | Submit jobs to SGE scheduler (uses Singularity) |
 | `test` | Minimal test dataset with reduced resources |
@@ -228,6 +231,7 @@ python3 bin/build_gtdb_db.py \
 | `--db-name` | `db_gtdb` | Label embedded in FASTA headers (e.g. `db_gtdb_r226`) |
 | `--output-dir` | `./db` | Directory where output files are written |
 | `--min-length` | `900` | Minimum 16S sequence length in bp to include |
+| `--merge-gtdb-suffixes` | off | Strip GTDB's clade suffixes (`Listeria monocytogenes_B` → `Listeria monocytogenes`, `Pseudomonas_E` → `Pseudomonas`), merging the species and genera GTDB separates with them into one tax ID, and write `merged_species.tsv`. Off: names are kept as GTDB writes them |
 
 **Output files:**
 
@@ -235,6 +239,9 @@ python3 bin/build_gtdb_db.py \
 |------|-------------|
 | `species_taxid.fasta` | Reference FASTA — one entry per unique 16S sequence, header: `taxid:db_name:n` |
 | `taxonomy.tsv` | Taxonomy table — one row per species with full lineage |
+| `identical_16s.tsv` | Species that share an identical 16S sequence with another species of their genus (genera compared without GTDB's suffixes), one row each: its group (the species of the genus linked through shared sequences) and the species it shares a sequence with. 16S cannot tell these species apart; the pipeline names them in the `identical_16s_species` column. `--cmd build-database` writes it too |
+| `cross_genus_identical.tsv` | Sequences found in species of more than one genus, with their species, genera, families and phyla. In GTDB these are almost always contaminant contigs in an assembly (1,360 sequences in r226). They stay in the database, and `identical_16s.tsv` still groups the species of one genus that carry such a sequence; only the link across genera is left out |
+| `merged_species.tsv` | With `--merge-gtdb-suffixes` only: each name that merges two or more GTDB species with a sequence in the database, with those species and their genera, the ranks at which their lineages differ, and the GTDB species whose lineage `taxonomy.tsv` keeps (the first in the input) |
 
 ### 3. Run NanoVI with the GTDB database
 

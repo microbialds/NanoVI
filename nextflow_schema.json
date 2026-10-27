@@ -122,6 +122,11 @@
           "type": "boolean",
           "default": false,
           "description": "Retain intermediate files (SAM alignments, filtered FASTQs) in output directory"
+        },
+        "binomial_names": {
+          "type": "boolean",
+          "default": false,
+          "description": "Cut species names in the output tables to genus and epithet ('Candidatus' names keep three words) and sum the species that then share a name (their shared_read_fraction also counts the reads split among them). Off: names as in the database's taxonomy.tsv"
         }
       }
     },
@@ -172,7 +177,7 @@
         "credible_intervals": {
           "type": "boolean",
           "default": false,
-          "description": "Experimental, VB only: add ci_lower, ci_upper (95% mean-field interval) and shared_read_fraction columns. The intervals are too narrow for species that share reads"
+          "description": "VB only: add ci_lower and ci_upper, 95% sampling intervals of the mean-field posterior. They are not calibrated: they ignore how reads shared by close relatives are split (shared_read_fraction, always written, flags those species)"
         }
       }
     },

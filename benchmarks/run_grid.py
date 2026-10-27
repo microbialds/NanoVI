@@ -126,6 +126,9 @@ def main():
     ap.add_argument("--collect", action="store_true", help="only merge the per-sample results")
     args = ap.parse_args()
     if not args.collect:
+        for a in arms(args.design):
+            harness.check_options(dict(error_profile=a["profile"], score=a["score"]),
+                                  dict(estimator=a["estimator"], min_abundance=a["floor"], no_pruning=not a["prune"]))
         samples = args.samples.split(",") if args.samples else default_samples(args.design)
         print(f"{len(samples)} samples, {len(arms(args.design))} arms each", flush=True)
         with ProcessPoolExecutor(args.workers) as pool:

@@ -14,6 +14,7 @@ through the Nextflow pipeline (decision D1).
 import argparse
 import os
 
+import identical_16s
 from taxonomy import (
     collapse_rank,
     combine_outputs,
@@ -100,6 +101,11 @@ def run_build_database(args):
     else:
         build_direct_taxonomy(db_unique_ids, args.taxonomy_list, output_taxonomy_location)
 
+    # Species that 16S cannot separate, and sequences shared across genera (D23, D24)
+    identical_16s.write_reports(
+        os.path.join(custom_db_path, 'species_taxid.fasta'), output_taxonomy_location,
+        os.path.join(custom_db_path, 'identical_16s.tsv'), os.path.join(custom_db_path, 'cross_genus_identical.tsv'),
+    )
     print("Database creation successful")
 
 

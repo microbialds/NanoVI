@@ -3,7 +3,8 @@
 
 The comparators' databases (Emu's default, EPI2ME wf-16s, Kraken2) and the mock
 communities' truth tables use NCBI names; NanoVI's database and the simulations use
-GTDB r226 names with suffixes stripped (build_gtdb_db.py). Every NCBI species is
+GTDB r226 names with suffixes stripped (build_gtdb_db.py --merge-gtdb-suffixes, as
+Phase 7a's databases were built). Every NCBI species is
 mapped to the GTDB species that most of its genomes are placed in, from the GTDB
 r226 metadata (ncbi_taxonomy and gtdb_taxonomy of every genome, bacteria and
 archaea). The share of genomes behind the majority is kept, so that species
@@ -50,7 +51,7 @@ def crosswalk():
                                   dtype=str, low_memory=False))
     m = pd.concat(frames)
     m["ncbi_species"] = m["ncbi_taxonomy"].str.extract(r"s__([^;]*)$")[0].str.strip()
-    m["gtdb_species"] = m["gtdb_taxonomy"].map(lambda t: parse_gtdb_lineage(t)["species"])
+    m["gtdb_species"] = m["gtdb_taxonomy"].map(lambda t: parse_gtdb_lineage(t, merge_suffixes=True)["species"])
     m = m[(m["ncbi_species"].fillna("") != "") & (m["gtdb_species"] != "")]
     counts = m.groupby(["ncbi_species", "gtdb_species"]).size().rename("n").reset_index()
     totals = counts.groupby("ncbi_species")["n"].agg(["sum", "size"])

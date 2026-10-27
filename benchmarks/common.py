@@ -4,6 +4,8 @@ The scripts import the pipeline's own modules from bin/ (likelihood,
 variational_inference_bayesian, em_estimator, build_gtdb_db), so the benchmark
 runs the code the pipeline runs. Data and results live outside the repository,
 under NANOVI_BENCH (default ~/pipelines/NanoVI_benchmarks/phase7a, decision D11).
+NANOVI_BIN points the scripts at another bin/, such as a checkout of commit 34d0411
+for the Phase 7a arms whose options Phase 7b removed (D22, D25, D29, D31).
 """
 import gzip
 import os
@@ -12,7 +14,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-BIN = REPO / "bin"
+BIN = Path(os.environ.get("NANOVI_BIN", REPO / "bin")).resolve()
 if str(BIN) not in sys.path:
     sys.path.insert(0, str(BIN))
 

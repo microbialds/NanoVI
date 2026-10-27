@@ -66,8 +66,16 @@ class TestFreqToLineageDf:
         df = freq_to_lineage_df({'1': 1.0}, str(tmp_path / 's'), taxonomy_df, 100, 0, counts=False)
         assert 'estimated_counts' not in df.columns
 
-    def test_strains_merge_into_two_word_species(self, tmp_path, taxonomy_df):
+    def test_full_species_names_by_default(self, tmp_path, taxonomy_df):
+        # 'Escherichia coli O157' is no longer cut to 'Escherichia coli' (F17)
         df = freq_to_lineage_df({'1': 0.3, '2': 0.2, '3': 0.5}, str(tmp_path / 's'), taxonomy_df, 100, 0)
+        abundance = dict(zip(df['species'], df['abundance']))
+        assert abundance['Escherichia coli'] == pytest.approx(0.3)
+        assert abundance['Escherichia coli O157'] == pytest.approx(0.2)
+
+    def test_strains_merge_into_two_word_species_with_binomial(self, tmp_path, taxonomy_df):
+        df = freq_to_lineage_df({'1': 0.3, '2': 0.2, '3': 0.5}, str(tmp_path / 's'), taxonomy_df, 100, 0,
+                                binomial=True)
         ecoli = df[df['species'] == 'Escherichia coli']
         assert len(ecoli) == 1
         assert ecoli['abundance'].iloc[0] == pytest.approx(0.5)
@@ -152,7 +160,7 @@ class TestFreqToLineageDf:
 
 
 class TestIntervalColumns:
-    """Experimental ci_lower, ci_upper and shared_read_fraction columns (F20, D7)."""
+    """shared_read_fraction (always, D27) and the opt-in ci_lower and ci_upper columns (F20, D7)."""
 
     POSTERIOR = {
         '1': {'alpha': 60.2, 'expected_reads': 60.0, 'shared_reads': 6.0},
@@ -162,7 +170,7 @@ class TestIntervalColumns:
 
     def write(self, tmp_path, taxonomy_df, freq, posterior):
         return freq_to_lineage_df(freq, str(tmp_path / 'out'), taxonomy_df, 100, 7, counts=True,
-                                  posterior=posterior)
+                                  posterior=posterior, binomial=True, intervals=True)
 
     def test_columns_and_beta_quantiles(self, tmp_path):
         from scipy.stats import beta
@@ -174,7 +182,7 @@ class TestIntervalColumns:
         total = 100.6
         freq = {int(k): v['alpha'] / total for k, v in self.POSTERIOR.items()}
         df = self.write(tmp_path, taxonomy_df, freq, self.POSTERIOR)
-        assert list(df.columns)[-4:] == ['estimated_counts', 'ci_lower', 'ci_upper', 'shared_read_fraction']
+        assert list(df.columns)[-4:] == ['estimated_counts', 'shared_read_fraction', 'ci_lower', 'ci_upper']
         row = df.set_index('species').loc['Escherichia coli']
         lower, upper = beta.ppf([0.025, 0.975], 60.2, total - 60.2)
         assert row['ci_lower'] == pytest.approx(lower)
@@ -201,12 +209,65 @@ class TestIntervalColumns:
         assert df.loc['Escherichia coli', 'abundance'] == pytest.approx(90.4 / total)
         assert df.loc['Escherichia coli', 'ci_lower'] == pytest.approx(lower)
         assert df.loc['Escherichia coli', 'ci_upper'] == pytest.approx(upper)
+        # Shared reads add up per tax ID: reads split between the two strains count as shared (README)
         assert df.loc['Escherichia coli', 'shared_read_fraction'] == pytest.approx(6.0 / 90.0)
+
+    def test_shared_read_fraction_without_intervals(self, tmp_path):
+        # The read summary of either estimator, without alpha: no interval columns (D27)
+        taxonomy_df = pd.DataFrame({'tax_id': ['1', '3'], 'species': ['Escherichia coli', 'Bacillus subtilis']}
+                                   ).set_index('tax_id')
+        summary = {k: {c: v[c] for c in ('expected_reads', 'shared_reads')} for k, v in self.POSTERIOR.items()
+                   if k != '2'}
+        df = freq_to_lineage_df({1: 0.85, 3: 0.15}, str(tmp_path / 'out'), taxonomy_df, 100, 0, counts=True,
+                                posterior=summary)
+        assert list(df.columns)[-2:] == ['estimated_counts', 'shared_read_fraction']
+        assert df.set_index('species').loc['Bacillus subtilis', 'shared_read_fraction'] == pytest.approx(0.5)
+        with pytest.raises(ValueError, match='alpha'):
+            freq_to_lineage_df({1: 0.85, 3: 0.15}, str(tmp_path / 'out'), taxonomy_df, 100, 0,
+                               posterior=summary, intervals=True)
 
     def test_no_interval_columns_without_posterior(self, tmp_path):
         taxonomy_df = pd.DataFrame({'tax_id': ['1'], 'species': ['Escherichia coli']}).set_index('tax_id')
         df = freq_to_lineage_df({1: 1.0}, str(tmp_path / 'out'), taxonomy_df, 10, 0, counts=True)
         assert not set(['ci_lower', 'ci_upper', 'shared_read_fraction']) & set(df.columns)
+
+
+class TestIdenticalColumn:
+    """identical_16s_species: species of the same genus with an identical 16S (D24)."""
+
+    def test_column_lists_sharing_species(self, tmp_path, taxonomy_df):
+        identical = {'1': 'Escherichia fergusonii; Escherichia ruysiae', '3': 'Staphylococcus argenteus'}
+        df = freq_to_lineage_df({'1': 0.6, '3': 0.4}, str(tmp_path / 's'), taxonomy_df, 100, 5, counts=True,
+                                identical=identical)
+        assert list(df.columns) == ['species', 'abundance'] + RANKS + ['estimated_counts', 'identical_16s_species']
+        col = dict(zip(df['species'], df['identical_16s_species']))
+        assert col['Escherichia coli'] == 'Escherichia fergusonii; Escherichia ruysiae'
+        assert col['Staphylococcus aureus'] == 'Staphylococcus argenteus'
+        assert col['Below detection'] == '' and col['Unassigned'] == ''
+        written = pd.read_csv(tmp_path / 's.tsv', sep='\t', keep_default_na=False)
+        assert list(written['identical_16s_species'])[:2] == [col['Escherichia coli'], col['Staphylococcus aureus']]
+
+    def test_tax_ids_sharing_a_name_take_the_union_without_themselves(self, tmp_path, taxonomy_df):
+        # With binomial names tax IDs 1 and 2 both become 'Escherichia coli'; 2 lists 1's name
+        identical = {'1': 'Escherichia fergusonii', '2': 'Escherichia coli; Escherichia ruysiae'}
+        df = freq_to_lineage_df({'1': 0.3, '2': 0.2, '3': 0.5}, str(tmp_path / 's'), taxonomy_df, 100, 0,
+                                identical=identical, binomial=True)
+        col = dict(zip(df['species'], df['identical_16s_species']))
+        assert col['Escherichia coli'] == 'Escherichia fergusonii; Escherichia ruysiae'
+        assert col['Staphylococcus aureus'] == ''
+
+    def test_binomial_names_never_list_the_row_itself(self, tmp_path, taxonomy_df):
+        # Two strains of E. coli share a 16S; cut to binomials they are one row, which lists nothing
+        taxonomy_df.loc['1', 'species'] = 'Escherichia coli K-12'
+        identical = {'1': 'Escherichia coli O157', '2': 'Escherichia coli K-12; Escherichia fergusonii ATCC'}
+        df = freq_to_lineage_df({'1': 0.3, '2': 0.2, '3': 0.5}, str(tmp_path / 's'), taxonomy_df, 100, 0,
+                                identical=identical, binomial=True)
+        col = dict(zip(df['species'], df['identical_16s_species']))
+        assert col['Escherichia coli'] == 'Escherichia fergusonii'
+
+    def test_no_column_without_table(self, tmp_path, taxonomy_df):
+        df = freq_to_lineage_df({'1': 1.0}, str(tmp_path / 's'), taxonomy_df, 100, 0)
+        assert 'identical_16s_species' not in df.columns
 
 
 class TestLargestRemainder:
@@ -455,17 +516,31 @@ class TestGtdbParsers:
         ('Pseudomonas_E aeruginosa', 'Pseudomonas aeruginosa'),
         ('Listeria monocytogenes_B', 'Listeria monocytogenes'),
         ('Escherichia coli', 'Escherichia coli'),
+        # Only a suffix that ends a word is GTDB's: other databases' names stay whole
+        ('Lachnospiraceae_NK4A136_group sp1', 'Lachnospiraceae_NK4A136_group sp1'),
+        ('Candidatus_Saccharimonas sp1', 'Candidatus_Saccharimonas sp1'),
+        ('Clostridium_AQ sp1', 'Clostridium sp1'),
+        ('Family_XIII sp1', 'Family_XIII sp1'),
+        ('Ruminococcaceae_UCG sp1', 'Ruminococcaceae_UCG sp1'),
     ])
     def test_normalize_gtdb_name(self, name, expected):
         assert build_gtdb_db.normalize_gtdb_name(name) == expected
 
-    def test_parse_gtdb_lineage(self):
+    def test_parse_gtdb_lineage_keeps_suffixes(self):
+        # GTDB species and genera with clade suffixes stay distinct by default (F16, D4)
         lin = build_gtdb_db.parse_gtdb_lineage('d__Bacteria;p__Bacillota_A;g__Clostridium_P;s__Clostridium_P sp1')
         assert lin['superkingdom'] == 'Bacteria'
+        assert lin['phylum'] == 'Bacillota_A'
+        assert lin['genus'] == 'Clostridium_P'
+        assert lin['species'] == 'Clostridium_P sp1'
+        assert lin['family'] == ''
+
+    def test_parse_gtdb_lineage_merges_suffixes(self):
+        lin = build_gtdb_db.parse_gtdb_lineage('d__Bacteria;p__Bacillota_A;g__Clostridium_P;s__Clostridium_P sp1',
+                                               merge_suffixes=True)
         assert lin['phylum'] == 'Bacillota'
         assert lin['genus'] == 'Clostridium'
         assert lin['species'] == 'Clostridium sp1'
-        assert lin['family'] == ''
 
     def test_parse_ssu_header(self):
         genome_id, lin = build_gtdb_db.parse_ssu_header(HEADER)
@@ -507,11 +582,65 @@ class TestBuildDatabase:
 
         tax = pd.read_csv(out / 'taxonomy.tsv', sep='\t', dtype=str)
         assert list(tax.columns) == build_gtdb_db.RANKS_OUT
-        assert list(tax['species']) == ['Alpha beta', 'Zeta alpha']
+        assert list(tax['species']) == ['Alpha_A beta', 'Zeta alpha']
+        assert list(tax['genus']) == ['Alpha_A', 'Zeta']
         assert list(tax['tax_id']) == ['1', '2']
 
         headers = [h for h, _ in build_gtdb_db.fasta_records(str(out / 'species_taxid.fasta'))]
         assert headers == ['>2:testdb:1', '>1:testdb:2']
+        assert not (out / 'merged_species.tsv').exists()
+        # Identical-16S reports (D23, D24); the two species share no sequence
+        assert (out / 'identical_16s.tsv').read_text().startswith('tax_id\tspecies\tgenus\tgroup')
+        assert (out / 'cross_genus_identical.tsv').exists()
+
+    def test_merge_gtdb_suffixes_merges_and_reports(self, tmp_path):
+        # Two GTDB species become 'Alpha beta' (from genera Alpha and Alpha_A, in
+        # different families); 'Zeta alpha' has one source and is not reported
+        lin = 'd__Bacteria;p__P;c__C;o__O;f__{f};g__{g};s__{s}'
+        seq_a, seq_b, seq_c = 'ACGT' * 300, 'TTGCA' * 240, 'GGCAT' * 240
+        records = [
+            (f'>g1~c1 {lin.format(f="F1", g="Alpha_A", s="Alpha_A beta")} [ssu_len=1200]', seq_a),
+            (f'>g2~c2 {lin.format(f="F2", g="Alpha", s="Alpha beta")} [ssu_len=1200]', seq_b),
+            (f'>g3~c3 {lin.format(f="F2", g="Alpha", s="Alpha beta")} [ssu_len=1200]', seq_a),  # same 16S as g1
+            (f'>g4~c4 {lin.format(f="F3", g="Zeta", s="Zeta alpha")} [ssu_len=1200]', seq_c),
+        ]
+        ssu = tmp_path / 'ssu.fna'
+        ssu.write_text(''.join(f'{h}\n{s}\n' for h, s in records))
+        out = tmp_path / 'db'
+        build_gtdb_db.build_database(str(ssu), 'testdb', str(out), merge_suffixes=True)
+
+        tax = pd.read_csv(out / 'taxonomy.tsv', sep='\t', dtype=str)
+        assert list(tax['species']) == ['Alpha beta', 'Zeta alpha']
+        # The lineage of the first GTDB species seen is kept
+        assert list(tax['family']) == ['F1', 'F3']
+        # g3's sequence duplicates g1's within the merged species
+        headers = [h for h, _ in build_gtdb_db.fasta_records(str(out / 'species_taxid.fasta'))]
+        assert headers == ['>1:testdb:1', '>1:testdb:2', '>2:testdb:3']
+
+        merged = pd.read_csv(out / 'merged_species.tsv', sep='\t', dtype=str, keep_default_na=False)
+        assert merged.to_dict('records') == [{
+            'tax_id': '1', 'species': 'Alpha beta', 'gtdb_species_merged': '2',
+            'gtdb_species': 'Alpha beta;Alpha_A beta', 'gtdb_genera': 'Alpha;Alpha_A',
+            'ranks_in_conflict': 'family', 'lineage_from': 'Alpha_A beta',
+        }]
+
+    def test_merged_species_counts_only_species_with_a_sequence(self, tmp_path):
+        # 'Alpha_A beta' has only a short 16S: 'Alpha beta' merges nothing in the database
+        lin = 'd__Bacteria;p__P;c__C;o__O;f__F;g__{g};s__{s}'
+        records = [
+            (f'>g1~c1 {lin.format(g="Alpha_A", s="Alpha_A beta")} [ssu_len=40]', 'ACGT' * 10),
+            (f'>g2~c2 {lin.format(g="Alpha", s="Alpha beta")} [ssu_len=1200]', 'TTGCA' * 240),
+            (f'>g3~c3 {lin.format(g="Gamma_B", s="Gamma_B delta")} [ssu_len=1200]', 'ACGT' * 300),
+            (f'>g4~c4 {lin.format(g="Gamma", s="Gamma delta")} [ssu_len=1200]', 'GGCAT' * 240),
+        ]
+        ssu = tmp_path / 'ssu.fna'
+        ssu.write_text(''.join(f'{h}\n{s}\n' for h, s in records))
+        out = tmp_path / 'db'
+        build_gtdb_db.build_database(str(ssu), 'testdb', str(out), merge_suffixes=True)
+        merged = pd.read_csv(out / 'merged_species.tsv', sep='\t', dtype=str, keep_default_na=False)
+        assert list(merged['species']) == ['Gamma delta']
+        assert list(merged['gtdb_species']) == ['Gamma delta;Gamma_B delta']
+        assert list(merged['lineage_from']) == ['Gamma_B delta']
 
 
 class TestNcbiTaxonomyOrder:
@@ -539,6 +668,7 @@ class TestNcbiTaxonomyOrder:
 def test_single_reported_species_gets_the_point_interval(tmp_path):
     taxonomy_df = pd.DataFrame({'tax_id': ['1'], 'species': ['Escherichia coli']}).set_index('tax_id')
     df = freq_to_lineage_df({1: 1.0}, str(tmp_path / 'out'), taxonomy_df, 10, 0, counts=True,
-                            posterior={'1': {'alpha': 11.0, 'expected_reads': 10.0, 'shared_reads': 0.0}})
+                            posterior={'1': {'alpha': 11.0, 'expected_reads': 10.0, 'shared_reads': 0.0}},
+                            intervals=True)
     row = df.iloc[0]
     assert (row['ci_lower'], row['ci_upper'], row['shared_read_fraction']) == (1.0, 1.0, 0.0)
