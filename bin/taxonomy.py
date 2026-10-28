@@ -570,6 +570,9 @@ def combine_outputs(dir_path, rank, split_files=False, count_table=False):
             df_combined_full = pd.merge(df_combined_full, df_sample_reduced, how='outer')
             sample_names.append(name)
 
+    if not sample_names:
+        raise ValueError(f"No per-sample tables (*_rel-abundance.tsv) in {dir_path}")
+
     # Taxa absent from a sample are 0, not blank
     df_combined_full[sample_names] = df_combined_full[sample_names].fillna(0)
     if count_table:

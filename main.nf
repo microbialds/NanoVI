@@ -197,6 +197,9 @@ workflow {
         if (!params.input_dir)
             error "For combine-outputs you must provide --input_dir"
         validateRank('combine-outputs')
+        // Only the per-sample tables are combined; without any the combined table was empty (F49)
+        if (!files("${params.input_dir}/*_rel-abundance.tsv"))
+            error "No per-sample tables (*_rel-abundance.tsv) in ${params.input_dir}"
 
         COMBINE_OUTPUTS(
             channel.value(file(params.input_dir)),

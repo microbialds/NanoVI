@@ -460,6 +460,14 @@ class TestCombineOutputs:
         assert 'C_rel-abundance.tsv' in str(excinfo.value)
         assert 'estimated_counts' in str(excinfo.value)
 
+    def test_no_per_sample_table_names_the_directory_and_pattern(self, tmp_path):
+        # Tables named <s>_abundance.tsv gave an empty combined table and no error (F49)
+        write_sample(tmp_path / 'A_abundance.tsv', [['Escherichia coli', 1.0] + lineage('Escherichia') + [10]])
+        with pytest.raises(ValueError) as excinfo:
+            combine_outputs(str(tmp_path), 'genus')
+        assert str(tmp_path) in str(excinfo.value) and '*_rel-abundance.tsv' in str(excinfo.value)
+        assert not (tmp_path / 'vi-combined-genus.tsv').exists()
+
     def test_absent_taxa_are_zero(self, two_samples):
         df = combine_outputs(str(two_samples), 'genus')
         value = df.set_index('genus').loc['Staphylococcus', 'B']

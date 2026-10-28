@@ -165,7 +165,7 @@ Give the caps on the command line or in a `-params-file`. In a custom `-c` confi
 | `--input_dir` | required | Directory with per-sample tables for combining |
 | `--rank` | required | Taxonomic rank: `species`, `genus`, `family`, `order`, `class`, `phylum`, `superkingdom` |
 
-`--cmd collapse-taxonomy` writes `<output_dir>/<input name>-<rank>.tsv` (for `S1_rel-abundance.tsv`, `S1_rel-abundance-genus.tsv`), and `--cmd combine-outputs` writes `<output_dir>/vi-combined-<rank>.tsv`, one column per `*_rel-abundance.tsv` in `--input_dir`.
+`--cmd collapse-taxonomy` writes `<output_dir>/<input name>-<rank>.tsv` (for `S1_rel-abundance.tsv`, `S1_rel-abundance-genus.tsv`), and `--cmd combine-outputs` writes `<output_dir>/vi-combined-<rank>.tsv`, one column per `*_rel-abundance.tsv` in `--input_dir`; a directory without such tables stops the command with an error.
 
 ## Output
 

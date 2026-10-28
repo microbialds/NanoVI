@@ -166,4 +166,4 @@ are left out.
 above it), one `abundance` column per `<sample>_rel-abundance.tsv` in `--input_dir`
 (named after the sample, in file-name order), 0 where a sample lacks the taxon, sorted by
 the rank column. A table without the rank column stops the command with an error that
-names the file.
+names the file, and a `--input_dir` with no `*_rel-abundance.tsv` stops it before it runs.

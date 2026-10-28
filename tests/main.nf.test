@@ -330,6 +330,52 @@ nextflow_pipeline {
         }
     }
 
+    test("combine-outputs fails when --input_dir has no per-sample table") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            // The combined table came out empty for tables not named <sample>_rel-abundance.tsv (F49)
+            def dir = new File("${outputDir}/tables")
+            dir.mkdirs()
+            new File(dir, 'S1_abundance.tsv').text = 'species\tabundance\nEscherichia coli\t1.0\n'
+            params {
+                cmd           = "combine-outputs"
+                output_dir    = "${outputDir}"
+                input_dir     = "${outputDir}/tables"
+                rank          = "species"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.trace.tasks().size() == 0
+            assert (workflow.stdout + workflow.stderr).any { it.contains("No per-sample tables (*_rel-abundance.tsv) in ${outputDir}/tables") }
+        }
+    }
+
+    test("combine-outputs runs on per-sample tables") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            def dir = new File("${outputDir}/tables")
+            dir.mkdirs()
+            new File(dir, 'S1_rel-abundance.tsv').text = 'species\tabundance\nEscherichia coli\t1.0\n'
+            params {
+                cmd           = "combine-outputs"
+                output_dir    = "${outputDir}"
+                input_dir     = "${outputDir}/tables"
+                rank          = "species"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().count { it.name.contains('COMBINE') } == 1
+        }
+    }
+
     test("combine-outputs fails with an invalid --rank") {
         tag "stub"
         options "-profile test -stub-run"
