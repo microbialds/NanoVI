@@ -323,9 +323,11 @@ Emu is distributed under the MIT License, Copyright (c) 2021 Kristen Curry, Qi W
 
 ## Citation
 
-If you use NanoVI in your research, please cite:
+If you use NanoVI in your research, please cite the preprint:
 
-> Curiqueo C, Fuentes-Santander F, Ugalde JA. NanoVI: taxonomic classification of full-length 16S rRNA Nanopore reads using variational inference. [Journal]. [Year].
+> Curiqueo C, Fuentes-Santander F, Ugalde JA. NanoVI: a Bayesian variational inference Nextflow pipeline for species-level taxonomic classification from full-length 16S rRNA Nanopore reads. *bioRxiv* 2026. [doi:10.64898/2026.03.07.710315](https://doi.org/10.64898/2026.03.07.710315)
+
+and Emu, whose read likelihood NanoVI uses (see Credits). The citation metadata are also in [CITATION.cff](CITATION.cff), which GitHub shows as "Cite this repository". This section will give the journal article once it is published.
 
 ## License
 

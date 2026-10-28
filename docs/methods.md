@@ -211,7 +211,7 @@ true abundance falls with depth:
 | | 1,000 reads | 10,000 reads | 50,000 reads | 10,000, pair members |
 |---|---|---|---|---|
 | mean-field (shipped) | 0.93 | 0.81 | 0.38 | 0.42 |
-| read bootstrap (100 resamples) | 0.91 | 0.79 | 0.39 | 0.41 |
+| read bootstrap (100 resamples) | 0.90 | 0.79 | 0.39 | 0.41 |
 | collapsed Gibbs (exact posterior) | 0.93 | 0.81 | 0.39 | 0.42 |
 
 (95% intervals, species outside the near-neighbour pairs except the last column; §8.)
@@ -224,7 +224,7 @@ reported as sampling intervals, opt-in, and not as calibrated uncertainty.
 | Component | Emu 3.6.2 | NanoVI | Why / evidence |
 |---|---|---|---|
 | Read filtering | none | length 500-2,000 bp; quality filter off | A mean-quality filter changed little on real data and distorted the composition where it removed reads (D28, §7) |
-| Alignment | minimap2 `-ax map-ont -N 50 -p .9 -K 500M`, k 15, index built every run | `-N 3 -p 0.9 -K 500M`, k 21, index cached | On the simulations -N 3 gave the lowest species L1 and the fewest false positives on the exact GTDB database; on real mocks -N 50 removed 1-3 false-positive species per sample, with L1 lower on the R9.4 Zymo mocks and higher on the Emu gut mock; -N 3 is the cheapest (D21, §4.2, §6). k 15 costs 1.9-3.2 times the alignment CPU of k 21 (§11) |
+| Alignment | minimap2 `-ax map-ont -N 50 -p .9 -K 500M`, k 15, index built every run | `-N 3 -p 0.9 -K 500M`, k 21, index cached | On the simulations -N 3 gave the lowest species L1 on the exact GTDB database, with more false-positive species than -N 50 (1.6 against 0.25 per sample, false-positive abundance 0.005 against 0.001); on real mocks -N 50 removed 1-3 false-positive species per sample, with L1 lower on the R9.4 Zymo mocks and higher on the Emu gut mock; -N 3 is the cheapest (D21, §4.2, §6). k 15 costs 1.9-3.2 times the alignment CPU of k 21 (§11) |
 | Error profile | primary mapped alignments | the same (D3) | Counting all alignments changed nothing at 1k/10k and was slightly worse at 50k (§4.3) |
 | Read score | CIGAR pseudo-likelihood | the same (D29) | |
 | Estimator | EM (point estimate) | mean-field VB with a Dirichlet prior; EM available | Same point estimates (§4.3, §10); the posterior gives section 6's summaries (D2) |
@@ -258,7 +258,7 @@ on the released code (Phase 7b, §13).
 |---|---|---|---|
 | Quality filter | off (length only) | D5, D28 | Q10 and Q15 changed real-mock species L1 by less than 0.008 and the false-positive count by at most one species; on the simulations, thresholds high enough to matter removed reads unevenly across species (R10.4.1 even, genus L1 0.005 → 0.035 at Q33) (§7) |
 | Tool versions | fastplong 0.7.0, minimap2 2.31 | D30 | Against fastplong 0.2.2 and minimap2 2.24: the same species on every real sample, species L1 within 0.0004, assigned reads within 3 per 10,000 (§7, §13) |
-| Secondary alignments | `-N 3` | D21 | Simulations: species L1 0.131 / 0.143 / 0.182 at -N 3 / 10 / 50 on the exact database, false-positive species 49 / 83 / 174 over four samples; at -N 50 GTDB's cross-genus identical copies take alignment slots (§4.2). Real mocks: -N 50 removes 1-3 false-positive species per sample, lowers species L1 on the R9.4 Zymo mocks (−0.05, −0.08), changes it by less than 0.003 on the ONT 2025.09 data, raises it on the Emu gut mock (+0.04) and loses one gut species in five samples (§6). -N 3 is also the cheapest |
+| Secondary alignments | `-N 3` | D21 | Simulations: species L1 0.130 / 0.143 / 0.182 at -N 3 / 10 / 50 on the exact database (genus L1 0.008 / 0.012 / 0.046), while false-positive species fall (1.6 / 0.5 / 0.25 per sample): at -N 50 GTDB's cross-genus identical copies take alignment slots and move reads between species of the community (§4.2). Real mocks: -N 50 removes 1-3 false-positive species per sample, lowers species L1 on the R9.4 Zymo mocks (−0.05, −0.08), changes it by less than 0.003 on the ONT 2025.09 data, raises it on the Emu gut mock (+0.04) and loses one gut species in five samples (§6). -N 3 is also the cheapest |
 | Error profile | primary alignments | D3, D31 | 'All alignments' changed no metric at 1k or 10k reads; species L1 +0.0008 at 50k (§4.3) |
 | Read score | Emu's | D29 | A per-base score raised recall on the simulations (10k even: 0.990 vs 0.950) but added false positives on real mocks (L1 −0.004 to +0.012, 0-2 more false-positive species) (§4.4) |
 | Identity and aligned-length filters | none | D25 | Identity ≥ 97% removes 93% of R9.4.1 reads and every read of the two R9.4 published mocks; an aligned-length minimum of 1,000-1,400 bp changed nothing useful (§9) |

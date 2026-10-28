@@ -158,7 +158,7 @@ On the ofat samples (`ablation_ofat_summary.tsv`), mean over seeds:
 | 10k | R9.4.1 | even | 0.275 | 0.014 | 0.008 | 0.950 | 0.832 | 3.9 | 0.012 |
 | 10k | R10.4.1 | log | 0.030 | 0.005 | 0.005 | 0.655 | 1.000 | 0.0 | 0.000 |
 | 10k | R9.4.1 | log | 0.026 | 0.016 | 0.015 | 0.665 | 0.970 | 0.4 | 0.001 |
-| 50k | R10.4.1 | even | 0.188 | 0.005 | 0.005 | 0.950 | 0.983 | 0.3 | 0.001 |
+| 50k | R10.4.1 | even | 0.187 | 0.005 | 0.005 | 0.950 | 0.983 | 0.3 | 0.000 |
 | 50k | R9.4.1 | even | 0.278 | 0.013 | 0.007 | 0.950 | 0.827 | 4.0 | 0.013 |
 
 Species L1 on even communities is almost all in the two non-identifiable pairs (group
@@ -167,17 +167,22 @@ L1 0.005 on R10.4.1); recall 0.95 is one missed species in 20 (*S. argenteus*, S
 
 ### 4.2 Database variant and -N (cell grid; `ablation_cell_db_N.tsv`, `fig_db_N.png`)
 
-| Database / -N | Species L1 | Genus L1 | FP abundance |
-|---|---|---|---|
-| exact, 3 | 0.131 | 0.008 | 0.006 |
-| exact, 10 | 0.143 | 0.012 | 0.002 |
-| exact, 50 | 0.182 | 0.046 | 0.002 |
-| c995, 3 | 0.520 | 0.317 | 0.156 |
-| reps, 3 | 1.239 | 1.002 | 0.609 |
+| Database / -N | Species L1 | Genus L1 | FP species per sample | FP abundance |
+|---|---|---|---|---|
+| exact, 3 | 0.130 | 0.008 | 1.6 | 0.005 |
+| exact, 10 | 0.143 | 0.012 | 0.5 | 0.002 |
+| exact, 50 | 0.182 | 0.046 | 0.25 | 0.001 |
+| c995, 3 | 0.515 | 0.314 | 23.8 | 0.151 |
+| reps, 3 | 1.238 | 1.003 | 17.0 | 0.608 |
 
-(Means over the four cell samples.) More secondary alignments do not help on the exact
-database: species L1 and the number of false-positive species (49, 83, 174 summed over
-the four samples) rise with -N. The -N 3 result cannot be derived from -N 50 output:
+(Means over the four cell samples and the cell layers with pruning on, from
+`ablation_cell_db_N.tsv`; corrected in Phase 9, when this table's -N 3 rows and the
+false-positive counts below did not match that file. At the reference setting alone,
+`fig_db_N.tsv`: exact species L1 0.133 / 0.152 / 0.226 and false-positive abundance
+0.004 / 0.0006 / 0 at -N 3 / 10 / 50; c995 0.500, reps 1.236.) More secondary alignments
+do not help on the exact database: species and genus L1 rise with -N, while the number
+and abundance of false-positive species fall, because the extra alignments move reads
+between species of the community (Section 10). The -N 3 result cannot be derived from -N 50 output:
 minimap2 breaks ties differently and even the primary alignment changes.
 
 The reduced databases fail through contamination, not through lost resolution
@@ -334,7 +339,7 @@ the reported species (`intervals_coverage*.tsv`, `fig_intervals.png`).
 | Method | 1k | 10k | 50k | 10k, pair members |
 |---|---|---|---|---|
 | mean-field | 0.93 | 0.81 | 0.38 | 0.42 |
-| bootstrap | 0.91 | 0.79 | 0.39 | 0.41 |
+| bootstrap | 0.90 | 0.79 | 0.39 | 0.41 |
 | collapsed Gibbs | 0.93 | 0.81 | 0.39 | 0.42 |
 
 (Species outside the pairs, except the last column.) The three methods agree in width

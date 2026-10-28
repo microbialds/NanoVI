@@ -1,0 +1,9 @@
+metric	merged	suffixes_kept
+database sequences	232447	233611
+species with a sequence	59037	62295
+species in taxonomy.tsv	81173	84596
+species sharing an identical 16S within their genus (identical_16s.tsv)	4335	5215
+identical-16S groups	1264	1513
+sequences found in more than one genus (cross_genus_identical.tsv)	1360	1360
+... of which in more than one family	1288	1289
+species carrying a cross-genus sequence	2080	2256

@@ -1,0 +1,74 @@
+cff-version: 1.2.0
+message: "If you use NanoVI, please cite the preprint below, and Emu, whose read likelihood NanoVI uses."
+title: "NanoVI"
+abstract: "A Nextflow pipeline for species-level taxonomic profiling of full-length 16S rRNA Oxford Nanopore reads with Bayesian variational inference."
+type: software
+authors:
+  - family-names: Curiqueo
+    given-names: Carolina
+  - family-names: Fuentes-Santander
+    given-names: Francisco
+  - family-names: Ugalde
+    given-names: Juan A.
+    email: juan@ugalde.bio
+repository-code: "https://github.com/microbialds/NanoVI"
+license: MIT
+keywords:
+  - 16S rRNA
+  - Oxford Nanopore
+  - metagenomics
+  - variational inference
+  - Nextflow
+preferred-citation:
+  type: article
+  title: "NanoVI: a Bayesian variational inference Nextflow pipeline for species-level taxonomic classification from full-length 16S rRNA Nanopore reads"
+  authors:
+    - family-names: Curiqueo
+      given-names: Carolina
+    - family-names: Fuentes-Santander
+      given-names: Francisco
+    - family-names: Ugalde
+      given-names: Juan A.
+  journal: "bioRxiv"
+  year: 2026
+  month: 3
+  doi: "10.64898/2026.03.07.710315"
+  url: "https://www.biorxiv.org/content/10.64898/2026.03.07.710315v1"
+references:
+  - type: article
+    title: "Emu: species-level microbial community profiling of full-length 16S rRNA Oxford Nanopore sequencing data"
+    authors:
+      - family-names: Curry
+        given-names: Kristen D.
+      - family-names: Wang
+        given-names: Qi
+      - family-names: Nute
+        given-names: Michael G.
+      - family-names: Tyshaieva
+        given-names: Alona
+      - family-names: Reeves
+        given-names: Elizabeth
+      - family-names: Soriano
+        given-names: Sirena
+      - family-names: Wu
+        given-names: Qinglong
+      - family-names: Graeber
+        given-names: Enid
+      - family-names: Finzer
+        given-names: Patrick
+      - family-names: Mendling
+        given-names: Werner
+      - family-names: Savidge
+        given-names: Tor
+      - family-names: Villapol
+        given-names: Sonia
+      - family-names: Dilthey
+        given-names: Alexander
+      - family-names: Treangen
+        given-names: Todd J.
+    journal: "Nature Methods"
+    year: 2022
+    volume: 19
+    start: 845
+    end: 853
+    doi: "10.1038/s41592-022-01520-4"
