@@ -44,7 +44,8 @@ def synonyms(path=TAXDUMP_NAMES):
     return scientific, other
 
 
-def crosswalk():
+def genome_counts():
+    """Genomes per (NCBI species, GTDB species, suffixes stripped) in the GTDB r226 metadata."""
     frames = []
     for f in ("bac120_metadata_r226.tsv.gz", "ar53_metadata_r226.tsv.gz"):
         frames.append(pd.read_csv(GTDB / f, sep="\t", usecols=["accession", "ncbi_taxonomy", "gtdb_taxonomy"],
@@ -53,7 +54,22 @@ def crosswalk():
     m["ncbi_species"] = m["ncbi_taxonomy"].str.extract(r"s__([^;]*)$")[0].str.strip()
     m["gtdb_species"] = m["gtdb_taxonomy"].map(lambda t: parse_gtdb_lineage(t, merge_suffixes=True)["species"])
     m = m[(m["ncbi_species"].fillna("") != "") & (m["gtdb_species"] != "")]
-    counts = m.groupby(["ncbi_species", "gtdb_species"]).size().rename("n").reset_index()
+    return m.groupby(["ncbi_species", "gtdb_species"]).size().rename("n").reset_index()
+
+
+def gtdb_split(ncbi_species, min_share=0.05):
+    """{NCBI species: GTDB species holding at least min_share of its genomes}, for an NCBI
+    species GTDB splits (F. nucleatum: F. nucleatum, F. polymorphum, F. animalis and F.
+    vincentii). Smaller shares are mostly single misplaced genomes and are left out."""
+    counts = genome_counts()
+    counts = counts[counts["ncbi_species"].isin(ncbi_species)]
+    share = counts["n"] / counts.groupby("ncbi_species")["n"].transform("sum")
+    keep = counts[share >= min_share].sort_values(["ncbi_species", "n"], ascending=[True, False])
+    return keep.groupby("ncbi_species")["gtdb_species"].agg(list).to_dict()
+
+
+def crosswalk():
+    counts = genome_counts()
     totals = counts.groupby("ncbi_species")["n"].agg(["sum", "size"])
     best = counts.sort_values(["ncbi_species", "n", "gtdb_species"], ascending=[True, False, True]) \
         .drop_duplicates("ncbi_species").set_index("ncbi_species")

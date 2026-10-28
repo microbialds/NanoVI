@@ -53,11 +53,16 @@ adds the alignment settings; `nanovi_gtdb` against `emu` is the two tools as shi
 - **Labels.** vaginal_bv: the *Lactobacillus* share of each profile in control and BV
   swabs, its range per group and the AUC of a Mann-Whitney U test (control above BV),
   for every 16S arm, Emu's published tables and the shotgun Bracken genera
-  (`clinical_bv_lactobacillus.tsv`). crc: for each arm, a two-sided Mann-Whitney U test
-  per species present in at least 10% of samples with Benjamini-Hochberg correction
-  (`clinical_crc_species.tsv`); the counts below q 0.05 and 0.10 per arm
-  (`clinical_crc_tests.tsv`); and the direction and q of the paper's four species
-  (`clinical_crc_paper_species.tsv`, NCBI names mapped as above).
+  (`clinical_bv_lactobacillus.tsv`; bacterial genera only, by their lineage in the NCBI
+  taxdump of 2025-01-01, as the shotgun reads also hit human and other eukaryotic genera,
+  up to 14% of a swab's non-human genus-level reads). crc: for each arm, a two-sided
+  Mann-Whitney U test per species present in at least 10% of samples with
+  Benjamini-Hochberg correction (`clinical_crc_species.tsv`); the counts below q 0.05 and
+  0.10 per arm (`clinical_crc_tests.tsv`); and the direction and q of the paper's four
+  species (`clinical_crc_paper_species.tsv`, NCBI names mapped as above). GTDB r226
+  splits two of them, so each is tested as the GTDB species holding at least 5% of its
+  NCBI genomes, merged before the tests: *F. nucleatum* (with *F. polymorphum*, *F.
+  animalis* and *F. vincentii*) and *B. fragilis* (with *B. hominis*).
 - **Database content.** Each taxon's mean contribution to the Bray-Curtis dissimilarity
   between NanoVI on GTDB and NanoVI on Emu's database (GTDB names, the ten largest per
   cohort and level), with the number of species of its genus in each database
@@ -116,8 +121,8 @@ split (*Lactobacillus*: 68 species in GTDB, 192 in Emu's database) is counted un
 **Bacterial vaginosis.** Every 16S arm separated the 6 control from the 6 BV swabs by
 *Lactobacillus* share (controls 0.986-1.000, BV 0.000-0.967; AUC 1.0, Mann-Whitney p
 0.005), as did Emu's published tables; the shotgun Bracken genera did not quite (controls
-0.578-0.973, BV 0.019-0.608; AUC 0.97) (`clinical_bv_lactobacillus.tsv`). The shotgun
-reference is shallow (170-16,156 bacterial reads per swab, `clinical_samples.tsv`) and
+0.602-0.982, BV 0.019-0.645; AUC 0.97) (`clinical_bv_lactobacillus.tsv`). The shotgun
+reference is shallow (170-14,290 bacterial reads per swab, `clinical_samples.tsv`) and
 names *Gardnerella* first in three BV swabs where the 16S profiles name *Megasphaera* or
 *Lactobacillus*; NanoVI and Emu are equally far from it (genus BC vs shotgun within 0.002
 of each other in every swab).

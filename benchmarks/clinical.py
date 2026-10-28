@@ -19,6 +19,7 @@ repository at the commit under test (src/, written by `prepare`). Steps:
 import argparse
 import subprocess
 from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
@@ -26,8 +27,8 @@ import pandas as pd
 import harness
 from common import BENCH, DOCS_DATA, REPO, write_tsv  # first: puts bin/ on sys.path
 from build_gtdb_db import normalize_gtdb_name
-from comparators import EMU_DBS, EMU_IMAGE, run_emu
-from names import load as load_crosswalk, to_gtdb
+from comparators import EMU_DBS, run_emu
+from names import TAXDUMP_NAMES, gtdb_split, load as load_crosswalk, to_gtdb
 
 CLIN = BENCH.parent / "phase9"
 SEED = 20261022
@@ -108,8 +109,10 @@ def prepare(cohort):
             cmd = (f"seqkit shuffle -s {SEED} -j 2 {raw} -o {shuf} && seqkit head -n {N_READS} {shuf} -o {{OUT}} "
                    f"&& rm {shuf}")
             harness._run(out, harness.docker(SEQKIT_IMAGE, cmd, [raw.parent, reads]))
-        elif not out.exists():
-            out.symlink_to(raw)
+        elif not out.is_symlink():
+            if not raw.exists():
+                raise SystemExit(f"{raw} is missing: download it before prepare")
+            out.symlink_to(raw.resolve())
         rows.append({"sample": run, "fastq": str(out)})
     d = run_dir(cohort, "")
     d.mkdir(parents=True, exist_ok=True)
@@ -149,13 +152,7 @@ def emu(cohort, same_sam, slots=4, threads=4):
         if same_sam:
             # Emu takes a SAM in place of the reads and skips minimap2
             bam = run_dir(cohort, "nanovi_emudb") / "out" / "bam" / f"{run}_vi_alignments.bam"
-            sam = sam_from_bam(bam, out / "sam" / f"{run}.sam")
-            db, tables = EMU_DBS["emu_default"], out / "tables"
-            cmd = (f"emu abundance {sam} --db {db} --threads {threads} --keep-counts "
-                   f"--output-dir {tables}/tmp_{run} --output-basename {run} "
-                   f"&& mv {tables}/tmp_{run}/{run}_rel-abundance.tsv {{OUT}}")
-            return harness._run(tables / f"{run}_rel-abundance.tsv",
-                                harness.docker(EMU_IMAGE, cmd, [sam.parent, db, tables]))
+            reads = sam_from_bam(bam, out / "sam" / f"{run}.sam")
         else:
             reads = run_dir(cohort, "nanovi_gtdb") / "out" / "filtered" / f"{run}_filtered.fastq.gz"
             link = out / "reads" / f"{run}.fastq.gz"
@@ -226,8 +223,13 @@ def genus_of(name, genus_map=None):
     return " ".join(words[:2]) if words[0] == "Candidatus" and len(words) > 1 else words[0]
 
 
+@lru_cache(maxsize=None)
+def emu_taxonomy():
+    return pd.read_csv(EMU_DBS["emu_default"] / "taxonomy.tsv", sep="\t", dtype=str)
+
+
 def emu_genera():
-    t = pd.read_csv(EMU_DBS["emu_default"] / "taxonomy.tsv", sep="\t", dtype=str)
+    t = emu_taxonomy()
     t = t[t["species"].notna() & t["genus"].notna()]
     return dict(zip(t["species"], t["genus"]))
 
@@ -312,12 +314,36 @@ def published(cohort, xwalk, gtdb_names):
             s = "P%02d" % i
             emu = emu_table(res / "Emu" / f"barcode{i:02d}_rel-abundance.tsv")
             br = pd.read_csv(res / "Bracken" / "genus" / f"{i}_bracken.rst", sep="\t")
-            br = br[br["name"] != "Homo"]
+            # Bacterial genera only: the shotgun reads also hit human and other eukaryotes (up to
+            # 14% of a swab's genus-level reads besides Homo)
+            br = br[br["taxonomy_id"].astype(int).map(bacteria)]
             g, unm = to_gtdb_profile(emu, xwalk, gtdb_names)
             out[s] = {"ncbi": normalise(emu), "gtdb": g, "unmapped": unm,
                       "wgs_genus_ncbi": normalise(dict(zip(br["name"], br["new_est_reads"].astype(float)))),
                       "wgs_bacterial_reads": int(br["new_est_reads"].sum())}
     return out
+
+
+@lru_cache(maxsize=None)
+def taxdump():
+    """({taxid: parent}, {merged taxid: current taxid}) from the 2025-01-01 NCBI taxdump."""
+    dump = TAXDUMP_NAMES.parent
+    with open(dump / "nodes.dmp") as f:
+        parent = {int(a): int(b) for a, b, *_ in (l.split("\t|\t") for l in f)}
+    with open(dump / "merged.dmp") as f:
+        merged = {int(a): int(b) for a, b in (l.rstrip("\t|\n").split("\t|\t") for l in f)}
+    return parent, merged
+
+
+def bacteria(taxid):
+    """True for an NCBI taxon under Bacteria (taxid 2); merged taxids are followed."""
+    parent, merged = taxdump()
+    t = merged.get(taxid, taxid)
+    while t in parent and t != 1:
+        if t == 2:
+            return True
+        t = parent[t]
+    return False
 
 
 def mann_whitney(x, y):
@@ -405,8 +431,9 @@ def analyse():
                 for arm in ARMS:
                     crc_profiles[arm][run] = (p[arm]["gtdb"], group)
         if cohort == "crc":
+            split = paper_split(xwalk)
             for arm in ARMS:
-                prof = crc_profiles[arm]
+                prof = {run: (merge_split(v, split), g) for run, (v, g) in crc_profiles[arm].items()}
                 species = sorted({k for v, _ in prof.values() for k in v})
                 n = len(prof)
                 res = []
@@ -425,7 +452,7 @@ def analyse():
                     df = pd.DataFrame(res)
                     df["q"] = bh(df["p"]).values
                     crc_rows.append(df)
-                    paper_rows += paper_species(arm, prof, df, xwalk)
+                    paper_rows += paper_species(arm, prof, df, xwalk, split)
         n = len(manifest(cohort))
         for level, c in contrib.items():
             total = sum(c.values())
@@ -462,21 +489,43 @@ def database_species(gtdb_names, genus_map):
     names the comparisons use) and Emu's default database (genus from its taxonomy.tsv). The
     genus names are each database's own: a genus GTDB renamed or split is counted under
     different names in the two."""
-    emu = set(pd.read_csv(EMU_DBS["emu_default"] / "taxonomy.tsv", sep="\t")["species"].dropna())
+    emu = set(emu_taxonomy()["species"].dropna())
     count = lambda names, gm: pd.Series([genus_of(s, gm) for s in names]).value_counts().to_dict()
     return {"gtdb": count(gtdb_names, None), "emudb": count(emu, genus_map)}
 
 
-def paper_species(arm, prof, df, xwalk):
+def paper_split(xwalk):
+    """{GTDB species: the paper species' GTDB name} for the GTDB species that hold at least 5%
+    of a paper species' NCBI genomes (names.gtdb_split), so that the GTDB arm, which reports
+    the split species, is tested on the paper's species concept: F. nucleatum includes F.
+    polymorphum, F. animalis and F. vincentii, B. fragilis includes B. hominis."""
+    out = {}
+    for name, parts in gtdb_split(CRC_SPECIES).items():
+        target = normalize_gtdb_name(to_gtdb(name, xwalk))
+        for part in parts:
+            out[normalize_gtdb_name(part)] = target
+    return out
+
+
+def merge_split(est, split):
+    out = {}
+    for k, v in est.items():
+        out[split.get(k, k)] = out.get(split.get(k, k), 0.0) + v
+    return out
+
+
+def paper_species(arm, prof, df, xwalk, split):
     """The species of the CRC paper's four-species model (CRC_SPECIES) in one arm: prevalence
-    and means for every one, and the test where the species passed the prevalence filter."""
+    and means for every one, and the test where the species passed the prevalence filter.
+    prof has the GTDB species of each paper species merged (paper_split)."""
     out = []
     for name in CRC_SPECIES:
         g = normalize_gtdb_name(to_gtdb(name, xwalk))
         crc = [v.get(g, 0.0) for v, grp in prof.values() if grp == "CRC"]
         healthy = [v.get(g, 0.0) for v, grp in prof.values() if grp == "healthy"]
         row = df[df["species"] == g]
-        out.append({"arm": arm, "paper_species": name, "gtdb_species": g,
+        out.append({"arm": arm, "paper_species": name,
+                    "gtdb_species": "; ".join(sorted({g} | {k for k, t in split.items() if t == g})),
                     "prevalence": sum(1 for v, _ in prof.values() if g in v) / len(prof),
                     "mean_crc": sum(crc) / len(crc), "mean_healthy": sum(healthy) / len(healthy),
                     "tested": not row.empty,

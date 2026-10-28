@@ -710,8 +710,9 @@ def fig7_runtime():
 
 # ─── Figure 8: clinical cohorts ─────────────────────────────────────────────
 
-COHORTS = [("vaginal_cl", "vaginal (20)", "o"), ("vaginal_bv", "vaginal BV/control (12)", "^"),
-           ("crc", "stool CRC/healthy (117)", "s")]
+# Sample counts are added to the labels from clinical_samples.tsv
+COHORTS = [("vaginal_cl", "vaginal", "o"), ("vaginal_bv", "vaginal BV/control", "^"),
+           ("crc", "stool CRC/healthy", "s")]
 # (arm_a, arm_b, names) of clinical_summary.tsv, top to bottom
 CLINICAL_PAIRS = [
     (("nanovi_emudb", "emu_same_sam", "ncbi"), "NanoVI vs Emu,\nsame alignments"),
@@ -778,7 +779,7 @@ def fig8_clinical():
         ax.set_axisbelow(True)
     plt.setp(axb.get_yticklabels(), visible=False)
     handles = [Line2D([], [], marker=m, ls="none", markerfacecolor="white", markeredgecolor=grey, ms=3.6,
-                      label=lab) for _, lab, m in COHORTS]
+                      label=f"{lab} ({(s['cohort'] == c).sum()})") for c, lab, m in COHORTS]
     handles.append(Line2D([], [], color="black", lw=1.1, label="median"))
     top.legend(handles=handles, loc="outside lower center", ncol=4)
 
@@ -797,7 +798,9 @@ def fig8_clinical():
                      path_effects=[pe.Stroke(linewidth=2.6, foreground="white"), pe.Normal()])
             rows.append(with_source(pd.DataFrame({"sample": g["sample"], "group": group, "arm": arm,
                                                   "lactobacillus": v}), samples_name, panel="c"))
-    axc.set_xticks([1.5, 1.5 + len(arms) + 1], ["control (6)", "bacterial vaginosis (6)"])
+    n_group = bv["group"].value_counts()
+    axc.set_xticks([1.5, 1.5 + len(arms) + 1],
+                   [f"control ({n_group.get('control', 0)})", f"bacterial vaginosis ({n_group.get('BV', 0)})"])
     axc.tick_params(axis="x", length=0)
     axc.set_ylim(-0.03, 1.03)
     axc.set_ylabel("$\\it{Lactobacillus}$ share")

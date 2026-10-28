@@ -46,12 +46,15 @@ BLAST_IMAGE = "quay.io/biocontainers/blast:2.17.0--h66d330f_0"
 
 
 def run_emu(reads, db, out_dir, threads=4, N=None):
+    """Emu on reads (.fastq.gz) or on a SAM, which Emu takes in place of the reads (it then
+    skips minimap2). Each sample gets its own working folder, so runs can go in parallel."""
     out_dir = Path(out_dir)
-    name = Path(reads).name.replace(".fastq.gz", "")
+    name = Path(reads).name.replace(".fastq.gz", "").removesuffix(".sam")
     result = out_dir / f"{name}_rel-abundance.tsv"
     extra = f"--N {N} " if N else ""
+    tmp = out_dir / f"tmp_{name}"
     cmd = (f"emu abundance {reads} --db {EMU_DBS[db]} --threads {threads} --keep-counts {extra}"
-           f"--output-dir {out_dir}/tmp --output-basename {name} && mv {out_dir}/tmp/{name}_rel-abundance.tsv {{OUT}}")
+           f"--output-dir {tmp} --output-basename {name} && mv {tmp}/{name}_rel-abundance.tsv {{OUT}}")
     return harness._run(result, harness.docker(EMU_IMAGE, cmd, [Path(reads).parent, EMU_DBS[db], out_dir]))
 
 
