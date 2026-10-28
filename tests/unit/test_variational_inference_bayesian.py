@@ -8,6 +8,7 @@ F06 and F07 were strict xfails until Phase 3 fixed those bugs.
 import io
 import math
 import os
+import subprocess
 import sys
 
 import numpy as np
@@ -85,6 +86,19 @@ class TestBuildSparseLikelihood:
         finite = np.isfinite(logL)
         rebuilt[np.nonzero(finite)[0], idx[finite]] = logL[finite]
         np.testing.assert_array_equal(rebuilt, L)
+
+
+def test_one_csr_builder_without_pysam():
+    # F52: the estimator kept its own copy of likelihood.read_scores_to_arrays to avoid pysam
+    import likelihood
+    import read_scores
+    assert likelihood.read_scores_to_arrays is read_scores.read_scores_to_arrays
+    assert vb.read_scores_to_arrays is read_scores.read_scores_to_arrays
+    code = ("import sys; sys.modules['pysam'] = None; sys.path.insert(0, sys.argv[1]); "
+            "import variational_inference_bayesian, em_estimator, read_scores")
+    bin_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'bin'))
+    result = subprocess.run([sys.executable, '-c', code, bin_dir], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
 
 
 class TestSparseLikelihoodFromCsr:

@@ -25,6 +25,9 @@ import pysam
 from operator import mul
 from sys import stdout
 
+# The read-scores layout, in a module without pysam that the estimators share (F52)
+from read_scores import read_scores_to_arrays
+
 CIGAR_OPS = [1, 2, 4, 10]
 CIGAR_OPS_ALL = [0, 1, 2, 4]
 
@@ -205,17 +208,3 @@ def score_reads(sam_path):
     log_probs, zero_locs, dict_longest_align = cigar_profile(records)
     return read_scores_from_records(records, log_probs, dict_longest_align, zero_locs)
 
-def read_scores_to_arrays(log_p_rgs):
-    """Per-read lists as flat arrays, in read order (the read-scores npz, F24).
-
-    Returns (offsets, tax_ids, scores): read r's candidates are
-    tax_ids[offsets[r]:offsets[r + 1]], with their scores.
-    """
-    lengths = [len(sids) for sids, _ in log_p_rgs.values()]
-    offsets = np.zeros(len(lengths) + 1, dtype=np.int64)
-    np.cumsum(lengths, out=offsets[1:])
-    tax_ids = np.fromiter((sid for sids, _ in log_p_rgs.values() for sid in sids),
-                          dtype=np.int64, count=int(offsets[-1]))
-    scores = np.fromiter((score for _, scores in log_p_rgs.values() for score in scores),
-                         dtype=np.float64, count=int(offsets[-1]))
-    return offsets, tax_ids, scores
