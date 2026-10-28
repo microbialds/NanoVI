@@ -9,12 +9,12 @@
     "properties": {
       "sample": {
         "type": "string",
-        "pattern": "^[a-zA-Z0-9_\\-]+$",
-        "errorMessage": "Sample IDs may only use letters, digits, '_' and '-'",
+        "pattern": "^[a-zA-Z0-9._\\-]+$",
+        "errorMessage": "Sample IDs may only use letters, digits, '.', '_' and '-'",
         "meta": [
           "id"
         ],
-        "description": "Sample identifier (letters, digits, '_' and '-')"
+        "description": "Sample identifier (letters, digits, '.', '_' and '-'; the same rule as directory mode)"
       },
       "fastq": {
         "type": "string",

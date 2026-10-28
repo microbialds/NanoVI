@@ -141,6 +141,7 @@ workflow {
                 }.sort().join('\n')
                 error "Several FASTQ files in ${params.input} give the same sample ID; rename them or use a samplesheet:\n${listing}"
             }
+            // The same rule as assets/schema_input.json for samplesheets (F53, D35)
             def bad_ids = by_sample.keySet().findAll { id -> !(id ==~ /[A-Za-z0-9._-]+/) }.sort()
             if (bad_ids)
                 error "Sample IDs from FASTQ file names may only use letters, digits, '.', '_' and '-'; rename these files or use a samplesheet:\n" +

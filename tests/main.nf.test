@@ -608,6 +608,30 @@ nextflow_pipeline {
         }
     }
 
+    // Directory mode and the samplesheet accept the same sample IDs (F53, D35): '.' is
+    // allowed in both; "Directory mode keeps dots in sample IDs" runs S1.run1 from a directory
+    test("Samplesheet accepts a sample ID with '.', as directory mode does") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            def sheet = new File("${outputDir}/samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,fastq\nS1.run1,${projectDir}/tests/test_data/multi_dot_reads/S1.run1.fastq\n"
+            params {
+                input        = "${outputDir}/samplesheet.csv"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/sample_outputs/S1.run1_rel-abundance.tsv").exists()
+        }
+    }
+
     test("Samplesheet with a duplicate sample ID is rejected") {
         tag "stub"
         options "-profile test -stub-run"
@@ -639,7 +663,7 @@ nextflow_pipeline {
         when {
             def sheet = new File("${outputDir}/samplesheet.csv")
             sheet.parentFile.mkdirs()
-            sheet.text = "sample,fastq\nS1.run1,${projectDir}/tests/test_data/stub_reads/mock_run.fastq\nS2,${projectDir}/tests/test_data/stub_reads/missing.fastq\n"
+            sheet.text = "sample,fastq\nS1+run,${projectDir}/tests/test_data/stub_reads/mock_run.fastq\nS2,${projectDir}/tests/test_data/stub_reads/missing.fastq\n"
             params {
                 input        = "${outputDir}/samplesheet.csv"
                 output_dir   = "${outputDir}"
@@ -650,7 +674,7 @@ nextflow_pipeline {
 
         then {
             assert workflow.failed
-            assert (workflow.stdout + workflow.stderr).any { it.contains("-> Entry 1: Error for field 'sample' (S1.run1)") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("-> Entry 1: Error for field 'sample' (S1+run)") }
             assert (workflow.stdout + workflow.stderr).any { it.contains("-> Entry 2: Error for field 'fastq'") && it.contains("missing.fastq' does not exist") }
         }
     }
