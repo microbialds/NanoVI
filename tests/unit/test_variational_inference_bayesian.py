@@ -578,6 +578,39 @@ def test_shared_reads_ignore_species_that_are_not_reported():
     assert summary[10]['expected_reads'] == 1.5
 
 
+class TestSharedReadsByRow:
+    """shared_reads counts a split between table rows, not between tax IDs of one row (F46)."""
+
+    # read 0 split 0.5 / 0.5 between columns 0 and 1 (one row); read 1 split 0.5 / 0.5
+    # between columns 0 and 2 (two rows); read 2 split 0.4 / 0.3 / 0.3 over all three
+    idx = np.array([[0, 1, -1], [0, 2, -1], [0, 1, 2]], dtype=np.int32)
+    phi = np.array([[0.5, 0.5, 0.0], [0.5, 0.5, 0.0], [0.4, 0.3, 0.3]])
+
+    def test_a_split_within_one_row_is_not_shared(self):
+        summary = vb.posterior_read_summary(None, self.idx, self.phi, [10, 11, 20], groups=[0, 0, 1])
+        # read 0 is the row's own; reads 1 and 2 are split with tax ID 20's row
+        assert summary[10]['shared_reads'] == pytest.approx(0.9)
+        assert summary[11]['shared_reads'] == pytest.approx(0.3)
+        assert summary[20]['shared_reads'] == pytest.approx(0.8)
+        merged = (summary[10]['shared_reads'] + summary[11]['shared_reads']) / \
+            (summary[10]['expected_reads'] + summary[11]['expected_reads'])
+        assert merged == pytest.approx(1.2 / 2.2)
+
+    def test_one_row_per_tax_id_gives_the_per_tax_id_summary_exactly(self):
+        assert vb.posterior_read_summary(None, self.idx, self.phi, [10, 11, 20], groups=[5, 3, 4]) == \
+            vb.posterior_read_summary(None, self.idx, self.phi, [10, 11, 20])
+
+    def test_bayesian_vi_takes_the_rows_by_tax_id(self):
+        lp = {f'a{i}': ([1, 2], [-1.0, -1.0]) for i in range(500)}
+        lp.update({f'b{i}': ([3], [-1.0]) for i in range(500)})
+        *_, by_tax_id = vb.bayesian_vi_iterations(lp, [1, 2, 3], posterior_summary=True)
+        *_, by_row = vb.bayesian_vi_iterations(lp, [1, 2, 3], posterior_summary=True,
+                                               species_rows={1: 'A', 2: 'A', 3: 'B'})
+        assert by_tax_id[1]['shared_reads'] == pytest.approx(by_tax_id[1]['expected_reads'])
+        assert by_row[1]['shared_reads'] == by_row[2]['shared_reads'] == by_row[3]['shared_reads'] == 0.0
+        assert by_row[1]['expected_reads'] == by_tax_id[1]['expected_reads']
+
+
 # ─── sparse vs dense reference (F23) ─────────────────────────────────────────
 
 def assert_matches_dense(lp, species, **kwargs):

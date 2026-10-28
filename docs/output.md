@@ -74,8 +74,8 @@ reads) are not listed.
 **Summed rows.** With `--binomial_names` (or a name repeated in a custom taxonomy), a
 row sums several tax IDs: `abundance` and `estimated_counts` add up,
 `identical_16s_species` is the union (without the row's own name), `shared_read_fraction`
-also counts the reads split among the summed tax IDs, and the interval uses their summed
-Dirichlet parameter.
+counts only the reads split with species of other rows (a read split between the summed
+tax IDs is the row's own), and the interval uses their summed Dirichlet parameter.
 
 ### Consolidated tables: `consolidated_output/`
 

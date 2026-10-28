@@ -220,14 +220,12 @@ def binomial_name(name):
     return ' '.join(words[:3] if words[0] == 'Candidatus' else words[:2])
 
 
-def unify_species_abundance(df, binomial=False):
-    """
-    Sums the rows that share a species name and lineage. Names are kept whole
-    (F17); with binomial=True they are first cut to genus and epithet
-    (binomial_name), so 'Escherichia coli O157' joins 'Escherichia coli'.
-    Retains genus, family, order, etc. The placeholder labels 'Unassigned',
-    'Below detection' and 'Unknown taxid <id>' are kept as they are. Empty
-    ranks are kept as '' (F01).
+def species_row_columns(df, binomial=False):
+    """The columns that name a table row, filled in: (df, group_columns).
+
+    Rows with the same species name and lineage are one row of the table
+    (unify_species_abundance); with binomial=True the names are first cut to
+    genus and epithet, so 'Escherichia coli O157' joins 'Escherichia coli'.
     """
     if 'species' not in df.columns:
         raise ValueError("Column 'species' not found in DataFrame. Check input format.")
@@ -248,6 +246,33 @@ def unify_species_abundance(df, binomial=False):
             # The sharing species are named the same way, so a row's own strains drop out below
             df[IDENTICAL_COLUMN] = ["; ".join(binomial_name(n) for n in v.split("; ") if n)
                                     for v in df[IDENTICAL_COLUMN]]
+    return df, group_columns
+
+
+def species_row_keys(tax_ids, taxonomy_df, binomial=False):
+    """The table row each tax ID is reported in, as a hashable key (F46).
+
+    Two tax IDs get the same key exactly when freq_to_lineage_df sums them into
+    one row: the same species name (cut by binomial_name with binomial=True) and
+    lineage. A tax ID missing from taxonomy_df, or with no species name there,
+    is a row of its own ('Unknown taxid <id>').
+    """
+    df = pd.DataFrame(index=pd.Index([str(t) for t in tax_ids], name="tax_id"))
+    df = label_lineages(df, taxonomy_df, warn=False)
+    df, group_columns = species_row_columns(df, binomial)
+    return list(df[group_columns].itertuples(index=False, name=None))
+
+
+def unify_species_abundance(df, binomial=False):
+    """
+    Sums the rows that share a species name and lineage. Names are kept whole
+    (F17); with binomial=True they are first cut to genus and epithet
+    (binomial_name), so 'Escherichia coli O157' joins 'Escherichia coli'.
+    Retains genus, family, order, etc. The placeholder labels 'Unassigned',
+    'Below detection' and 'Unknown taxid <id>' are kept as they are. Empty
+    ranks are kept as '' (F01).
+    """
+    df, group_columns = species_row_columns(df, binomial)
 
     # Summed with abundance: the posterior quantities behind the interval columns
     summed = ['abundance'] + [c for c in POSTERIOR_COLUMNS if c in df.columns]
@@ -280,6 +305,43 @@ def largest_remainder(weights, total):
     order = np.argsort(-(raw - floors), kind='stable')
     floors[order[:left]] += 1
     return floors
+
+def label_lineages(results_df, taxonomy_df, warn=True):
+    """Join rows indexed by tax_id with their lineage and label the rows without one.
+
+    Returns the rows with tax_id as a column. The Below detection and Unassigned
+    rows, and tax IDs without a species name in taxonomy_df ('Unknown taxid
+    <id>', with a warning on stderr when warn is True), get their label as
+    species name instead of being dropped by the groupby (F01).
+    """
+    # Join with the full taxonomy info
+    results_df = results_df.join(taxonomy_df, how='left').reset_index()
+    if 'species' not in results_df.columns:
+        results_df['species'] = pd.Series(pd.NA, index=results_df.index, dtype=object)
+
+    # Label rows that have no species name instead of letting groupby drop them (F01)
+    is_unassigned = results_df["tax_id"] == UNASSIGNED_ID
+    is_below = results_df["tax_id"] == BELOW_DETECTION_ID
+    is_unknown = (results_df["species"].isna() | (results_df["species"].astype(str).str.strip() == "")) \
+        & ~is_unassigned & ~is_below
+    known_ids = set(taxonomy_df.index.astype(str))
+    if warn:
+        for tid in results_df.loc[is_unknown, "tax_id"]:
+            reason = "is missing from taxonomy.tsv" if tid not in known_ids else "has no species name in taxonomy.tsv"
+            print(f"Warning: tax_id {tid} {reason}; reported as '{UNKNOWN_TAXID_LABEL} {tid}'", file=sys.stderr)
+    results_df.loc[is_unknown, "species"] = UNKNOWN_TAXID_LABEL + " " + results_df.loc[is_unknown, "tax_id"]
+    results_df.loc[is_below, "species"] = BELOW_DETECTION_LABEL
+    results_df.loc[is_unassigned, "species"] = UNASSIGNED_LABEL
+
+    # Blank ranks of these rows take the row's label, so that collapsing or combining
+    # at a higher rank keeps them apart from each other and from real taxa
+    placeholder = is_unassigned | is_below | is_unknown
+    for rank in TAXONOMY_RANKS[1:]:
+        if rank in results_df.columns:
+            blank = results_df[rank].isna() | (results_df[rank].astype(str).str.strip() == "")
+            results_df.loc[placeholder & blank, rank] = results_df.loc[placeholder & blank, "species"]
+    return results_df
+
 
 def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unassigned_count, counts=False,
                        below_detection_count=0, posterior=None, identical=None, binomial=False,
@@ -332,32 +394,7 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
         identical = {str(k): v for k, v in identical.items()}
         results_df[IDENTICAL_COLUMN] = [identical.get(tid, "") for tid in results_df.index]
 
-    # Join with the full taxonomy info
-    results_df = results_df.join(taxonomy_df, how='left').reset_index()
-    if 'species' not in results_df.columns:
-        results_df['species'] = pd.Series(pd.NA, index=results_df.index, dtype=object)
-
-    # Label rows that have no species name instead of letting groupby drop them (F01)
-    is_unassigned = results_df["tax_id"] == UNASSIGNED_ID
-    is_below = results_df["tax_id"] == BELOW_DETECTION_ID
-    is_unknown = (results_df["species"].isna() | (results_df["species"].astype(str).str.strip() == "")) \
-        & ~is_unassigned & ~is_below
-    known_ids = set(taxonomy_df.index.astype(str))
-    for tid in results_df.loc[is_unknown, "tax_id"]:
-        reason = "is missing from taxonomy.tsv" if tid not in known_ids else "has no species name in taxonomy.tsv"
-        print(f"Warning: tax_id {tid} {reason}; reported as '{UNKNOWN_TAXID_LABEL} {tid}'", file=sys.stderr)
-    results_df.loc[is_unknown, "species"] = UNKNOWN_TAXID_LABEL + " " + results_df.loc[is_unknown, "tax_id"]
-    results_df.loc[is_below, "species"] = BELOW_DETECTION_LABEL
-    results_df.loc[is_unassigned, "species"] = UNASSIGNED_LABEL
-
-    # Blank ranks of these rows take the row's label, so that collapsing or combining
-    # at a higher rank keeps them apart from each other and from real taxa
-    placeholder = is_unassigned | is_below | is_unknown
-    for rank in TAXONOMY_RANKS[1:]:
-        if rank in results_df.columns:
-            blank = results_df[rank].isna() | (results_df[rank].astype(str).str.strip() == "")
-            results_df.loc[placeholder & blank, rank] = results_df.loc[placeholder & blank, "species"]
-
+    results_df = label_lineages(results_df, taxonomy_df)
     results_df = unify_species_abundance(results_df, binomial)
     # Below detection, then Unassigned, go last
     is_below = results_df["species"] == BELOW_DETECTION_LABEL

@@ -189,8 +189,10 @@ $$
 the share of the species' expected reads that it splits with another reported species
 (`shared_read_fraction` = $f_s$).
 With `--estimator em` the responsibilities are EM's final $\phi_{rs}$ over the species
-that survived pruning, so the column means the same. It is computed per tax ID, so a
-row that sums several tax IDs (`--binomial_names`) also counts reads split among them.
+that survived pruning, so the column means the same. It is computed per row of the
+table: when a row sums several tax IDs (`--binomial_names`, or a repeated name), $\tilde\phi$
+in the indicator is the read's share on the whole row, so reads split only among those
+tax IDs are not shared (RUN_VI reads the rows from `taxonomy.tsv`).
 In the benchmark it flagged the estimates that missed the truth (AUC 0.75, 0.84 and
 0.79 at 1,000, 10,000 and 50,000 reads); above 0.1, interval coverage was at most 0.6 at
 1,000 reads and 0.13 at 10,000 (§8). The mean-field summaries cost 0.09 s per sample at

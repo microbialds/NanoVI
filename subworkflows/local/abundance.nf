@@ -78,7 +78,7 @@ workflow ABUNDANCE {
     }
 
     // Step 5: Run variational inference on the per-read scores
-    freq_output = RUN_VI(LIKELIHOOD.out.scores).abundance
+    freq_output = RUN_VI(LIKELIHOOD.out.scores, taxonomy_tsv).abundance
 
     // Step 6: Join abundance with the read counts and write final output
     vi_with_counts = freq_output.join(LIKELIHOOD.out.counts)

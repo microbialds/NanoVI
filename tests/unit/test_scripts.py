@@ -296,3 +296,39 @@ def test_write_abundance_table_with_no_scored_read(tmp_path, options):
         counts = pd.read_csv(tmp_path / 'phyloseq' / 'otu_table_counts.tsv', sep='\t', index_col=0)
         assert counts.loc['Unassigned', 'S1'] == 30 and counts.loc['Alpha one', 'S1'] == 0
         assert metadata.loc['S1', 'assigned_counts'] == 0 and metadata.loc['S1', 'unassigned_counts'] == 30
+
+
+# ─── shared_read_fraction per reported row (F46) ────────────────────────────
+
+@pytest.mark.parametrize('estimator', ['vb', 'em'])
+@pytest.mark.parametrize('binomial', [False, True])
+def test_reads_split_within_one_row_are_not_shared(tmp_path, estimator, binomial):
+    # Tax IDs 1 and 2 are strains of one species that split 400 reads 50/50; with
+    # --binomial-names (or, without it, because they have the same name) they are one
+    # row. Species 3 is a sibling: 200 reads tie between it and both strains and stay shared
+    names = ['Alpha one', 'Alpha one str. B' if binomial else 'Alpha one', 'Alpha three']
+    (tmp_path / 'taxonomy.tsv').write_text(
+        'tax_id\tspecies\tgenus\n' + ''.join(f'{t}\t{n}\tAlpha\n' for t, n in zip([1, 2, 3], names)))
+    per_read = {f's{i}': ([1, 2], [-1.0, -1.0]) for i in range(400)}
+    per_read.update({f'c{i}': ([3], [-1.0]) for i in range(400)})
+    per_read.update({f't{i}': ([1, 2, 3], [-1.0, -1.0, -1.0]) for i in range(200)})
+    options = ['--estimator', estimator, '--taxonomy', 'taxonomy.tsv'] + (['--binomial-names'] if binomial else [])
+    data = estimate(tmp_path, write_npz(tmp_path / 's.npz', per_read), *options)
+    result = write_table_with(tmp_path, data, '--binomial-names' if binomial else None)
+    assert result.returncode == 0, result.stderr
+    import pandas as pd
+    table = pd.read_csv(tmp_path / 'out.tsv', sep='\t').set_index('species')
+    # Only the tied reads are shared: about 100 of the merged row's 500 and of species 3's 500
+    assert table.loc['Alpha one', 'shared_read_fraction'] == pytest.approx(0.2, abs=0.02)
+    assert table.loc['Alpha three', 'shared_read_fraction'] == pytest.approx(0.2, abs=0.02)
+
+
+def write_table_with(tmp_path, data, option):
+    (tmp_path / 'abundance.json').write_text(json.dumps(data))
+    (tmp_path / 'counts.json').write_text(json.dumps({'assigned_count': 1000, 'unassigned_count': 0}))
+    return subprocess.run(
+        [sys.executable, os.path.join(BIN, 'write_abundance_table.py'), '--abundance', 'abundance.json',
+         '--read-counts', 'counts.json', '--taxonomy', 'taxonomy.tsv', '--output-prefix', 'out']
+        + ([option] if option else []),
+        cwd=tmp_path, capture_output=True, text=True,
+    )

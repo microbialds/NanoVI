@@ -418,6 +418,7 @@ def bayesian_vi_iterations(
     max_inner_iterations: int = 1000,
     inner_tolerance: float = 1e-7,
     posterior_summary: bool = False,
+    species_rows: Optional[Dict[int, object]] = None,
 ):
     """
     Outer optimization loop with iterative species pruning.
@@ -444,6 +445,7 @@ def bayesian_vi_iterations(
         max_inner_iterations=max_inner_iterations,
         inner_tolerance=inner_tolerance,
         posterior_summary=posterior_summary,
+        species_rows=species_rows,
     )
 
 
@@ -457,6 +459,7 @@ def bayesian_vi(
     max_inner_iterations: int = 1000,
     inner_tolerance: float = 1e-7,
     posterior_summary: bool = False,
+    species_rows: Optional[Dict[int, object]] = None,
 ):
     """
     Outer optimization loop with iterative species pruning, on the padded likelihood.
@@ -497,6 +500,10 @@ def bayesian_vi(
     posterior_summary : bool
         If True, also return a fifth value, the per-species summary that the
         experimental interval columns are built from (see posterior_read_summary).
+    species_rows : dict, optional
+        Species ID → the table row it is reported in (taxonomy.species_row_keys):
+        shared_reads then counts only reads split between rows (F46). By default
+        every species is its own row.
 
     Returns
     -------
@@ -687,12 +694,21 @@ def bayesian_vi(
     if posterior_summary:
         idx_reported, _ = remap_columns(idx, logL, reported_cols, len(current_species))
         idx_reported = np.where(is_reported[idx] & np.isfinite(logL), idx_reported, -1)
+        reported_ids = [current_species[i] for i in reported_cols]
         summary = posterior_read_summary(
-            alpha[reported_cols], idx_reported, phi,
-            [current_species[i] for i in reported_cols],
+            alpha[reported_cols], idx_reported, phi, reported_ids,
+            groups=row_groups(reported_ids, species_rows),
         )
         return freq_full, freq_thresholded, credible_intervals, below_detection_count, summary
     return freq_full, freq_thresholded, credible_intervals, below_detection_count
+
+
+def row_groups(species_ids: List[int], species_rows: Optional[Dict[int, object]]) -> Optional[List[int]]:
+    """An integer per species, equal for species reported in one table row (F46); None without rows."""
+    if species_rows is None:
+        return None
+    numbers = {}
+    return [numbers.setdefault(species_rows.get(sid, ("tax_id", sid)), len(numbers)) for sid in species_ids]
 
 
 def posterior_read_summary(
@@ -700,6 +716,7 @@ def posterior_read_summary(
     idx: np.ndarray,
     phi: np.ndarray,
     species_ids: List[int],
+    groups: Optional[List[int]] = None,
 ) -> Dict[int, Dict[str, float]]:
     """
     Per-species quantities for shared_read_fraction (D27) and the interval columns (D7).
@@ -713,6 +730,10 @@ def posterior_read_summary(
       - shared_reads: Σ_r φ_{r,s} over the reads whose responsibility is split
         with another reported species, that is, where the other species get at
         least SHARED_READ_MIN_SPLIT of it (φ_{r,s} ≤ 1 − SHARED_READ_MIN_SPLIT).
+        With groups, the split is judged between table rows (F46): the species
+        of s's row share φ_{r,s}'s side of it, so a read split only among tax IDs
+        reported in one row is not shared, and the row's shared_read_fraction is
+        Σ shared_reads / Σ expected_reads over its tax IDs.
 
     The mean-field intervals ignore the uncertainty in how shared reads are
     split between species, so they are too narrow when shared_reads /
@@ -729,6 +750,9 @@ def posterior_read_summary(
         Responsibilities of the entries.
     species_ids : list of int
         Species taxonomy IDs of the columns.
+    groups : list of int, optional
+        The table row of each column (columns with the same value are reported
+        as one row); by default every column is its own row.
     """
     S = len(species_ids)
     on = idx >= 0
@@ -738,7 +762,16 @@ def posterior_read_summary(
     # species dropped by the abundance threshold does not make it shared
     row_total = phi_on.sum(axis=1, keepdims=True)
     phi_reported = np.divide(phi_on, row_total, out=np.zeros_like(phi_on), where=row_total > 0)
-    split = on & (phi_reported > 0) & (phi_reported <= 1.0 - SHARED_READ_MIN_SPLIT)
+    if groups is not None:
+        # The read's share on the entry's row: the sum over the entries of the same row
+        # (an entry alone in its row keeps its own value exactly; adding 0.0 is exact)
+        row = np.where(on, np.asarray(groups, dtype=np.int64)[np.where(on, idx, 0)], -1)
+        row_share = np.zeros_like(phi_reported)
+        for k in range(idx.shape[1]):
+            row_share += np.where(row == row[:, k:k + 1], phi_reported[:, k:k + 1], 0.0)
+    else:
+        row_share = phi_reported
+    split = on & (phi_reported > 0) & (row_share <= 1.0 - SHARED_READ_MIN_SPLIT)
     shared = np.bincount(idx[split], weights=phi[split], minlength=S)
     return {
         sid: {
