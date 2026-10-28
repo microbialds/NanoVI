@@ -100,6 +100,35 @@ class TestVariationalInference:
         assert elbo_a == elbo_b
 
 
+class TestConvergedFrequencies:
+    """The inner loop returns the frequencies of its last update, renormalised (F47)."""
+
+    # 3,000 reads: species 3 (1 read, 3.3e-4) is pruned below 10/3,000. The pruned set
+    # moves by less than the inner tolerance (5e-4) on its first update
+    log_p = {f'a{i}': ([1], [math.log(0.9)]) for i in range(2000)}
+    log_p.update({f'b{i}': ([2], [math.log(0.9)]) for i in range(984)})
+    log_p.update({f'c{i}': ([4], [math.log(0.9)]) for i in range(15)})
+    log_p['d0'] = ([3], [math.log(0.9)])
+
+    def test_inner_loop_returns_the_update_when_it_converges(self):
+        freq, _ = variational_inference(self.log_p, {1: 0.6667, 2: 0.328, 4: 0.005})
+        assert sum(freq.values()) == pytest.approx(1.0, abs=1e-12)
+
+    def test_pruned_frequencies_sum_to_one(self):
+        freq_full, freq_thresh, _ = variational_inference_iterations(
+            self.log_p, db_ids=[1, 2, 3, 4], lli_thresh=1e-4, input_threshold=0.001)
+        assert 3 not in freq_full and freq_thresh is None
+        assert sum(freq_full.values()) == pytest.approx(1.0, abs=1e-12)
+
+    def test_refitted_frequencies_above_min_abundance_sum_to_one(self):
+        # min_abundance 0.01 drops species 4 (15 reads, 0.005) after pruning
+        freq_full, freq_thresh, _ = variational_inference_iterations(
+            self.log_p, db_ids=[1, 2, 3, 4], lli_thresh=1e-4, input_threshold=0.01)
+        assert set(freq_thresh) == {1, 2}
+        assert sum(freq_full.values()) == pytest.approx(1.0, abs=1e-12)
+        assert sum(freq_thresh.values()) == pytest.approx(1.0, abs=1e-12)
+
+
 class TestVariationalInferenceIterations:
     def test_raises_on_empty_read_dict(self):
         with pytest.raises(ValueError, match="0 reads"):

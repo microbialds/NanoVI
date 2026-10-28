@@ -22,7 +22,12 @@ from variational_inference_bayesian import posterior_read_summary, row_groups
 
 
 def variational_inference(log_p_rgs, freq, max_iterations=20, tolerance=5e-4):
-    """Run inner VI/EM loop: update q(s|r) and frequencies until convergence."""
+    """Run inner VI/EM loop: update q(s|r) and frequencies until convergence.
+
+    Returns the frequencies of the last update, which sum to 1 (F47; the input,
+    for example a pruned set, need not), and the log-likelihood of the
+    frequencies that update started from.
+    """
     for iteration in range(max_iterations):
         q_dist, elbo = update_q_distribution(log_p_rgs, freq)
         new_freq = maximize_elbo(q_dist)
@@ -30,10 +35,10 @@ def variational_inference(log_p_rgs, freq, max_iterations=20, tolerance=5e-4):
             if key not in new_freq:
                 new_freq[key] = 0.0
         diff = sum(abs(new_freq[key] - freq.get(key, 0.0)) for key in new_freq)
+        freq = new_freq
         if diff < tolerance:
             print(f"Converged at iteration {iteration + 1} with ELBO = {elbo}")
             break
-        freq = new_freq
         print(f"Iteration {iteration + 1}: ELBO = {elbo}")
     return freq, elbo
 
