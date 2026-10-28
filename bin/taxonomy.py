@@ -22,8 +22,6 @@ import math
 import numpy as np
 import pandas as pd
 import pathlib 
-from Bio import SeqIO
-from Bio.SeqRecord import SeqRecord
 
 # Define rank lists consistently
 TAXONOMY_RANKS = ["species", "genus", "family", "order", "class", "phylum", "superkingdom"]
@@ -134,6 +132,9 @@ def create_unique_seq_dict(db_fasta_path, seq2tax_dict):
     store the taxids and descriptions in a dictionary to remove redundancy.
     Returns: { Seq: { taxid: [list_of_descriptions] } }
     """
+    # Biopython is imported here, not for every step that uses this module (F51)
+    from Bio import SeqIO
+
     fasta_dict = {}
     for record in SeqIO.parse(db_fasta_path, "fasta"):
         tid = seq2tax_dict.get(record.id)
@@ -160,6 +161,8 @@ def create_reduced_fasta(fasta_dict, db_name):
     Flatten fasta_dict into a list of SeqRecords, giving each unique (seq, tid) pair
     a new ID: e.g. taxid:db_name:count
     """
+    from Bio.SeqRecord import SeqRecord
+
     records = []
     count = 1
     for seq, tid_dict in fasta_dict.items():

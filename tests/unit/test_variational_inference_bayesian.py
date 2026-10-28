@@ -280,11 +280,36 @@ class TestCaviInnerLoop:
         alpha_0 = np.full(2, 0.5)
         elbos = iter([-1000.0, -1000.0 - 1e-7, -1001.0])
         monkeypatch.setattr(vb, 'compute_elbo', lambda *args: next(elbos))
+        monkeypatch.setattr(vb, 'ELBO_EVERY', 1)
         vb.cavi_inner_loop(idx, logL, alpha_0, alpha_0 + 150, max_iterations=3, tolerance=0.0, verbose=False)
         err = capsys.readouterr().err
         # a fall of 1e-7 (1e-10 of |ELBO|) is rounding; a fall of 1 is reported once
         assert err.count('WARNING: ELBO fell') == 1
         assert 'iteration 3' in err
+
+    def test_elbo_only_on_logged_and_last_iterations(self, monkeypatch):
+        # F51: the ELBO (a pass over every entry) was computed on every iteration
+        lp = synthetic_reads({1: 200, 2: 100}, seed=4)
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1, 2])
+        alpha_0 = np.full(2, 0.5)
+        calls = []
+        compute = vb.compute_elbo
+        monkeypatch.setattr(vb, 'compute_elbo', lambda *args: calls.append(1) or compute(*args))
+        *_, elbo, n_iters = vb.cavi_inner_loop(idx, logL, alpha_0, alpha_0 + 150, max_iterations=250,
+                                               tolerance=0.0, verbose=False)
+        assert n_iters == 250 and len(calls) == 4   # iterations 1, 100, 200 and 250
+        assert np.isfinite(elbo)
+
+    def test_warns_when_elbo_falls_between_computed_values(self, monkeypatch, capsys):
+        lp = synthetic_reads({1: 200, 2: 100}, seed=4)
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1, 2])
+        alpha_0 = np.full(2, 0.5)
+        elbos = iter([-1000.0, -1001.0])
+        monkeypatch.setattr(vb, 'compute_elbo', lambda *args: next(elbos))
+        vb.cavi_inner_loop(idx, logL, alpha_0, alpha_0 + 150, max_iterations=50, tolerance=0.0, verbose=False)
+        err = capsys.readouterr().err
+        assert err.count('WARNING: ELBO fell') == 1
+        assert 'iteration 1 to -1001.000000 at CAVI iteration 50' in err
 
     def test_matches_the_dense_reference(self):
         lp = synthetic_reads({1: 400, 2: 200, 3: 60, 4: 15}, seed=5)
@@ -305,7 +330,7 @@ class TestBayesianViIterations:
     def test_recovers_known_proportions(self):
         truth = {1: 0.40, 2: 0.30, 3: 0.15, 4: 0.10, 5: 0.05}
         lp = synthetic_reads({s: int(p * 2000) for s, p in truth.items()}, seed=5)
-        freq_full, _, ci, _ = vb.bayesian_vi_iterations(lp, list(truth))
+        freq_full, _, ci, _ = vb.bayesian_vi_iterations(lp, list(truth), credible_intervals=True)
         assert sum(freq_full.values()) == pytest.approx(1.0)
         for sid, p in truth.items():
             assert freq_full[sid] == pytest.approx(p, abs=0.02)
