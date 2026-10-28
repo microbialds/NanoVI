@@ -708,6 +708,134 @@ def fig7_runtime():
     return fig, data
 
 
+# ─── Figure 8: clinical cohorts ─────────────────────────────────────────────
+
+COHORTS = [("vaginal_cl", "vaginal (20)", "o"), ("vaginal_bv", "vaginal BV/control (12)", "^"),
+           ("crc", "stool CRC/healthy (117)", "s")]
+# (arm_a, arm_b, names) of clinical_summary.tsv, top to bottom
+CLINICAL_PAIRS = [
+    (("nanovi_emudb", "emu_same_sam", "ncbi"), "NanoVI vs Emu,\nsame alignments"),
+    (("nanovi_emudb", "emu", "ncbi"), "NanoVI vs Emu,\neach as shipped (Emu db)"),
+    (("emu", "published", "ncbi"), "Emu rerun vs\nauthors' Emu tables"),
+    (("nanovi_gtdb", "nanovi_emudb", "gtdb"), "NanoVI, GTDB r226\nvs Emu db"),
+]
+# clinical arms in the fixed tool colours; Emu on NanoVI's alignments is Emu's colour, open
+CLINICAL_ARMS = {
+    "nanovi_gtdb": ("NanoVI (GTDB r226)", style.NANOVI, True),
+    "nanovi_emudb": ("NanoVI (Emu db)", style.TOOLS[("nanovi", "emu_default")][1], True),
+    "emu": ("Emu (Emu db)", style.EMU_OWN_DB, True),
+    "emu_same_sam": ("Emu on NanoVI's alignments", style.EMU_OWN_DB, False),
+    "wgs": ("Kraken2 + Bracken, shotgun", style.TOOLS[("kraken2_bracken", "ncbi_16s_18s")][1], True),
+}
+BC_FLOOR = 1e-5  # Bray-Curtis values below this are drawn at it (log axis)
+
+
+def fig8_clinical():
+    pairs_name, samples_name, paper_name = ("clinical_pairs.tsv", "clinical_samples.tsv",
+                                            "clinical_crc_paper_species.tsv")
+    p = read(pairs_name)
+    s = read(samples_name)
+    paper = read(paper_name)
+
+    fig = style.figure(style.DOUBLE, 128)
+    top, bottom = fig.subfigures(2, 1, height_ratios=[1.2, 1])
+    axa, axb = top.subplots(1, 2, sharey=True)
+    axc, axd = bottom.subplots(1, 2, width_ratios=[1, 1.15])
+    rows = []
+
+    # (a, b) per-sample Bray-Curtis for each comparison, cohorts offset within a row
+    rng = np.random.default_rng(8)
+    grey = "#4D4D4D"
+    for i, ((a, b, names), label) in enumerate(CLINICAL_PAIRS):
+        y0 = len(CLINICAL_PAIRS) - 1 - i
+        for j, (cohort, _, marker) in enumerate(COHORTS):
+            d = p[(p["cohort"] == cohort) & (p["arm_a"] == a) & (p["arm_b"] == b) & (p["names"] == names)]
+            if d.empty:
+                continue
+            y = y0 + 0.25 - 0.25 * j
+            jit = rng.uniform(-0.07, 0.07, len(d))
+            for ax, metric in ((axa, "species_bray_curtis"), (axb, "genus_bray_curtis")):
+                x = d[metric].clip(lower=BC_FLOOR)
+                ax.scatter(x, y + jit, s=7, marker=marker, facecolors="white", edgecolors=grey,
+                           linewidths=0.5, alpha=0.9, zorder=2)
+                med = d[metric].median()
+                ax.plot([max(med, BC_FLOOR)] * 2, [y - 0.11, y + 0.11], color="black", lw=1.1, zorder=3,
+                        path_effects=[pe.Stroke(linewidth=2.6, foreground="white"), pe.Normal()])
+            rows.append(with_source(d[["cohort", "run", "sample", "arm_a", "arm_b", "names",
+                                       "species_bray_curtis", "genus_bray_curtis"]],
+                                    pairs_name, panel="a,b", comparison=label.replace("\n", " ")))
+    axa.set_yticks(range(len(CLINICAL_PAIRS) - 1, -1, -1), [l for _, l in CLINICAL_PAIRS])
+    axa.set_ylim(-0.55, len(CLINICAL_PAIRS) - 0.45)
+    for ax, what in ((axa, "species"), (axb, "genus")):
+        ax.set_xscale("log")
+        ax.set_xlim(BC_FLOOR / 1.6, 1.3)
+        ticks = [BC_FLOOR, 1e-4, 1e-3, 1e-2, 0.1, 1]
+        ax.set_xticks(ticks, ["≤10$^{-5}$", "10$^{-4}$", "0.001", "0.01", "0.1", "1"])
+        ax.xaxis.set_minor_locator(plt.NullLocator())
+        ax.set_xlabel(f"Bray–Curtis dissimilarity per sample, {what} level")
+        ax.tick_params(axis="y", length=0)
+        ax.grid(axis="x", color="#E5E5E5", lw=0.4, zorder=0)
+        ax.set_axisbelow(True)
+    plt.setp(axb.get_yticklabels(), visible=False)
+    handles = [Line2D([], [], marker=m, ls="none", markerfacecolor="white", markeredgecolor=grey, ms=3.6,
+                      label=lab) for _, lab, m in COHORTS]
+    handles.append(Line2D([], [], color="black", lw=1.1, label="median"))
+    top.legend(handles=handles, loc="outside lower center", ncol=4)
+
+    # (c) Lactobacillus share in control and BV swabs
+    bv = s[s["cohort"] == "vaginal_bv"]
+    arms = ["nanovi_gtdb", "nanovi_emudb", "emu", "wgs"]
+    for gi, group in enumerate(("control", "BV")):
+        g = bv[bv["group"] == group]
+        for ai, arm in enumerate(arms):
+            label, colour, filled = CLINICAL_ARMS[arm]
+            x = gi * (len(arms) + 1) + ai
+            v = g[f"{arm}_lactobacillus"]
+            axc.scatter(np.full(len(v), x) + rng.uniform(-0.15, 0.15, len(v)), v, s=9, color=colour,
+                        edgecolors=style.edge_for(colour), linewidths=0.4, zorder=2)
+            axc.plot([x - 0.3, x + 0.3], [v.median()] * 2, color="black", lw=1.1, zorder=3,
+                     path_effects=[pe.Stroke(linewidth=2.6, foreground="white"), pe.Normal()])
+            rows.append(with_source(pd.DataFrame({"sample": g["sample"], "group": group, "arm": arm,
+                                                  "lactobacillus": v}), samples_name, panel="c"))
+    axc.set_xticks([1.5, 1.5 + len(arms) + 1], ["control (6)", "bacterial vaginosis (6)"])
+    axc.tick_params(axis="x", length=0)
+    axc.set_ylim(-0.03, 1.03)
+    axc.set_ylabel("$\\it{Lactobacillus}$ share")
+
+    # (d) the CRC paper's four species: AUC (CRC above healthy) per arm
+    species = list(dict.fromkeys(paper["paper_species"]))
+    arms_d = ["nanovi_gtdb", "nanovi_emudb", "emu", "emu_same_sam"]
+    for si, sp in enumerate(species):
+        for ai, arm in enumerate(arms_d):
+            r = paper[(paper["paper_species"] == sp) & (paper["arm"] == arm)].iloc[0]
+            label, colour, filled = CLINICAL_ARMS[arm]
+            y = len(species) - 1 - si + 0.27 - 0.18 * ai
+            if r["tested"]:
+                axd.plot(r["auc_crc"], y, marker="o", ms=3.8, ls="none", markerfacecolor=colour if filled else "white",
+                         markeredgecolor=style.edge_for(colour), markeredgewidth=0.7, zorder=3)
+            rows.append(with_source(r.to_frame().T, paper_name, panel="d"))
+        r0 = paper[paper["paper_species"] == sp]
+        if not r0["tested"].any():
+            axd.text(0.5, len(species) - 1 - si, f"in ≤{r0['prevalence'].max():.0%} of samples, not tested",
+                     ha="center", va="center", fontsize=6, color=grey)
+    axd.axvline(0.5, color="#999999", lw=0.6, ls=":", zorder=1)
+    axd.set_yticks(range(len(species) - 1, -1, -1), [short_species(sp) for sp in species])
+    style.italic_ticklabels(axd.get_yticklabels())
+    axd.set_ylim(-0.6, len(species) - 0.4)
+    axd.set_xlim(0.2, 0.8)
+    axd.set_xlabel("AUC, CRC above healthy (Mann–Whitney)")
+    axd.tick_params(axis="y", length=0)
+    bottom.legend(handles=[Line2D([], [], marker="o", ls="none", ms=3.8, markeredgewidth=0.7,
+                                  markerfacecolor=CLINICAL_ARMS[a][1] if CLINICAL_ARMS[a][2] else "white",
+                                  markeredgecolor=CLINICAL_ARMS[a][1], label=CLINICAL_ARMS[a][0])
+                           for a in arms_d + ["wgs"]],
+                  loc="outside lower center", ncol=3)
+    style.panel_labels(fig, [(axa, "a"), (axb, "b"), (axc, "c"), (axd, "d")])
+
+    data = pd.concat(rows, ignore_index=True)
+    return fig, data
+
+
 FIGURES = {
     "fig1_database": fig1_database,
     "fig2_comparators": fig2_comparators,
@@ -716,6 +844,7 @@ FIGURES = {
     "fig5_intervals": fig5_intervals,
     "fig6_clade": fig6_clade,
     "fig7_runtime": fig7_runtime,
+    "fig8_clinical": fig8_clinical,
 }
 
 

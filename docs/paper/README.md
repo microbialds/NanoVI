@@ -48,6 +48,7 @@ and `<name>_data.tsv`: the plotted rows and columns, with a `source_file` column
 | `fig5_intervals` | double | `fig_intervals.tsv`, `intervals_coverage_by_shared_read_fraction.tsv`, `intervals_warning_auc.tsv` |
 | `fig6_clade` | single | `fig_clade.tsv` |
 | `fig7_runtime` | double | `fig_timing.tsv` |
+| `fig8_clinical` | double | `clinical_pairs.tsv`, `clinical_samples.tsv`, `clinical_crc_paper_species.tsv` |
 
 **fig1_database.** (a) GTDB r226 species by number of database sequences, in log2 bins
 (1, 2-3, 4-7, ...; log axes), with the median, 95th percentile and maximum read from
@@ -107,3 +108,16 @@ one undivided bar. (a) Totals, alignment in grey and the post-alignment part in 
 colour (totals printed at the bar ends). (b) Post-alignment steps only, on a linear axis.
 NanoVI's EM (`nanovi_em`) and the index build (`mode index`, reported apart in methods
 §11) are not drawn.
+
+**fig8_clinical.** The clinical cohorts (`docs/benchmarks/clinical_2026.md`). (a, b)
+Bray-Curtis dissimilarity per sample at species and genus level for four comparisons: NanoVI
+and Emu on the same alignments, each as shipped on Emu's database, Emu 3.6.2 against the
+authors' published Emu tables (vaginal cohorts only), and NanoVI on GTDB r226 against NanoVI
+on Emu's database (GTDB names); marker by cohort, median as a bar, log axis with values below
+10^-5 drawn at 10^-5. (c) *Lactobacillus* share in the 6 control and 6 BV swabs of
+vaginal_bv for NanoVI on both databases, Emu as shipped and Kraken2 + Bracken on the swabs'
+shotgun reads (`wgs_lactobacillus`), median as a bar. (d) AUC (CRC above healthy) of the
+four species of the stool paper's smallest model for each arm; a species in fewer than 10%
+of samples is not tested and is labelled with its largest prevalence. Emu on NanoVI's
+alignments is Emu's colour, open.
+
