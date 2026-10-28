@@ -43,8 +43,12 @@ adds the alignment settings; `nanovi_gtdb` against `emu` is the two tools as shi
   are mapped to GTDB r226 species with the Phase 7a crosswalk (`benchmarks/names.py`:
   the GTDB species most of the NCBI species' genomes are placed in, plus NCBI synonyms);
   GTDB names are compared with suffixes stripped. Genus comparisons across databases use
-  the genus of the mapped GTDB species. The abundance that cannot be mapped is reported
-  per sample (`unmapped`) and left out of both profiles.
+  the genus of the mapped GTDB species (the first word of its name); within Emu's database
+  the genus is Emu's taxonomy's, or the first word of the name for species it gives no
+  genus. The abundance that cannot be mapped is reported per sample (`unmapped`) and left
+  out of the NCBI-named profile, which is renormalised; the GTDB profile it is compared
+  with keeps those reads under the GTDB species they went to, so a large unmapped share
+  adds to the dissimilarity.
 - **Dominant taxon** per sample (the most abundant genus) and its agreement between arms.
 - **Labels.** vaginal_bv: the *Lactobacillus* share of each profile in control and BV
   swabs, its range per group and the AUC of a Mann-Whitney U test (control above BV),
@@ -70,7 +74,7 @@ brackets); figure: `docs/paper` Figure 8 (`fig8_clinical`).
 | same: dominant genus agrees | 100% | 100% | 100% |
 | NanoVI vs Emu, each as shipped, Emu's database: species BC | 0.029 (0.18) | 0.0054 (0.12) | 0.067 (0.40) |
 | same: genus BC | 0.0035 | 0.0003 | 0.044 |
-| same: dominant genus agrees | 95% | 100% | 92% |
+| same: dominant genus agrees | 95% | 100% | 93% |
 | Emu 3.6.2 rerun vs the authors' Emu tables: species BC | 0.0061 (0.17) | 0.0067 (0.036) | — |
 | NanoVI (Emu's database) vs the authors' Emu tables: species BC | 0.029 (0.21) | 0.0098 (0.12) | — |
 | NanoVI, GTDB r226 vs Emu's database: species BC | 0.078 (0.80) | 0.070 (0.77) | 0.48 (0.80) |
@@ -83,9 +87,9 @@ most 0.020 in any sample, the same dominant genus in all 149), as on the mock co
 (`methods_2026.md` §10).
 
 **Alignment settings.** Each tool as shipped on Emu's database (NanoVI -N 3 -k 21, Emu
--N 50 -k 15) differed more, most in stool (median species BC 0.067). Of the 9 stool
+-N 50 -k 15) differed more, most in stool (median species BC 0.067). Of the 8 stool
 samples with a different dominant genus, 4 are *Butyricimonas* (NanoVI) against reads Emu
-gave to unnamed Bacteroidales species (genus taken as the first word of the name), and
+gave to unnamed Bacteroidales species (no genus in Emu's taxonomy), and
 one (SRR30050069) has 17% *Bacillus thuringiensis* in NanoVI's profile where Emu as
 shipped reports *Faecalibacterium* first (`clinical_pairs.tsv`, its rel-abundance tables).
 Our Emu rerun reproduces the authors' published Emu tables (median species BC 0.006 in
@@ -103,9 +107,11 @@ contributor in stool), placeholder species and genera (*Dialister* sp001553355,
 paragasseri*). The genus-level difference is smaller in the vaginal cohorts (median 0.004
 -0.016) than in stool (0.24), where it is spread over many genera (the ten largest
 contribute 30%). Part of Emu's database profile has no GTDB name in the crosswalk and is
-left out of these comparisons: median 0-0.5% in the vaginal cohorts and 7.5-8.7% in
-stool, up to 56% in P11 (*Peptostreptococcaceae bacterium oral taxon 929*)
-(`clinical_pairs.tsv`, `unmapped_b`).
+left out of that profile (median 0-0.5% in the vaginal cohorts and 7.5-8.7% in stool, up
+to 56% in P11, *Peptostreptococcaceae bacterium oral taxon 929*; `clinical_pairs.tsv`,
+`unmapped_b`); NanoVI's GTDB profile keeps those reads, so they add to the dissimilarity.
+The genus counts compare each database's own genus names, so a genus GTDB renamed or
+split (*Lactobacillus*: 68 species in GTDB, 192 in Emu's database) is counted under different concepts.
 
 **Bacterial vaginosis.** Every 16S arm separated the 6 control from the 6 BV swabs by
 *Lactobacillus* share (controls 0.986-1.000, BV 0.000-0.967; AUC 1.0, Mann-Whitney p

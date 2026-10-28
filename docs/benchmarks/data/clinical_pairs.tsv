@@ -1,693 +1,693 @@
 cohort	run	sample	group	arm_a	arm_b	names	species_bray_curtis	genus_bray_curtis	dominant_genus_a	dominant_genus_b	unmapped_a	unmapped_b
-vaginal_cl	SRR32613699	M10		nanovi_emudb	emu_same_sam	ncbi	0.0027576738323557013	0.0023959096789472802	Dialister	Dialister	0.0	0.0
-vaginal_cl	SRR32613699	M10		nanovi_emudb	emu	ncbi	0.056974563581064896	0.0034855961139859067	Dialister	Dialister	0.0	0.0
-vaginal_cl	SRR32613699	M10		nanovi_gtdb	emu	gtdb	0.5119377053991465	0.18272497634452534	Dialister	Dialister	0.0	0.17760571047837986
-vaginal_cl	SRR32613699	M10		nanovi_gtdb	nanovi_emudb	gtdb	0.5083273126833701	0.1833684035169237	Dialister	Dialister	0.0	0.17150553261395907
-vaginal_cl	SRR32613699	M10		nanovi_gtdb	published	gtdb	0.2847645834401775	0.13014524178765807	Dialister	Dialister	0.0	0.1901228115449371
-vaginal_cl	SRR32613699	M10		nanovi_emudb	published	ncbi	0.05600361786728467	0.007486422002143396	Dialister	Dialister	0.0	0.0
+vaginal_cl	SRR32613699	M10		nanovi_emudb	emu_same_sam	ncbi	0.0027576738323557017	0.00239590967894728	Dialister	Dialister	0.0	0.0
+vaginal_cl	SRR32613699	M10		nanovi_emudb	emu	ncbi	0.05697456358106491	0.0034855961139859063	Dialister	Dialister	0.0	0.0
+vaginal_cl	SRR32613699	M10		nanovi_gtdb	emu	gtdb	0.5119377053991465	0.18272497634452528	Dialister	Dialister	0.0	0.17760571047837986
+vaginal_cl	SRR32613699	M10		nanovi_gtdb	nanovi_emudb	gtdb	0.50832731268337	0.18336840351692368	Dialister	Dialister	0.0	0.17150553261395907
+vaginal_cl	SRR32613699	M10		nanovi_gtdb	published	gtdb	0.2847645834401775	0.0183323466891272	Dialister	Dialister	0.0	0.1901228115449371
+vaginal_cl	SRR32613699	M10		nanovi_emudb	published	ncbi	0.056003617867284666	0.007486422002143396	Dialister	Dialister	0.0	0.0
 vaginal_cl	SRR32613699	M10		emu	published	ncbi	0.020000530615413032	0.006399069191924532	Dialister	Dialister	0.0	0.0
 vaginal_cl	SRR32613700	M09		nanovi_emudb	emu_same_sam	ncbi	0.0012385008779553339	4.032528403234215e-05	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613700	M09		nanovi_emudb	emu	ncbi	0.024691753326081273	0.02368371272637098	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613700	M09		nanovi_gtdb	emu	gtdb	0.062499239601831326	0.03755889518359205	Lactobacillus	Lactobacillus	0.0	0.008110310704568807
-vaginal_cl	SRR32613700	M09		nanovi_gtdb	nanovi_emudb	gtdb	0.061805144192828794	0.03767794817817324	Lactobacillus	Lactobacillus	0.0	0.011061853253092009
-vaginal_cl	SRR32613700	M09		nanovi_gtdb	published	gtdb	0.0058317116719282525	0.008285814119272811	Lactobacillus	Lactobacillus	0.0	0.0040510680088386
+vaginal_cl	SRR32613700	M09		nanovi_emudb	emu	ncbi	0.02469175332608127	0.023683712726370976	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613700	M09		nanovi_gtdb	emu	gtdb	0.06249923960183132	0.037558895183592046	Lactobacillus	Lactobacillus	0.0	0.008110310704568807
+vaginal_cl	SRR32613700	M09		nanovi_gtdb	nanovi_emudb	gtdb	0.06180514419282879	0.03767794817817323	Lactobacillus	Lactobacillus	0.0	0.011061853253092009
+vaginal_cl	SRR32613700	M09		nanovi_gtdb	published	gtdb	0.0058317116719282525	0.005397857875066511	Lactobacillus	Lactobacillus	0.0	0.0040510680088386
 vaginal_cl	SRR32613700	M09		nanovi_emudb	published	ncbi	0.005107483208400766	0.006179558074321354	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613700	M09		emu	published	ncbi	0.00255426994170178	0.002228121727219503	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613701	M08		nanovi_emudb	emu_same_sam	ncbi	0.00018099051029627964	4.577486720795578e-05	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613701	M08		nanovi_emudb	emu	ncbi	0.03539805151360927	0.0006171545118327832	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613701	M08		nanovi_gtdb	emu	gtdb	0.02265863129490246	0.001266243615125721	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613701	M08		nanovi_gtdb	nanovi_emudb	gtdb	0.02634065790036338	0.0036256261388520838	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613701	M08		nanovi_gtdb	published	gtdb	0.017431984541168323	0.0012772142815625043	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613701	M08		nanovi_emudb	emu	ncbi	0.03539805151360928	0.0006171545118327832	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613701	M08		nanovi_gtdb	emu	gtdb	0.022658631294902455	0.001266243615125721	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613701	M08		nanovi_gtdb	nanovi_emudb	gtdb	0.026340657900363378	0.0036256261388520838	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613701	M08		nanovi_gtdb	published	gtdb	0.017431984541168323	0.0028235877930458215	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613701	M08		nanovi_emudb	published	ncbi	0.0351730015901121	0.0006281251782696219	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613701	M08		emu	published	ncbi	0.0025019553216463217	1.0970666436838777e-05	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613702	M07		nanovi_emudb	emu_same_sam	ncbi	0.0001221593177571878	5.600933636767296e-05	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613702	M07		nanovi_emudb	emu	ncbi	0.03401648769750861	0.00035536986965433413	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613702	M07		nanovi_gtdb	emu	gtdb	0.04105152737577923	0.007191082326258237	Lactobacillus	Lactobacillus	0.0	0.003728310199417778
-vaginal_cl	SRR32613702	M07		nanovi_gtdb	nanovi_emudb	gtdb	0.03663470507514111	0.007265095348968919	Lactobacillus	Lactobacillus	0.0	0.0036935021759831035
-vaginal_cl	SRR32613702	M07		nanovi_gtdb	published	gtdb	0.0272297207806209	0.01627134690138035	Lactobacillus	Lactobacillus	0.0	0.0043363414857612
+vaginal_cl	SRR32613702	M07		nanovi_emudb	emu	ncbi	0.03401648769750862	0.00035536986965433413	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613702	M07		nanovi_gtdb	emu	gtdb	0.04105152737577922	0.007191082326258237	Lactobacillus	Lactobacillus	0.0	0.003728310199417778
+vaginal_cl	SRR32613702	M07		nanovi_gtdb	nanovi_emudb	gtdb	0.03663470507514112	0.007265095348968919	Lactobacillus	Lactobacillus	0.0	0.0036935021759831035
+vaginal_cl	SRR32613702	M07		nanovi_gtdb	published	gtdb	0.0272297207806209	0.003685441187353472	Lactobacillus	Lactobacillus	0.0	0.0043363414857612
 vaginal_cl	SRR32613702	M07		nanovi_emudb	published	ncbi	0.0366548881763657	0.0007479318977574667	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613702	M07		emu	published	ncbi	0.005621555235680405	0.0008820787011028116	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613702	M07		emu	published	ncbi	0.005621555235680406	0.0008820787011028116	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613703	M06		nanovi_emudb	emu_same_sam	ncbi	0.0001214959023042811	5.275870436398562e-05	Dialister	Dialister	0.0	0.0
-vaginal_cl	SRR32613703	M06		nanovi_emudb	emu	ncbi	0.07279277710508586	0.015324627680483264	Dialister	Dialister	0.0	0.0
-vaginal_cl	SRR32613703	M06		nanovi_gtdb	emu	gtdb	0.5627911676112607	0.16348622759523052	Lactobacillus	Dialister	0.0	0.050104570422294485
-vaginal_cl	SRR32613703	M06		nanovi_gtdb	nanovi_emudb	gtdb	0.5630206785529812	0.18359776034170777	Lactobacillus	Dialister	0.0	0.06089008735004201
-vaginal_cl	SRR32613703	M06		nanovi_gtdb	published	gtdb	0.456215859874869	0.1376416950065519	Lactobacillus	Dialister	0.0	0.0328727052356137
-vaginal_cl	SRR32613703	M06		nanovi_emudb	published	ncbi	0.08100372456655677	0.016709455390163285	Dialister	Dialister	0.0	0.0
+vaginal_cl	SRR32613703	M06		nanovi_emudb	emu	ncbi	0.0727927771050859	0.015324627680483262	Dialister	Dialister	0.0	0.0
+vaginal_cl	SRR32613703	M06		nanovi_gtdb	emu	gtdb	0.5627911676112606	0.16348622759523052	Lactobacillus	Dialister	0.0	0.050104570422294485
+vaginal_cl	SRR32613703	M06		nanovi_gtdb	nanovi_emudb	gtdb	0.5630206785529814	0.18359776034170777	Lactobacillus	Dialister	0.0	0.06089008735004201
+vaginal_cl	SRR32613703	M06		nanovi_gtdb	published	gtdb	0.456215859874869	0.08291820428957414	Lactobacillus	Dialister	0.0	0.0328727052356137
+vaginal_cl	SRR32613703	M06		nanovi_emudb	published	ncbi	0.08100372456655677	0.01670945539016329	Dialister	Dialister	0.0	0.0
 vaginal_cl	SRR32613703	M06		emu	published	ncbi	0.01365685888919481	0.004765434918071451	Dialister	Dialister	0.0	0.0
-vaginal_cl	SRR32613704	M05		nanovi_emudb	emu_same_sam	ncbi	0.005603233067999699	0.0006503980436026131	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613704	M05		nanovi_emudb	emu	ncbi	0.006280258967168385	0.0006411407175645863	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613704	M05		nanovi_gtdb	emu	gtdb	0.009036061925913424	0.0012649070912382034	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613704	M05		nanovi_emudb	emu_same_sam	ncbi	0.005603233067999698	0.0006503980436026131	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613704	M05		nanovi_emudb	emu	ncbi	0.006280258967168383	0.0006411407175645863	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613704	M05		nanovi_gtdb	emu	gtdb	0.009036061925913426	0.0012649070912382036	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613704	M05		nanovi_gtdb	nanovi_emudb	gtdb	0.008098583463890096	0.0012028729142030958	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613704	M05		nanovi_gtdb	published	gtdb	0.003753668372368196	0.004099995250894868	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613704	M05		nanovi_gtdb	published	gtdb	0.003753668372368196	6.738890997175055e-05	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613704	M05		nanovi_emudb	published	ncbi	0.005626069453701889	4.7037864843768097e-05	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613704	M05		emu	published	ncbi	0.0032306179497893148	0.0003708453578012425	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613705	M04		nanovi_emudb	emu_same_sam	ncbi	0.004930127773365218	0.0010025283565674552	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613705	M04		nanovi_emudb	emu	ncbi	0.021445337242402024	0.0016012199883055336	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613705	M04		nanovi_emudb	emu_same_sam	ncbi	0.004930127773365217	0.0010025283565674552	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613705	M04		nanovi_emudb	emu	ncbi	0.02144533724240202	0.0016012199883055336	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613705	M04		nanovi_gtdb	emu	gtdb	0.337875677058036	0.010686834041155162	Lactobacillus	Lactobacillus	0.0	0.0020727858408460063
-vaginal_cl	SRR32613705	M04		nanovi_gtdb	nanovi_emudb	gtdb	0.3281410836347935	0.010566472253157815	Lactobacillus	Lactobacillus	0.0	0.0014512762005307004
-vaginal_cl	SRR32613705	M04		nanovi_gtdb	published	gtdb	0.3330866806242897	0.007919535443506865	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613705	M04		nanovi_gtdb	nanovi_emudb	gtdb	0.3281410836347934	0.010566472253157815	Lactobacillus	Lactobacillus	0.0	0.0014512762005307004
+vaginal_cl	SRR32613705	M04		nanovi_gtdb	published	gtdb	0.3330866806242897	0.0049303433198295745	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613705	M04		nanovi_emudb	published	ncbi	0.01946870401887916	0.0009254075718572903	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613705	M04		emu	published	ncbi	0.003901357149607612	0.0006155087536545132	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613706	M03		nanovi_emudb	emu_same_sam	ncbi	0.008299753981575269	0.005727663080758956	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613706	M03		nanovi_emudb	emu	ncbi	0.01769516859524287	0.007236032767833415	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613706	M03		nanovi_gtdb	emu	gtdb	0.03850757220832426	0.010708814477949085	Lactobacillus	Lactobacillus	0.0	0.008037488321101282
-vaginal_cl	SRR32613706	M03		nanovi_gtdb	nanovi_emudb	gtdb	0.03611934313877382	0.010258878980358932	Lactobacillus	Lactobacillus	0.0	0.0072619109944612095
-vaginal_cl	SRR32613706	M03		nanovi_gtdb	published	gtdb	0.012622968463233068	0.010967148139008134	Lactobacillus	Lactobacillus	0.0	0.0074431457233606994
-vaginal_cl	SRR32613706	M03		nanovi_emudb	published	ncbi	0.014158772623587161	0.006322236496170237	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613706	M03		emu	published	ncbi	0.00621786726568387	0.0003616648342378489	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613707	M20		nanovi_emudb	emu_same_sam	ncbi	0.020102266872081526	0.01138072270640813	Saccharofermentans	Saccharofermentans	0.0	0.0
-vaginal_cl	SRR32613707	M20		nanovi_emudb	emu	ncbi	0.17802092559509133	0.13726070819406486	Saccharofermentans	Mageeibacillus	0.0	0.0
-vaginal_cl	SRR32613707	M20		nanovi_gtdb	emu	gtdb	0.7979769244936237	0.6219832837734406	Amygdalobacter	Mageeibacillus	0.0	0.1996216744488001
-vaginal_cl	SRR32613707	M20		nanovi_gtdb	nanovi_emudb	gtdb	0.7805691949651542	0.6215683228524279	Amygdalobacter	Mageeibacillus	0.0	0.309951620915681
-vaginal_cl	SRR32613707	M20		nanovi_gtdb	published	gtdb	0.5584687160334421	0.513206158934944	Campylobacter	Mageeibacillus	0.0	0.0422556766395562
-vaginal_cl	SRR32613707	M20		nanovi_emudb	published	ncbi	0.2137983243297103	0.19917756387100313	Mageeibacillus	Mageeibacillus	0.0	0.0
-vaginal_cl	SRR32613707	M20		emu	published	ncbi	0.09317042679483212	0.09029235206968876	Mageeibacillus	Mageeibacillus	0.0	0.0
+vaginal_cl	SRR32613706	M03		nanovi_emudb	emu_same_sam	ncbi	0.008299753981575269	0.005727663080758958	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613706	M03		nanovi_emudb	emu	ncbi	0.01769516859524287	0.007236032767833416	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613706	M03		nanovi_gtdb	emu	gtdb	0.03850757220832428	0.010708814477949087	Lactobacillus	Lactobacillus	0.0	0.008037488321101282
+vaginal_cl	SRR32613706	M03		nanovi_gtdb	nanovi_emudb	gtdb	0.036119343138773824	0.010258878980358929	Lactobacillus	Lactobacillus	0.0	0.0072619109944612095
+vaginal_cl	SRR32613706	M03		nanovi_gtdb	published	gtdb	0.012622968463233067	0.012022795126804698	Lactobacillus	Lactobacillus	0.0	0.0074431457233606994
+vaginal_cl	SRR32613706	M03		nanovi_emudb	published	ncbi	0.014158772623587163	0.006322236496170237	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613706	M03		emu	published	ncbi	0.006217867265683869	0.0003616648342378489	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613707	M20		nanovi_emudb	emu_same_sam	ncbi	0.020102266872081526	0.011380722706408126	Saccharofermentans	Saccharofermentans	0.0	0.0
+vaginal_cl	SRR32613707	M20		nanovi_emudb	emu	ncbi	0.1780209255950914	0.13726070819406483	Saccharofermentans	Mageeibacillus	0.0	0.0
+vaginal_cl	SRR32613707	M20		nanovi_gtdb	emu	gtdb	0.7979769244936233	0.6219832837734404	Amygdalobacter	Mageeibacillus	0.0	0.1996216744488001
+vaginal_cl	SRR32613707	M20		nanovi_gtdb	nanovi_emudb	gtdb	0.7805691949651544	0.6215683228524279	Amygdalobacter	Mageeibacillus	0.0	0.309951620915681
+vaginal_cl	SRR32613707	M20		nanovi_gtdb	published	gtdb	0.5584687160334421	0.48124849904064065	Dialister	Mageeibacillus	0.0	0.0422556766395562
+vaginal_cl	SRR32613707	M20		nanovi_emudb	published	ncbi	0.2137983243297103	0.1991775638710031	Mageeibacillus	Mageeibacillus	0.0	0.0
+vaginal_cl	SRR32613707	M20		emu	published	ncbi	0.09317042679483212	0.09029235206968877	Mageeibacillus	Mageeibacillus	0.0	0.0
 vaginal_cl	SRR32613708	M19		nanovi_emudb	emu_same_sam	ncbi	0.007839194162394944	0.004242137534666651	Dialister	Dialister	0.0	0.0
-vaginal_cl	SRR32613708	M19		nanovi_emudb	emu	ncbi	0.046394356665117105	0.00694970203507919	Dialister	Dialister	0.0	0.0
-vaginal_cl	SRR32613708	M19		nanovi_gtdb	emu	gtdb	0.7312095940914602	0.13984380248092018	Megasphaera	Megasphaera	0.0	0.19916822758627836
-vaginal_cl	SRR32613708	M19		nanovi_gtdb	nanovi_emudb	gtdb	0.7311990566933584	0.13027533701909874	Megasphaera	Megasphaera	0.0	0.19526556301589737
-vaginal_cl	SRR32613708	M19		nanovi_gtdb	published	gtdb	0.6040610542932539	0.11985489520552989	Megasphaera	Dialister	0.0	0.04589803829543
-vaginal_cl	SRR32613708	M19		nanovi_emudb	published	ncbi	0.14558450979565835	0.01099136817784388	Dialister	Dialister	0.0	0.0
-vaginal_cl	SRR32613708	M19		emu	published	ncbi	0.16809176195796038	0.010513299111817444	Dialister	Dialister	0.0	0.0
+vaginal_cl	SRR32613708	M19		nanovi_emudb	emu	ncbi	0.0463943566651171	0.00694970203507919	Dialister	Dialister	0.0	0.0
+vaginal_cl	SRR32613708	M19		nanovi_gtdb	emu	gtdb	0.7312095940914604	0.13984380248092015	Megasphaera	Megasphaera	0.0	0.19916822758627836
+vaginal_cl	SRR32613708	M19		nanovi_gtdb	nanovi_emudb	gtdb	0.7311990566933587	0.1302753370190987	Megasphaera	Megasphaera	0.0	0.19526556301589737
+vaginal_cl	SRR32613708	M19		nanovi_gtdb	published	gtdb	0.6040610542932539	0.07738646923798614	Megasphaera	Dialister	0.0	0.04589803829543
+vaginal_cl	SRR32613708	M19		nanovi_emudb	published	ncbi	0.14558450979565837	0.01099136817784388	Dialister	Dialister	0.0	0.0
+vaginal_cl	SRR32613708	M19		emu	published	ncbi	0.16809176195796038	0.010513299111817446	Dialister	Dialister	0.0	0.0
 vaginal_cl	SRR32613709	M18		nanovi_emudb	emu_same_sam	ncbi	0.005357807882349319	0.0041324453006065225	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613709	M18		nanovi_emudb	emu	ncbi	0.03152219006961037	0.0074385922835108215	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613709	M18		nanovi_gtdb	emu	gtdb	0.3674832278735	0.18360722327306947	Lactobacillus	Lactobacillus	0.0	0.15871641045608395
-vaginal_cl	SRR32613709	M18		nanovi_gtdb	nanovi_emudb	gtdb	0.3653924390629841	0.1819680034899759	Lactobacillus	Lactobacillus	0.0	0.15348268381549113
-vaginal_cl	SRR32613709	M18		nanovi_gtdb	published	gtdb	0.18508675060049867	0.11526025895590623	Lactobacillus	Lactobacillus	0.0	0.1305229229131021
+vaginal_cl	SRR32613709	M18		nanovi_emudb	emu	ncbi	0.03152219006961038	0.0074385922835108215	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613709	M18		nanovi_gtdb	emu	gtdb	0.3674832278734999	0.18360722327306947	Lactobacillus	Lactobacillus	0.0	0.15871641045608395
+vaginal_cl	SRR32613709	M18		nanovi_gtdb	nanovi_emudb	gtdb	0.36539243906298385	0.1819680034899759	Lactobacillus	Lactobacillus	0.0	0.15348268381549113
+vaginal_cl	SRR32613709	M18		nanovi_gtdb	published	gtdb	0.18508675060049867	0.02251614820988162	Lactobacillus	Lactobacillus	0.0	0.1305229229131021
 vaginal_cl	SRR32613709	M18		nanovi_emudb	published	ncbi	0.0338889918015358	0.020249683772940827	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613709	M18		emu	published	ncbi	0.03002608767841826	0.0234446976757145	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613710	M17		nanovi_emudb	emu_same_sam	ncbi	0.00374835343640027	0.0025064074391744295	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613710	M17		nanovi_emudb	emu	ncbi	0.020620348845792124	0.005984415535631413	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613710	M17		nanovi_gtdb	emu	gtdb	0.5048353989775182	0.08455262842310404	Lactobacillus	Lactobacillus	0.0	0.04288123343772565
-vaginal_cl	SRR32613710	M17		nanovi_gtdb	nanovi_emudb	gtdb	0.4927143181262845	0.08459911356712266	Lactobacillus	Lactobacillus	0.0	0.040785643272479265
-vaginal_cl	SRR32613710	M17		nanovi_gtdb	published	gtdb	0.45345366592351977	0.06734919877091725	Lactobacillus	Lactobacillus	0.0	0.0117443554260743
+vaginal_cl	SRR32613710	M17		nanovi_emudb	emu_same_sam	ncbi	0.0037483534364002704	0.0025064074391744295	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613710	M17		nanovi_emudb	emu	ncbi	0.02062034884579212	0.005984415535631412	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613710	M17		nanovi_gtdb	emu	gtdb	0.5048353989775183	0.08455262842310403	Lactobacillus	Lactobacillus	0.0	0.04288123343772565
+vaginal_cl	SRR32613710	M17		nanovi_gtdb	nanovi_emudb	gtdb	0.49271431812628447	0.0845991135671227	Lactobacillus	Lactobacillus	0.0	0.040785643272479265
+vaginal_cl	SRR32613710	M17		nanovi_gtdb	published	gtdb	0.45345366592351977	0.04788193258802514	Lactobacillus	Lactobacillus	0.0	0.0117443554260743
 vaginal_cl	SRR32613710	M17		nanovi_emudb	published	ncbi	0.027788497413297024	0.01818106937146855	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613710	M17		emu	published	ncbi	0.023612969218028725	0.02211812408830334	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613711	M16		nanovi_emudb	emu_same_sam	ncbi	0.0041807600020388564	0.0010637427379100294	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613711	M16		nanovi_emudb	emu	ncbi	0.023904083941588144	0.0024384988628909318	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613711	M16		nanovi_gtdb	emu	gtdb	0.03412941946004676	0.008418819577508483	Lactobacillus	Lactobacillus	0.0	0.004887037333760578
+vaginal_cl	SRR32613711	M16		nanovi_emudb	emu_same_sam	ncbi	0.004180760002038856	0.0010637427379100294	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613711	M16		nanovi_emudb	emu	ncbi	0.023904083941588147	0.0024384988628909318	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613711	M16		nanovi_gtdb	emu	gtdb	0.03412941946004676	0.008418819577508481	Lactobacillus	Lactobacillus	0.0	0.004887037333760578
 vaginal_cl	SRR32613711	M16		nanovi_gtdb	nanovi_emudb	gtdb	0.02833059177455793	0.00981823170730827	Lactobacillus	Lactobacillus	0.0	0.004933167153079404
-vaginal_cl	SRR32613711	M16		nanovi_gtdb	published	gtdb	0.028533467771389976	0.00811689203394804	Lactobacillus	Lactobacillus	0.0	0.0050479555779909
+vaginal_cl	SRR32613711	M16		nanovi_gtdb	published	gtdb	0.028533467771389976	0.0023361324709453	Lactobacillus	Lactobacillus	0.0	0.0050479555779909
 vaginal_cl	SRR32613711	M16		nanovi_emudb	published	ncbi	0.02495677445561867	0.001312946298228727	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613711	M16		emu	published	ncbi	0.003545582820577539	0.0007360961096784429	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613712	M15		nanovi_emudb	emu_same_sam	ncbi	0.003789144059114835	0.0018563263227067718	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613712	M15		nanovi_emudb	emu	ncbi	0.0399091409129648	0.0043031883599718	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613712	M15		nanovi_gtdb	emu	gtdb	0.06373878812343758	0.007826301695581071	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613712	M15		nanovi_gtdb	nanovi_emudb	gtdb	0.05943774859667096	0.02063749734020362	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613712	M15		nanovi_gtdb	published	gtdb	0.019610373784325393	0.0033511624982165977	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613712	M15		nanovi_gtdb	emu	gtdb	0.0637387881234376	0.007826301695581071	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613712	M15		nanovi_gtdb	nanovi_emudb	gtdb	0.05943774859667096	0.020637497340203616	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613712	M15		nanovi_gtdb	published	gtdb	0.01961037378432539	0.0028443500469451308	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613712	M15		nanovi_emudb	published	ncbi	0.029577365616722587	0.0020785371357635515	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613712	M15		emu	published	ncbi	0.006349775657392589	0.0022246512242082503	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613713	M14		nanovi_emudb	emu_same_sam	ncbi	0.00012618283641482777	4.270279952058628e-05	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613713	M14		nanovi_emudb	emu	ncbi	0.025056064958441232	0.0005918372941682151	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613713	M14		nanovi_emudb	emu	ncbi	0.025056064958441225	0.0005918372941682151	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613713	M14		nanovi_gtdb	emu	gtdb	0.021883768796250362	0.0039442758787058005	Lactobacillus	Lactobacillus	0.0	0.005708354955890531
-vaginal_cl	SRR32613713	M14		nanovi_gtdb	nanovi_emudb	gtdb	0.018608212153732113	0.003916325807327007	Lactobacillus	Lactobacillus	0.0	0.005701154264463303
-vaginal_cl	SRR32613713	M14		nanovi_gtdb	published	gtdb	0.017750643458001147	0.004384457858707454	Lactobacillus	Lactobacillus	0.0	0.0057447682143306
+vaginal_cl	SRR32613713	M14		nanovi_gtdb	nanovi_emudb	gtdb	0.01860821215373211	0.003916325807327007	Lactobacillus	Lactobacillus	0.0	0.005701154264463303
+vaginal_cl	SRR32613713	M14		nanovi_gtdb	published	gtdb	0.017750643458001147	0.0038442666990436683	Lactobacillus	Lactobacillus	0.0	0.0057447682143306
 vaginal_cl	SRR32613713	M14		nanovi_emudb	published	ncbi	0.02878879869574521	0.00045759064489385903	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613713	M14		emu	published	ncbi	0.0049278649778188004	0.0006325121481949819	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613714	M13		nanovi_emudb	emu_same_sam	ncbi	0.00012443599796754736	8.982179297672554e-05	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613714	M13		nanovi_emudb	emu	ncbi	0.03684401852548527	0.003560678095928765	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613714	M13		nanovi_emudb	emu	ncbi	0.036844018525485266	0.0035606780959287656	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613714	M13		nanovi_gtdb	emu	gtdb	0.11797203449314571	0.025445947420779262	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613714	M13		nanovi_gtdb	nanovi_emudb	gtdb	0.11514532883663195	0.05402985218516319	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613714	M13		nanovi_gtdb	published	gtdb	0.008634992731163152	0.0031714268980151438	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613714	M13		nanovi_gtdb	published	gtdb	0.008634992731163152	0.003171426898015431	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613714	M13		nanovi_emudb	published	ncbi	0.005871914197471212	0.005485974835324721	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613714	M13		emu	published	ncbi	0.0022905802242545806	0.001925296739395962	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613715	M12		nanovi_emudb	emu_same_sam	ncbi	0.00010171009721391799	2.5450612889866024e-05	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613715	M12		nanovi_emudb	emu	ncbi	0.02637219969733532	0.0003321739947903849	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613715	M12		nanovi_gtdb	emu	gtdb	0.02122214148471664	0.002551136637294282	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613715	M12		nanovi_gtdb	nanovi_emudb	gtdb	0.020393707687989468	0.002394859458063888	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613715	M12		nanovi_gtdb	published	gtdb	0.020898199815594848	0.002726872291078236	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613715	M12		nanovi_emudb	emu	ncbi	0.026372199697335317	0.0003321739947903849	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613715	M12		nanovi_gtdb	emu	gtdb	0.02122214148471664	0.0025511366372942814	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613715	M12		nanovi_gtdb	nanovi_emudb	gtdb	0.020393707687989465	0.0023948594580638885	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613715	M12		nanovi_gtdb	published	gtdb	0.020898199815594848	0.00042918895427849395	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613715	M12		nanovi_emudb	published	ncbi	0.02944865870371276	0.000507909648574347	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613715	M12		emu	published	ncbi	0.005944695902812778	0.00017573565378396208	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613716	M11		nanovi_emudb	emu_same_sam	ncbi	0.006456207148992528	0.0027609823295729544	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613716	M11		nanovi_emudb	emu_same_sam	ncbi	0.006456207148992527	0.0027609823295729535	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613716	M11		nanovi_emudb	emu	ncbi	0.004260739625301754	0.0021873418182856413	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613716	M11		nanovi_gtdb	emu	gtdb	0.09479681860466255	0.00839838702420164	Lactobacillus	Lactobacillus	0.0	0.004218560361910302
-vaginal_cl	SRR32613716	M11		nanovi_gtdb	nanovi_emudb	gtdb	0.09479892849821561	0.008786376369636863	Lactobacillus	Lactobacillus	0.0	0.004237489832556701
-vaginal_cl	SRR32613716	M11		nanovi_gtdb	published	gtdb	0.08673123319926318	0.005671654130954162	Lactobacillus	Lactobacillus	0.0	0.0015243118803016
+vaginal_cl	SRR32613716	M11		nanovi_gtdb	emu	gtdb	0.09479681860466255	0.008398387024201637	Lactobacillus	Lactobacillus	0.0	0.004218560361910302
+vaginal_cl	SRR32613716	M11		nanovi_gtdb	nanovi_emudb	gtdb	0.09479892849821561	0.008786376369636861	Lactobacillus	Lactobacillus	0.0	0.004237489832556701
+vaginal_cl	SRR32613716	M11		nanovi_gtdb	published	gtdb	0.08673123319926318	0.0025573522220847167	Lactobacillus	Lactobacillus	0.0	0.0015243118803016
 vaginal_cl	SRR32613716	M11		nanovi_emudb	published	ncbi	0.002376050351177156	0.001619216199597701	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613716	M11		emu	published	ncbi	0.0009331214343680036	0.0004937994215017411	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613717	M02		nanovi_emudb	emu_same_sam	ncbi	0.006287177689097712	0.0023403116021991845	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613717	M02		nanovi_emudb	emu	ncbi	0.026574739324305076	0.002412407923852079	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613717	M02		nanovi_emudb	emu_same_sam	ncbi	0.006287177689097713	0.0023403116021991845	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613717	M02		nanovi_emudb	emu	ncbi	0.02657473932430508	0.002412407923852079	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_cl	SRR32613717	M02		nanovi_gtdb	emu	gtdb	0.023759872563910097	0.0022777114431683436	Lactobacillus	Lactobacillus	0.0	0.0017337094265380889
-vaginal_cl	SRR32613717	M02		nanovi_gtdb	nanovi_emudb	gtdb	0.02236453067719074	0.002277711443168417	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613717	M02		nanovi_gtdb	published	gtdb	0.022763561839785954	0.001148684853136562	Lactobacillus	Lactobacillus	0.0	0.0016161793129769
+vaginal_cl	SRR32613717	M02		nanovi_gtdb	nanovi_emudb	gtdb	0.022364530677190745	0.002277711443168417	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613717	M02		nanovi_gtdb	published	gtdb	0.022763561839785954	0.007528313889487493	Lactobacillus	Lactobacillus	0.0	0.0016161793129769
 vaginal_cl	SRR32613717	M02		nanovi_emudb	published	ncbi	0.029239353141935362	0.0011973885908012078	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613717	M02		emu	published	ncbi	0.007363619466663808	0.000988023030489158	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_cl	SRR32613718	M01		nanovi_emudb	emu_same_sam	ncbi	0.012125285040965775	0.0078232885848993	Mageeibacillus	Mageeibacillus	0.0	0.0
-vaginal_cl	SRR32613718	M01		nanovi_emudb	emu	ncbi	0.11036135483382026	0.09139085721141085	Mageeibacillus	Mageeibacillus	0.0	0.0
-vaginal_cl	SRR32613718	M01		nanovi_gtdb	emu	gtdb	0.8047534831911917	0.6326758906231456	Amygdalobacter	Mageeibacillus	0.0	0.19403851629952007
+vaginal_cl	SRR32613717	M02		emu	published	ncbi	0.0073636194666638075	0.000988023030489158	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_cl	SRR32613718	M01		nanovi_emudb	emu_same_sam	ncbi	0.012125285040965775	0.007823288584899302	Mageeibacillus	Mageeibacillus	0.0	0.0
+vaginal_cl	SRR32613718	M01		nanovi_emudb	emu	ncbi	0.11036135483382024	0.09139085721141087	Mageeibacillus	Mageeibacillus	0.0	0.0
+vaginal_cl	SRR32613718	M01		nanovi_gtdb	emu	gtdb	0.8047534831911918	0.6326758906231457	Amygdalobacter	Mageeibacillus	0.0	0.19403851629952007
 vaginal_cl	SRR32613718	M01		nanovi_gtdb	nanovi_emudb	gtdb	0.8043338187696668	0.6310486289061008	Amygdalobacter	Mageeibacillus	0.0	0.2576560460784041
-vaginal_cl	SRR32613718	M01		nanovi_gtdb	published	gtdb	0.5170818399123387	0.4436719109103289	Megasphaera	Mageeibacillus	0.0	0.09140026124478691
-vaginal_cl	SRR32613718	M01		nanovi_emudb	published	ncbi	0.10442247917215991	0.08989928192539827	Mageeibacillus	Mageeibacillus	0.0	0.0
+vaginal_cl	SRR32613718	M01		nanovi_gtdb	published	gtdb	0.5170818399123387	0.3836781872101919	Megasphaera	Mageeibacillus	0.0	0.09140026124478691
+vaginal_cl	SRR32613718	M01		nanovi_emudb	published	ncbi	0.10442247917215992	0.08989928192539828	Mageeibacillus	Mageeibacillus	0.0	0.0
 vaginal_cl	SRR32613718	M01		emu	published	ncbi	0.017690251902432442	0.01442975281955249	Mageeibacillus	Mageeibacillus	0.0	0.0
 vaginal_bv	SRR14307903	P10	BV	nanovi_emudb	emu_same_sam	ncbi	0.00011347467329637158	7.447025433165641e-05	Megasphaera	Megasphaera	0.0	0.0
-vaginal_bv	SRR14307903	P10	BV	nanovi_emudb	emu	ncbi	0.12452501730680544	0.0530553269962677	Megasphaera	Megasphaera	0.0	0.0
-vaginal_bv	SRR14307903	P10	BV	nanovi_gtdb	emu	gtdb	0.7748199979718081	0.26895263657440516	Megasphaera	Megasphaera	0.0	0.031516456196411344
-vaginal_bv	SRR14307903	P10	BV	nanovi_gtdb	nanovi_emudb	gtdb	0.7748199979718082	0.2689526365744051	Megasphaera	Megasphaera	0.0	0.07778994451138438
-vaginal_bv	SRR14307903	P10	BV	nanovi_gtdb	published	gtdb	0.7757777571579267	0.2703879305951965	Megasphaera	Megasphaera	0.0	0.030344447032619366
-vaginal_bv	SRR14307903	P10	BV	nanovi_emudb	published	ncbi	0.1236732524209745	0.061073816958759616	Megasphaera	Megasphaera	0.0	0.0
-vaginal_bv	SRR14307903	P10	BV	emu	published	ncbi	0.01979255745468025	0.011927395414664865	Megasphaera	Megasphaera	0.0	0.0
+vaginal_bv	SRR14307903	P10	BV	nanovi_emudb	emu	ncbi	0.12452501730680547	0.05305532699626769	Megasphaera	Megasphaera	0.0	0.0
+vaginal_bv	SRR14307903	P10	BV	nanovi_gtdb	emu	gtdb	0.7748199979718082	0.26895263657440516	Megasphaera	Megasphaera	0.0	0.031516456196411344
+vaginal_bv	SRR14307903	P10	BV	nanovi_gtdb	nanovi_emudb	gtdb	0.774819997971808	0.26895263657440505	Megasphaera	Megasphaera	0.0	0.07778994451138438
+vaginal_bv	SRR14307903	P10	BV	nanovi_gtdb	published	gtdb	0.7757777571579265	0.2691986728679768	Megasphaera	Megasphaera	0.0	0.030344447032619366
+vaginal_bv	SRR14307903	P10	BV	nanovi_emudb	published	ncbi	0.1236732524209745	0.06107381695875962	Megasphaera	Megasphaera	0.0	0.0
+vaginal_bv	SRR14307903	P10	BV	emu	published	ncbi	0.019792557454680254	0.011927395414664867	Megasphaera	Megasphaera	0.0	0.0
 vaginal_bv	SRR14307904	P09	BV	nanovi_emudb	emu_same_sam	ncbi	9.802975110607352e-05	6.0974506767381086e-05	Megasphaera	Megasphaera	0.0	0.0
 vaginal_bv	SRR14307904	P09	BV	nanovi_emudb	emu	ncbi	0.07401053391798729	0.034096927169751164	Megasphaera	Megasphaera	0.0	0.0
-vaginal_bv	SRR14307904	P09	BV	nanovi_gtdb	emu	gtdb	0.6782232124110937	0.24077378655575055	Amygdalobacter	Megasphaera	0.0	0.03183805154587546
-vaginal_bv	SRR14307904	P09	BV	nanovi_gtdb	nanovi_emudb	gtdb	0.676914470320367	0.23875463105950312	Amygdalobacter	Megasphaera	0.0	0.061363085123789005
-vaginal_bv	SRR14307904	P09	BV	nanovi_gtdb	published	gtdb	0.6823259837001813	0.27371943896946327	Amygdalobacter	Megasphaera	0.0	0.032775437411114286
-vaginal_bv	SRR14307904	P09	BV	nanovi_emudb	published	ncbi	0.08587756710018588	0.044398732505271696	Megasphaera	Megasphaera	0.0	0.0
-vaginal_bv	SRR14307904	P09	BV	emu	published	ncbi	0.018811314480127617	0.014549585011238486	Megasphaera	Megasphaera	0.0	0.0
+vaginal_bv	SRR14307904	P09	BV	nanovi_gtdb	emu	gtdb	0.678223212411094	0.24077378655575057	Amygdalobacter	Megasphaera	0.0	0.03183805154587546
+vaginal_bv	SRR14307904	P09	BV	nanovi_gtdb	nanovi_emudb	gtdb	0.6769144703203669	0.23875463105950312	Amygdalobacter	Megasphaera	0.0	0.061363085123789005
+vaginal_bv	SRR14307904	P09	BV	nanovi_gtdb	published	gtdb	0.6823259837001807	0.24488681060967943	Amygdalobacter	Megasphaera	0.0	0.032775437411114286
+vaginal_bv	SRR14307904	P09	BV	nanovi_emudb	published	ncbi	0.0858775671001859	0.0443987325052717	Megasphaera	Megasphaera	0.0	0.0
+vaginal_bv	SRR14307904	P09	BV	emu	published	ncbi	0.018811314480127617	0.01454958501123849	Megasphaera	Megasphaera	0.0	0.0
 vaginal_bv	SRR14307905	P08	BV	nanovi_emudb	emu_same_sam	ncbi	8.70206575902283e-05	6.733602091385689e-05	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307905	P08	BV	nanovi_emudb	emu	ncbi	0.006011705749721667	0.0006440519598813135	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307905	P08	BV	nanovi_emudb	emu	ncbi	0.006011705749721666	0.0006440519598813135	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307905	P08	BV	nanovi_gtdb	emu	gtdb	0.016245079162086146	0.004188994666865025	Lactobacillus	Lactobacillus	0.0	0.003425389631673801
-vaginal_bv	SRR14307905	P08	BV	nanovi_gtdb	nanovi_emudb	gtdb	0.014485443957768365	0.00415849470688699	Lactobacillus	Lactobacillus	0.0	0.0019331983805668006
-vaginal_bv	SRR14307905	P08	BV	nanovi_gtdb	published	gtdb	0.017085110988546495	0.007903295354518251	Lactobacillus	Lactobacillus	0.0	0.003343945454207833
-vaginal_bv	SRR14307905	P08	BV	nanovi_emudb	published	ncbi	0.0070233659301956845	0.004180550328175191	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307905	P08	BV	emu	published	ncbi	0.0047495595744115856	0.003737517075666277	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307905	P08	BV	nanovi_gtdb	nanovi_emudb	gtdb	0.014485443957768364	0.004158494706886989	Lactobacillus	Lactobacillus	0.0	0.0019331983805668006
+vaginal_bv	SRR14307905	P08	BV	nanovi_gtdb	published	gtdb	0.017085110988546495	0.0050544754597289104	Lactobacillus	Lactobacillus	0.0	0.003343945454207833
+vaginal_bv	SRR14307905	P08	BV	nanovi_emudb	published	ncbi	0.007023365930195686	0.004180550328175191	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307905	P08	BV	emu	published	ncbi	0.0047495595744115856	0.0037375170756662776	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307906	P07	BV	nanovi_emudb	emu_same_sam	ncbi	5.319453816176841e-05	3.786967620638391e-05	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307906	P07	BV	nanovi_emudb	emu	ncbi	0.0005904060293689505	0.00031198127040455543	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307906	P07	BV	nanovi_gtdb	emu	gtdb	0.12464650037407118	0.10712114654616846	Lactobacillus	Lactobacillus	0.0	0.09570689130214144
-vaginal_bv	SRR14307906	P07	BV	nanovi_gtdb	nanovi_emudb	gtdb	0.12464650037407127	0.10719953529037059	Lactobacillus	Lactobacillus	0.0	0.09558241088656436
-vaginal_bv	SRR14307906	P07	BV	nanovi_gtdb	published	gtdb	0.12415340667459619	0.10994258605768266	Lactobacillus	Lactobacillus	0.0	0.09771448273905381
-vaginal_bv	SRR14307906	P07	BV	nanovi_emudb	published	ncbi	0.014163155841275456	0.0062339160456182366	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307906	P07	BV	emu	published	ncbi	0.013944018004596314	0.006200941229634871	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307906	P07	BV	nanovi_gtdb	emu	gtdb	0.12464650037407116	0.10712114654616847	Lactobacillus	Lactobacillus	0.0	0.09570689130214144
+vaginal_bv	SRR14307906	P07	BV	nanovi_gtdb	nanovi_emudb	gtdb	0.1246465003740713	0.10719953529037057	Lactobacillus	Lactobacillus	0.0	0.09558241088656436
+vaginal_bv	SRR14307906	P07	BV	nanovi_gtdb	published	gtdb	0.12415340667459622	0.11144656433992273	Lactobacillus	Lactobacillus	0.0	0.09771448273905381
+vaginal_bv	SRR14307906	P07	BV	nanovi_emudb	published	ncbi	0.014163155841275454	0.006233916045618237	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307906	P07	BV	emu	published	ncbi	0.013944018004596314	0.006200941229634872	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307907	P06	control	nanovi_emudb	emu_same_sam	ncbi	7.440134398334266e-05	0.0	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307907	P06	control	nanovi_emudb	emu	ncbi	0.004717984830807204	0.0	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307907	P06	control	nanovi_emudb	emu	ncbi	0.004717984830807205	0.0	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307907	P06	control	nanovi_gtdb	emu	gtdb	0.007046506945842476	0.0	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307907	P06	control	nanovi_gtdb	nanovi_emudb	gtdb	0.011764491776649679	0.0	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307907	P06	control	nanovi_gtdb	published	gtdb	0.008687034773410433	0.000491675809683454	Lactobacillus	Lactobacillus	0.0	0.00015594898626935594
+vaginal_bv	SRR14307907	P06	control	nanovi_gtdb	nanovi_emudb	gtdb	0.01176449177664968	0.0	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307907	P06	control	nanovi_gtdb	published	gtdb	0.008687034773410431	0.0003357791878380265	Lactobacillus	Lactobacillus	0.0	0.00015594898626935594
 vaginal_bv	SRR14307907	P06	control	nanovi_emudb	published	ncbi	0.004515627113382315	0.000491675809683454	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307907	P06	control	emu	published	ncbi	0.0017951220795706852	0.000491675809683454	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307907	P06	control	emu	published	ncbi	0.001795122079570685	0.000491675809683454	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307908	P05	control	nanovi_emudb	emu_same_sam	ncbi	5.078728247609704e-05	0.0	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307908	P05	control	nanovi_emudb	emu	ncbi	0.0033027114751886903	0.0	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307908	P05	control	nanovi_gtdb	emu	gtdb	0.001574256208680218	0.0	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307908	P05	control	nanovi_gtdb	nanovi_emudb	gtdb	0.0017284552665084722	0.0	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307908	P05	control	nanovi_gtdb	published	gtdb	0.0018031085514355406	0.0005390735370659242	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307908	P05	control	nanovi_emudb	published	ncbi	0.0033027114751886318	0.0005390735370659242	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307908	P05	control	emu	published	ncbi	0.0018031085514355588	0.0005390735370659242	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307908	P05	control	nanovi_gtdb	published	gtdb	0.0018031085514355408	0.0005390735370659242	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307908	P05	control	nanovi_emudb	published	ncbi	0.0033027114751886313	0.0005390735370659242	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307908	P05	control	emu	published	ncbi	0.0018031085514355586	0.0005390735370659242	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307909	P04	control	nanovi_emudb	emu_same_sam	ncbi	0.0002522800735126055	5.0215385295677246e-05	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307909	P04	control	nanovi_emudb	emu	ncbi	0.011966568417653992	0.0003404848409102035	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307909	P04	control	nanovi_gtdb	emu	gtdb	0.6376864378547006	0.0016163633621685961	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307909	P04	control	nanovi_gtdb	nanovi_emudb	gtdb	0.6336071806434964	0.004062497591350981	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307909	P04	control	nanovi_gtdb	published	gtdb	0.6339062094225212	0.010944859114547381	Lactobacillus	Lactobacillus	0.0	0.00016697493959171288
-vaginal_bv	SRR14307909	P04	control	nanovi_emudb	published	ncbi	0.009716704126101762	0.0011546967560752996	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307909	P04	control	emu	published	ncbi	0.006687422115167589	0.0014951815969855033	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307909	P04	control	nanovi_emudb	emu	ncbi	0.011966568417653993	0.0003404848409102035	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307909	P04	control	nanovi_gtdb	emu	gtdb	0.6376864378547007	0.0016163633621685961	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307909	P04	control	nanovi_gtdb	nanovi_emudb	gtdb	0.6336071806434965	0.004062497591350981	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307909	P04	control	nanovi_gtdb	published	gtdb	0.6339062094225211	0.0021128723678565404	Lactobacillus	Lactobacillus	0.0	0.00016697493959171288
+vaginal_bv	SRR14307909	P04	control	nanovi_emudb	published	ncbi	0.009716704126101764	0.0011546967560752994	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307909	P04	control	emu	published	ncbi	0.006687422115167589	0.0014951815969855029	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307914	P03	control	nanovi_emudb	emu_same_sam	ncbi	6.764961105641632e-05	0.0	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307914	P03	control	nanovi_emudb	emu	ncbi	0.004523030807611824	0.0	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307914	P03	control	nanovi_gtdb	emu	gtdb	0.009968356969513028	0.0	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307914	P03	control	nanovi_gtdb	emu	gtdb	0.00996835696951303	0.0	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307914	P03	control	nanovi_gtdb	nanovi_emudb	gtdb	0.009656808205073196	0.0	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307914	P03	control	nanovi_gtdb	published	gtdb	0.010983303498512195	0.0007707086259422706	Lactobacillus	Lactobacillus	0.0	0.00014554696426224422
-vaginal_bv	SRR14307914	P03	control	nanovi_emudb	published	ncbi	0.004395207078486464	0.0007707086259422706	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307914	P03	control	emu	published	ncbi	0.003576805454262981	0.0007707086259422706	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307923	P12	BV	nanovi_emudb	emu_same_sam	ncbi	0.0010927475881249036	0.00027904678110736696	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307923	P12	BV	nanovi_emudb	emu	ncbi	0.043018756191571604	0.007323514303864722	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307923	P12	BV	nanovi_gtdb	emu	gtdb	0.2711093925301707	0.0313269501644965	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307923	P12	BV	nanovi_gtdb	nanovi_emudb	gtdb	0.2710800262646078	0.0521591904465011	Lactobacillus	Lactobacillus	0.0	0.004521879022087405
-vaginal_bv	SRR14307923	P12	BV	nanovi_gtdb	published	gtdb	0.27364832913654635	0.028154533384213205	Lactobacillus	Lactobacillus	0.0	0.0017963156058003163
-vaginal_bv	SRR14307923	P12	BV	nanovi_emudb	published	ncbi	0.04537390953973996	0.009635048726838872	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307923	P12	BV	emu	published	ncbi	0.010295194796762287	0.006492471274019425	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307914	P03	control	nanovi_gtdb	published	gtdb	0.010983303498512197	0.001101559295336827	Lactobacillus	Lactobacillus	0.0	0.00014554696426224422
+vaginal_bv	SRR14307914	P03	control	nanovi_emudb	published	ncbi	0.004395207078486465	0.0007707086259422707	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307914	P03	control	emu	published	ncbi	0.0035768054542629807	0.0007707086259422707	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307923	P12	BV	nanovi_emudb	emu_same_sam	ncbi	0.0010927475881249038	0.00027904678110736696	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307923	P12	BV	nanovi_emudb	emu	ncbi	0.04301875619157159	0.007323514303864721	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307923	P12	BV	nanovi_gtdb	emu	gtdb	0.2711093925301707	0.031326950164496506	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307923	P12	BV	nanovi_gtdb	nanovi_emudb	gtdb	0.2710800262646078	0.05215919044650111	Lactobacillus	Lactobacillus	0.0	0.004521879022087405
+vaginal_bv	SRR14307923	P12	BV	nanovi_gtdb	published	gtdb	0.2736483291365463	0.035846038857807724	Lactobacillus	Lactobacillus	0.0	0.0017963156058003163
+vaginal_bv	SRR14307923	P12	BV	nanovi_emudb	published	ncbi	0.04537390953973995	0.009635048726838872	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307923	P12	BV	emu	published	ncbi	0.010295194796762287	0.006492471274019427	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307924	P11	BV	nanovi_emudb	emu_same_sam	ncbi	6.178252260558622e-05	5.588645596794515e-05	Peptostreptococcaceae	Peptostreptococcaceae	0.0	0.0
 vaginal_bv	SRR14307924	P11	BV	nanovi_emudb	emu	ncbi	0.012058274797941115	0.005321721813633988	Peptostreptococcaceae	Peptostreptococcaceae	0.0	0.0
-vaginal_bv	SRR14307924	P11	BV	nanovi_gtdb	emu	gtdb	0.724746830858686	0.590081784514426	Fenollaria	Peptoniphilus	0.0	0.5638123556591991
-vaginal_bv	SRR14307924	P11	BV	nanovi_gtdb	nanovi_emudb	gtdb	0.7247468308586859	0.5868040236123248	Fenollaria	Peptoniphilus	0.0	0.5646022237297073
-vaginal_bv	SRR14307924	P11	BV	nanovi_gtdb	published	gtdb	0.7246057301350707	0.612969016081688	Fenollaria	Peptostreptococcaceae	0.0	0.5571884226184634
-vaginal_bv	SRR14307924	P11	BV	nanovi_emudb	published	ncbi	0.039092621056493554	0.02669386273362526	Peptostreptococcaceae	Peptostreptococcaceae	0.0	0.0
-vaginal_bv	SRR14307924	P11	BV	emu	published	ncbi	0.03605372524938866	0.023732158023082976	Peptostreptococcaceae	Peptostreptococcaceae	0.0	0.0
+vaginal_bv	SRR14307924	P11	BV	nanovi_gtdb	emu	gtdb	0.7247468308586859	0.590081784514426	Fenollaria	Peptoniphilus	0.0	0.5638123556591991
+vaginal_bv	SRR14307924	P11	BV	nanovi_gtdb	nanovi_emudb	gtdb	0.724746830858686	0.5868040236123251	Fenollaria	Peptoniphilus	0.0	0.5646022237297073
+vaginal_bv	SRR14307924	P11	BV	nanovi_gtdb	published	gtdb	0.7246057301350707	0.5888953758979287	Fenollaria	Peptoniphilus	0.0	0.5571884226184634
+vaginal_bv	SRR14307924	P11	BV	nanovi_emudb	published	ncbi	0.03909262105649356	0.02669386273362525	Peptostreptococcaceae	Peptostreptococcaceae	0.0	0.0
+vaginal_bv	SRR14307924	P11	BV	emu	published	ncbi	0.03605372524938864	0.023732158023082976	Peptostreptococcaceae	Peptostreptococcaceae	0.0	0.0
 vaginal_bv	SRR14307925	P02	control	nanovi_emudb	emu_same_sam	ncbi	6.471360460524953e-05	0.0	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307925	P02	control	nanovi_emudb	emu	ncbi	0.0039055960281627247	0.0	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307925	P02	control	nanovi_gtdb	emu	gtdb	0.01239464101067806	0.0016455053326560917	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307925	P02	control	nanovi_gtdb	emu	gtdb	0.012394641010678059	0.0016455053326560917	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307925	P02	control	nanovi_gtdb	nanovi_emudb	gtdb	0.013350692080838323	0.0017514576346395866	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307925	P02	control	nanovi_gtdb	published	gtdb	0.018247867920357055	0.0115185373285931	Lactobacillus	Lactobacillus	0.0	0.0003662735310846171
-vaginal_bv	SRR14307925	P02	control	nanovi_emudb	published	ncbi	0.009913109789192848	0.0031660420745476293	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307925	P02	control	emu	published	ncbi	0.006638996794342628	0.0031660420745476293	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307925	P02	control	nanovi_gtdb	published	gtdb	0.018247867920357066	0.002800794400317789	Lactobacillus	Lactobacillus	0.0	0.0003662735310846171
+vaginal_bv	SRR14307925	P02	control	nanovi_emudb	published	ncbi	0.009913109789192848	0.003166042074547629	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307925	P02	control	emu	published	ncbi	0.006638996794342627	0.003166042074547629	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307926	P01	control	nanovi_emudb	emu_same_sam	ncbi	5.041693385557291e-05	5.041693385557291e-05	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307926	P01	control	nanovi_emudb	emu	ncbi	4.925608111224075e-05	4.925608111224075e-05	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307926	P01	control	nanovi_gtdb	emu	gtdb	0.0003553288981142967	0.0003553288981142967	Lactobacillus	Lactobacillus	0.0	0.0
 vaginal_bv	SRR14307926	P01	control	nanovi_gtdb	nanovi_emudb	gtdb	0.00040458497922653746	0.00040458497922653746	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307926	P01	control	nanovi_gtdb	published	gtdb	0.004127826996581685	0.003669376699788511	Lactobacillus	Lactobacillus	0.0	0.00025986331433054926
-vaginal_bv	SRR14307926	P01	control	nanovi_emudb	published	ncbi	0.00438661764010795	0.0036693766997885477	Lactobacillus	Lactobacillus	0.0	0.0
-vaginal_bv	SRR14307926	P01	control	emu	published	ncbi	0.004386617640107909	0.0036693766997885073	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307926	P01	control	nanovi_gtdb	published	gtdb	0.0041278269965816855	0.003410399623207236	Lactobacillus	Lactobacillus	0.0	0.00025986331433054926
+vaginal_bv	SRR14307926	P01	control	nanovi_emudb	published	ncbi	0.004386617640107951	0.0036693766997885477	Lactobacillus	Lactobacillus	0.0	0.0
+vaginal_bv	SRR14307926	P01	control	emu	published	ncbi	0.00438661764010791	0.0036693766997885073	Lactobacillus	Lactobacillus	0.0	0.0
 crc	SRR30050020	SRR30050020	healthy	nanovi_emudb	emu_same_sam	ncbi	0.00040808464233114516	0.00015662823853929012	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050020	SRR30050020	healthy	nanovi_emudb	emu	ncbi	0.04493215077092116	0.028741588096977588	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050020	SRR30050020	healthy	nanovi_gtdb	emu	gtdb	0.38210249161622944	0.24217370744574981	Bifidobacterium	Bifidobacterium	0.0	0.06852987158438724
-crc	SRR30050020	SRR30050020	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.3801936337300576	0.24175382591220523	Bifidobacterium	Bifidobacterium	0.0	0.0681198773971685
-crc	SRR30050021	SRR30050021	healthy	nanovi_emudb	emu_same_sam	ncbi	0.002709465044637172	0.0027055405793806686	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050021	SRR30050021	healthy	nanovi_emudb	emu	ncbi	0.032875296938763225	0.020209744805204086	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050021	SRR30050021	healthy	nanovi_gtdb	emu	gtdb	0.40891661550220687	0.19602823758671867	Phocaeicola	Phocaeicola	0.0	0.13315793888551622
-crc	SRR30050021	SRR30050021	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.402738150227247	0.19554174442869895	Phocaeicola	Phocaeicola	0.0	0.13374853021634936
+crc	SRR30050020	SRR30050020	healthy	nanovi_emudb	emu	ncbi	0.044932150770921164	0.028741588096977584	Bifidobacterium	Bifidobacterium	0.0	0.0
+crc	SRR30050020	SRR30050020	healthy	nanovi_gtdb	emu	gtdb	0.38210249161622967	0.2421737074457499	Bifidobacterium	Bifidobacterium	0.0	0.06852987158438724
+crc	SRR30050020	SRR30050020	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.38019363373005766	0.24175382591220523	Bifidobacterium	Bifidobacterium	0.0	0.0681198773971685
+crc	SRR30050021	SRR30050021	healthy	nanovi_emudb	emu_same_sam	ncbi	0.002709465044637172	0.0027055405793806695	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050021	SRR30050021	healthy	nanovi_emudb	emu	ncbi	0.03287529693876323	0.020209744805204082	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050021	SRR30050021	healthy	nanovi_gtdb	emu	gtdb	0.4089166155022068	0.1960282375867186	Phocaeicola	Phocaeicola	0.0	0.13315793888551622
+crc	SRR30050021	SRR30050021	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.4027381502272468	0.19554174442869895	Phocaeicola	Phocaeicola	0.0	0.13374853021634936
 crc	SRR30050022	SRR30050022	healthy	nanovi_emudb	emu_same_sam	ncbi	0.00021244310796525196	0.00019081301188468775	Phascolarctobacterium	Phascolarctobacterium	0.0	0.0
 crc	SRR30050022	SRR30050022	healthy	nanovi_emudb	emu	ncbi	0.05595308594085215	0.0478683898774072	Phascolarctobacterium	Phascolarctobacterium	0.0	0.0
-crc	SRR30050022	SRR30050022	healthy	nanovi_gtdb	emu	gtdb	0.6603192523936375	0.1840474688802767	Prevotella	Phascolarctobacterium	0.0	0.08073866906981918
-crc	SRR30050022	SRR30050022	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.6634841845045287	0.18620680838123535	Prevotella	Phascolarctobacterium	0.0	0.06933129774277429
+crc	SRR30050022	SRR30050022	healthy	nanovi_gtdb	emu	gtdb	0.6603192523936375	0.18404746888027668	Prevotella	Phascolarctobacterium	0.0	0.08073866906981918
+crc	SRR30050022	SRR30050022	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.6634841845045285	0.1862068083812353	Prevotella	Phascolarctobacterium	0.0	0.06933129774277429
 crc	SRR30050023	SRR30050023	healthy	nanovi_emudb	emu_same_sam	ncbi	0.00020451052275929893	0.00011214236983920849	Phascolarctobacterium	Phascolarctobacterium	0.0	0.0
-crc	SRR30050023	SRR30050023	healthy	nanovi_emudb	emu	ncbi	0.060853814396880916	0.051029751084263476	Phascolarctobacterium	Phascolarctobacterium	0.0	0.0
-crc	SRR30050023	SRR30050023	healthy	nanovi_gtdb	emu	gtdb	0.6781068827251225	0.18622013812313365	Prevotella	Phascolarctobacterium	0.0	0.07783820389614325
-crc	SRR30050023	SRR30050023	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.6792385989605116	0.1879649538834209	Prevotella	Phascolarctobacterium	0.0	0.0667675050219268
+crc	SRR30050023	SRR30050023	healthy	nanovi_emudb	emu	ncbi	0.06085381439688094	0.05102975108426346	Phascolarctobacterium	Phascolarctobacterium	0.0	0.0
+crc	SRR30050023	SRR30050023	healthy	nanovi_gtdb	emu	gtdb	0.678106882725123	0.1862201381231337	Prevotella	Phascolarctobacterium	0.0	0.07783820389614325
+crc	SRR30050023	SRR30050023	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.6792385989605116	0.18796495388342094	Prevotella	Phascolarctobacterium	0.0	0.0667675050219268
 crc	SRR30050024	SRR30050024	healthy	nanovi_emudb	emu_same_sam	ncbi	0.00024757888475441885	0.0001916371160825813	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050024	SRR30050024	healthy	nanovi_emudb	emu	ncbi	0.1153689102664945	0.044216328055403105	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050024	SRR30050024	healthy	nanovi_gtdb	emu	gtdb	0.3913416035405249	0.2660940357000382	Faecalibacterium	Faecalibacterium	0.0	0.15436634042189504
-crc	SRR30050024	SRR30050024	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.3994555030236751	0.21710314781729562	Faecalibacterium	Faecalibacterium	0.0	0.07694584504078228
+crc	SRR30050024	SRR30050024	healthy	nanovi_emudb	emu	ncbi	0.11536891026649447	0.04421632805540311	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050024	SRR30050024	healthy	nanovi_gtdb	emu	gtdb	0.3913416035405249	0.2660940357000383	Faecalibacterium	Faecalibacterium	0.0	0.15436634042189504
+crc	SRR30050024	SRR30050024	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.3994555030236753	0.21710314781729567	Faecalibacterium	Faecalibacterium	0.0	0.07694584504078228
 crc	SRR30050025	SRR30050025	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0007900506695959979	0.0007110165636361002	Collinsella	Collinsella	0.0	0.0
-crc	SRR30050025	SRR30050025	healthy	nanovi_emudb	emu	ncbi	0.029271784496795208	0.025939344188233425	Collinsella	Collinsella	0.0	0.0
-crc	SRR30050025	SRR30050025	healthy	nanovi_gtdb	emu	gtdb	0.34455049285511313	0.15518671010347912	Phocaeicola	Collinsella	0.0	0.04479562536304425
-crc	SRR30050025	SRR30050025	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.34241552127336256	0.14926523448556878	Phocaeicola	Collinsella	0.0	0.04253925560281074
-crc	SRR30050026	SRR30050026	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0031739667113254125	0.003079093025932708	Succinivibrio	Succinivibrio	0.0	0.0
-crc	SRR30050026	SRR30050026	healthy	nanovi_emudb	emu	ncbi	0.08305359271563456	0.046055813107705394	Succinivibrio	Succinivibrio	0.0	0.0
-crc	SRR30050026	SRR30050026	healthy	nanovi_gtdb	emu	gtdb	0.6229587125693258	0.3281336023397438	CAG-273	Succinivibrio	0.0	0.07672066587718904
+crc	SRR30050025	SRR30050025	healthy	nanovi_emudb	emu	ncbi	0.0292717844967952	0.02593934418823342	Collinsella	Collinsella	0.0	0.0
+crc	SRR30050025	SRR30050025	healthy	nanovi_gtdb	emu	gtdb	0.344550492855113	0.15518671010347912	Phocaeicola	Collinsella	0.0	0.04479562536304425
+crc	SRR30050025	SRR30050025	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.3424155212733626	0.14926523448556875	Phocaeicola	Collinsella	0.0	0.04253925560281074
+crc	SRR30050026	SRR30050026	healthy	nanovi_emudb	emu_same_sam	ncbi	0.003173966711325412	0.0030821837834713057	Succinivibrio	Succinivibrio	0.0	0.0
+crc	SRR30050026	SRR30050026	healthy	nanovi_emudb	emu	ncbi	0.0830535927156345	0.046055813107705346	Succinivibrio	Succinivibrio	0.0	0.0
+crc	SRR30050026	SRR30050026	healthy	nanovi_gtdb	emu	gtdb	0.6229587125693259	0.3281336023397437	CAG-273	Succinivibrio	0.0	0.07672066587718904
 crc	SRR30050026	SRR30050026	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.624595470929492	0.3220704787880021	CAG-273	Succinivibrio	0.0	0.07512732510685238
-crc	SRR30050027	SRR30050027	healthy	nanovi_emudb	emu_same_sam	ncbi	0.005819880581896948	0.005774635155000963	Alistipes	Alistipes	0.0	0.0
-crc	SRR30050027	SRR30050027	healthy	nanovi_emudb	emu	ncbi	0.08680921593753643	0.07753025933794175	Alistipes	Alistipes	0.0	0.0
-crc	SRR30050027	SRR30050027	healthy	nanovi_gtdb	emu	gtdb	0.6895532713710028	0.4426344784286013	Alistipes	Alistipes	0.0	0.06996635878297255
-crc	SRR30050027	SRR30050027	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.6909976485482884	0.44258138183643825	Alistipes	Alistipes	0.0	0.07847193631367448
-crc	SRR30050028	SRR30050028	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0002026553549202509	0.00016320138995964788	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050028	SRR30050028	healthy	nanovi_emudb	emu	ncbi	0.02453478736582322	0.017253360591056567	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050028	SRR30050028	healthy	nanovi_gtdb	emu	gtdb	0.4041523208269926	0.07804938661702557	Gemmiger	Gemmiger	0.0	0.03558053932104592
-crc	SRR30050028	SRR30050028	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.4031463441856461	0.08272026198782423	Gemmiger	Gemmiger	0.0	0.03322065902493429
-crc	SRR30050029	SRR30050029	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0026849238492423354	0.0018597947043688795	Streptococcus	Streptococcus	0.0	0.0
-crc	SRR30050029	SRR30050029	healthy	nanovi_emudb	emu	ncbi	0.07950056647043308	0.0511638189008642	Streptococcus	Streptococcus	0.0	0.0
-crc	SRR30050029	SRR30050029	healthy	nanovi_gtdb	emu	gtdb	0.5348260041407041	0.21095354138849273	Streptococcus	Streptococcus	0.0	0.09975514928545585
-crc	SRR30050029	SRR30050029	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.5284374423464888	0.2071613960716703	Streptococcus	Streptococcus	0.0	0.1282144247189895
-crc	SRR30050030	SRR30050030	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0003227352030845433	0.0002883611675928363	Escherichia	Escherichia	0.0	0.0
-crc	SRR30050030	SRR30050030	CRC	nanovi_emudb	emu	ncbi	0.04356236609317827	0.027832989522629775	Escherichia	Escherichia	0.0	0.0
-crc	SRR30050030	SRR30050030	CRC	nanovi_gtdb	emu	gtdb	0.42901287844388525	0.23957996571116735	Escherichia	Escherichia	0.0	0.1467254103747572
-crc	SRR30050030	SRR30050030	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.42550018769895515	0.23137107048406005	Escherichia	Escherichia	0.0	0.13965466529502193
-crc	SRR30050031	SRR30050031	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0019821095569392696	0.0017033336958899897	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050031	SRR30050031	healthy	nanovi_emudb	emu	ncbi	0.08731985665203384	0.05355397390587587	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050031	SRR30050031	healthy	nanovi_gtdb	emu	gtdb	0.553259378191334	0.370766196158266	Bifidobacterium	Bifidobacterium	0.0	0.1187581063909309
-crc	SRR30050031	SRR30050031	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.5688667695138523	0.3716041867904566	Bifidobacterium	Bifidobacterium	0.0	0.11238423651844649
+crc	SRR30050027	SRR30050027	healthy	nanovi_emudb	emu_same_sam	ncbi	0.005819880581896945	0.005774635155000958	Alistipes	Alistipes	0.0	0.0
+crc	SRR30050027	SRR30050027	healthy	nanovi_emudb	emu	ncbi	0.08680921593753646	0.0775302593379418	Alistipes	Alistipes	0.0	0.0
+crc	SRR30050027	SRR30050027	healthy	nanovi_gtdb	emu	gtdb	0.6895532713710028	0.44263447842860126	Alistipes	Alistipes	0.0	0.06996635878297255
+crc	SRR30050027	SRR30050027	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.6909976485482885	0.44258138183643825	Alistipes	Alistipes	0.0	0.07847193631367448
+crc	SRR30050028	SRR30050028	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0002026553549202509	0.00016320138995961188	Gemmiger	Gemmiger	0.0	0.0
+crc	SRR30050028	SRR30050028	healthy	nanovi_emudb	emu	ncbi	0.024534787365823214	0.016129060121463888	Gemmiger	Gemmiger	0.0	0.0
+crc	SRR30050028	SRR30050028	healthy	nanovi_gtdb	emu	gtdb	0.40415232082699254	0.0780493866170256	Gemmiger	Gemmiger	0.0	0.03558053932104592
+crc	SRR30050028	SRR30050028	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.4031463441856462	0.08272026198782423	Gemmiger	Gemmiger	0.0	0.03322065902493429
+crc	SRR30050029	SRR30050029	healthy	nanovi_emudb	emu_same_sam	ncbi	0.002684923849242336	0.0018597947043688793	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050029	SRR30050029	healthy	nanovi_emudb	emu	ncbi	0.0795005664704331	0.05116381890086421	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050029	SRR30050029	healthy	nanovi_gtdb	emu	gtdb	0.534826004140704	0.21095354138849276	Streptococcus	Streptococcus	0.0	0.09975514928545585
+crc	SRR30050029	SRR30050029	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.5284374423464886	0.20716139607167033	Streptococcus	Streptococcus	0.0	0.1282144247189895
+crc	SRR30050030	SRR30050030	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0003227352030845433	0.0002877072621904754	Escherichia	Escherichia	0.0	0.0
+crc	SRR30050030	SRR30050030	CRC	nanovi_emudb	emu	ncbi	0.043562366093178304	0.02783298952262977	Escherichia	Escherichia	0.0	0.0
+crc	SRR30050030	SRR30050030	CRC	nanovi_gtdb	emu	gtdb	0.4290128784438852	0.23957996571116727	Escherichia	Escherichia	0.0	0.1467254103747572
+crc	SRR30050030	SRR30050030	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.42550018769895526	0.2313710704840601	Escherichia	Escherichia	0.0	0.13965466529502193
+crc	SRR30050031	SRR30050031	healthy	nanovi_emudb	emu_same_sam	ncbi	0.00198210955693927	0.0017033336958899897	Bifidobacterium	Bifidobacterium	0.0	0.0
+crc	SRR30050031	SRR30050031	healthy	nanovi_emudb	emu	ncbi	0.08731985665203383	0.054064113353495875	Bifidobacterium	Bifidobacterium	0.0	0.0
+crc	SRR30050031	SRR30050031	healthy	nanovi_gtdb	emu	gtdb	0.5532593781913342	0.370766196158266	Bifidobacterium	Bifidobacterium	0.0	0.1187581063909309
+crc	SRR30050031	SRR30050031	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.5688667695138521	0.3716041867904565	Bifidobacterium	Bifidobacterium	0.0	0.11238423651844649
 crc	SRR30050032	SRR30050032	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0008919117843159051	0.0002834189668413287	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050032	SRR30050032	CRC	nanovi_emudb	emu	ncbi	0.06682579525388084	0.03647644824858712	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050032	SRR30050032	CRC	nanovi_gtdb	emu	gtdb	0.5318506496757971	0.24228884645388524	Faecalibacterium	Faecalibacterium	0.0	0.21126373145315364
-crc	SRR30050032	SRR30050032	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5373903546861261	0.2489516046324886	Faecalibacterium	Faecalibacterium	0.0	0.19926230578255283
-crc	SRR30050033	SRR30050033	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0015482705893300546	0.0015378421569394631	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050033	SRR30050033	CRC	nanovi_emudb	emu	ncbi	0.04758094505740086	0.027648811696767632	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050033	SRR30050033	CRC	nanovi_gtdb	emu	gtdb	0.34944818303338815	0.14557886978941376	Phocaeicola	Phocaeicola	0.0	0.05895510693543646
-crc	SRR30050033	SRR30050033	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3535022105752434	0.1369412703646544	Phocaeicola	Phocaeicola	0.0	0.0366097739984876
+crc	SRR30050032	SRR30050032	CRC	nanovi_emudb	emu	ncbi	0.06682579525388083	0.03647644824858711	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050032	SRR30050032	CRC	nanovi_gtdb	emu	gtdb	0.5318506496757973	0.24228884645388526	Faecalibacterium	Faecalibacterium	0.0	0.21126373145315364
+crc	SRR30050032	SRR30050032	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5373903546861265	0.24895160463248855	Faecalibacterium	Faecalibacterium	0.0	0.19926230578255283
+crc	SRR30050033	SRR30050033	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0015482705893300548	0.0015378421569394631	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050033	SRR30050033	CRC	nanovi_emudb	emu	ncbi	0.04758094505740086	0.02764881169676763	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050033	SRR30050033	CRC	nanovi_gtdb	emu	gtdb	0.3494481830333883	0.14557886978941373	Phocaeicola	Phocaeicola	0.0	0.05895510693543646
+crc	SRR30050033	SRR30050033	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3535022105752436	0.13694127036465434	Phocaeicola	Phocaeicola	0.0	0.0366097739984876
 crc	SRR30050034	SRR30050034	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00023692463887321714	0.0001516120327237178	Bacteroides	Bacteroides	0.0	0.0
-crc	SRR30050034	SRR30050034	CRC	nanovi_emudb	emu	ncbi	0.03438542732390224	0.020040307115588702	Bacteroides	Bacteroides	0.0	0.0
-crc	SRR30050034	SRR30050034	CRC	nanovi_gtdb	emu	gtdb	0.2768572786924081	0.17276786047299514	Bacteroides	Bacteroides	0.0	0.05280167894759467
-crc	SRR30050034	SRR30050034	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.2762892729001668	0.1707594599487101	Bacteroides	Bacteroides	0.0	0.05703828620080029
-crc	SRR30050035	SRR30050035	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0006805079266705178	0.0002238000085409902	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050035	SRR30050035	CRC	nanovi_emudb	emu	ncbi	0.06560484309940316	0.046802114679311106	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050035	SRR30050035	CRC	nanovi_gtdb	emu	gtdb	0.5112649255305668	0.3627030645477197	Phocaeicola	Phocaeicola	0.0	0.2217636111580683
-crc	SRR30050035	SRR30050035	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5102554520119522	0.36198098752961316	Phocaeicola	Phocaeicola	0.0	0.23288368952361593
-crc	SRR30050036	SRR30050036	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0015166461969086473	0.0014504602013438676	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050036	SRR30050036	CRC	nanovi_emudb	emu	ncbi	0.03705535176864356	0.02608003956996653	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050036	SRR30050036	CRC	nanovi_gtdb	emu	gtdb	0.40531807848916424	0.24988190507629596	Gemmiger	Gemmiger	0.0	0.030219657811060764
-crc	SRR30050036	SRR30050036	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.40212843240062446	0.2486267110080652	Gemmiger	Gemmiger	0.0	0.028393300210084474
-crc	SRR30050037	SRR30050037	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00012108289730347968	6.915780752367025e-05	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050037	SRR30050037	CRC	nanovi_emudb	emu	ncbi	0.02766374117030735	0.013088413290002772	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050037	SRR30050037	CRC	nanovi_gtdb	emu	gtdb	0.414607874835033	0.11556960398357538	Bifidobacterium	Bifidobacterium	0.0	0.06437709451605414
-crc	SRR30050037	SRR30050037	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.42254289492765257	0.11466479934990001	Bifidobacterium	Bifidobacterium	0.0	0.06205820908564273
-crc	SRR30050038	SRR30050038	CRC	nanovi_emudb	emu_same_sam	ncbi	0.001508567678745702	0.0012814081598413619	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050038	SRR30050038	CRC	nanovi_emudb	emu	ncbi	0.0567082834859443	0.03915217244589859	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050038	SRR30050038	CRC	nanovi_gtdb	emu	gtdb	0.4855391786473983	0.38019110747588997	Phocaeicola	Phocaeicola	0.0	0.1722533404334316
-crc	SRR30050038	SRR30050038	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4845612287806394	0.37653707281240045	Phocaeicola	Phocaeicola	0.0	0.18132066669446056
-crc	SRR30050039	SRR30050039	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0012851060134176288	0.0012677887677841157	Prevotella	Prevotella	0.0	0.0
-crc	SRR30050039	SRR30050039	CRC	nanovi_emudb	emu	ncbi	0.02318648994932278	0.018077252715712422	Prevotella	Prevotella	0.0	0.0
-crc	SRR30050039	SRR30050039	CRC	nanovi_gtdb	emu	gtdb	0.3254624307038552	0.10277109523962437	Prevotella	Prevotella	0.0	0.04041651225455471
-crc	SRR30050039	SRR30050039	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3224640884061501	0.10131887053006648	Prevotella	Prevotella	0.0	0.037824666815724606
+crc	SRR30050034	SRR30050034	CRC	nanovi_emudb	emu	ncbi	0.03438542732390226	0.0200403071155887	Bacteroides	Bacteroides	0.0	0.0
+crc	SRR30050034	SRR30050034	CRC	nanovi_gtdb	emu	gtdb	0.27685727869240817	0.17276786047299514	Bacteroides	Bacteroides	0.0	0.05280167894759467
+crc	SRR30050034	SRR30050034	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.2762892729001668	0.17075945994871017	Bacteroides	Bacteroides	0.0	0.05703828620080029
+crc	SRR30050035	SRR30050035	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0006805079266705178	0.00022381526191419014	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050035	SRR30050035	CRC	nanovi_emudb	emu	ncbi	0.06560484309940316	0.046802114679311085	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050035	SRR30050035	CRC	nanovi_gtdb	emu	gtdb	0.5112649255305666	0.36270306454771983	Phocaeicola	Phocaeicola	0.0	0.2217636111580683
+crc	SRR30050035	SRR30050035	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5102554520119525	0.36198098752961333	Phocaeicola	Phocaeicola	0.0	0.23288368952361593
+crc	SRR30050036	SRR30050036	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0015166461969086473	0.0014535443030752604	Gemmiger	Gemmiger	0.0	0.0
+crc	SRR30050036	SRR30050036	CRC	nanovi_emudb	emu	ncbi	0.03705535176864356	0.02614265583904598	Gemmiger	Gemmiger	0.0	0.0
+crc	SRR30050036	SRR30050036	CRC	nanovi_gtdb	emu	gtdb	0.4053180784891641	0.249881905076296	Gemmiger	Gemmiger	0.0	0.030219657811060764
+crc	SRR30050036	SRR30050036	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.40212843240062457	0.24862671100806513	Gemmiger	Gemmiger	0.0	0.028393300210084474
+crc	SRR30050037	SRR30050037	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00012108289730347968	6.713974781252829e-05	Bifidobacterium	Bifidobacterium	0.0	0.0
+crc	SRR30050037	SRR30050037	CRC	nanovi_emudb	emu	ncbi	0.027663741170307347	0.012762456737049323	Bifidobacterium	Bifidobacterium	0.0	0.0
+crc	SRR30050037	SRR30050037	CRC	nanovi_gtdb	emu	gtdb	0.41460787483503314	0.11556960398357538	Bifidobacterium	Bifidobacterium	0.0	0.06437709451605414
+crc	SRR30050037	SRR30050037	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.42254289492765235	0.11466479934990002	Bifidobacterium	Bifidobacterium	0.0	0.06205820908564273
+crc	SRR30050038	SRR30050038	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0015085676787457017	0.0012804763857934102	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050038	SRR30050038	CRC	nanovi_emudb	emu	ncbi	0.05670828348594428	0.037867801478651285	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050038	SRR30050038	CRC	nanovi_gtdb	emu	gtdb	0.4855391786473982	0.3801911074758901	Phocaeicola	Phocaeicola	0.0	0.1722533404334316
+crc	SRR30050038	SRR30050038	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.48456122878063956	0.37653707281240034	Phocaeicola	Phocaeicola	0.0	0.18132066669446056
+crc	SRR30050039	SRR30050039	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0012851060134176282	0.001267788767784116	Prevotella	Prevotella	0.0	0.0
+crc	SRR30050039	SRR30050039	CRC	nanovi_emudb	emu	ncbi	0.023186489949322785	0.018077252715712425	Prevotella	Prevotella	0.0	0.0
+crc	SRR30050039	SRR30050039	CRC	nanovi_gtdb	emu	gtdb	0.3254624307038551	0.10277109523962437	Prevotella	Prevotella	0.0	0.04041651225455471
+crc	SRR30050039	SRR30050039	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.32246408840615004	0.10131887053006644	Prevotella	Prevotella	0.0	0.037824666815724606
 crc	SRR30050040	SRR30050040	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0013751038900150308	0.001165349219669032	Escherichia	Escherichia	0.0	0.0
-crc	SRR30050040	SRR30050040	CRC	nanovi_emudb	emu	ncbi	0.015740182890427848	0.010513669999242248	Escherichia	Escherichia	0.0	0.0
-crc	SRR30050040	SRR30050040	CRC	nanovi_gtdb	emu	gtdb	0.15118297834415012	0.07070073216646074	Escherichia	Escherichia	0.0	0.020255435346128264
-crc	SRR30050040	SRR30050040	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.14743755582494286	0.06601509383714378	Escherichia	Escherichia	0.0	0.021923331162250766
-crc	SRR30050041	SRR30050041	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00021969773983051253	0.00011100455034518191	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050041	SRR30050041	CRC	nanovi_emudb	emu	ncbi	0.08519755379590001	0.05231296058092413	Bifidobacterium	[Ruminococcus]	0.0	0.0
-crc	SRR30050041	SRR30050041	CRC	nanovi_gtdb	emu	gtdb	0.419974700574652	0.29233783464740204	Bifidobacterium	Bifidobacterium	0.0	0.11596439209694148
-crc	SRR30050041	SRR30050041	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.42534588678480467	0.2898344169664221	Bifidobacterium	Bifidobacterium	0.0	0.11633947541419443
-crc	SRR30050042	SRR30050042	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0005002013558473067	9.695214181265838e-05	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050042	SRR30050042	CRC	nanovi_emudb	emu	ncbi	0.016198726709847185	0.011027654896618591	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050042	SRR30050042	CRC	nanovi_gtdb	emu	gtdb	0.4058211522958197	0.06605499124826882	Faecalibacterium	Faecalibacterium	0.0	0.0047670481211331064
-crc	SRR30050042	SRR30050042	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4056780089764828	0.06492435174453137	Faecalibacterium	Faecalibacterium	0.0	0.00696255145911371
-crc	SRR30050043	SRR30050043	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00029945317678651206	6.788105977695454e-05	Streptococcus	Streptococcus	0.0	0.0
-crc	SRR30050043	SRR30050043	CRC	nanovi_emudb	emu	ncbi	0.04591380889376893	0.02247681395385121	Streptococcus	Streptococcus	0.0	0.0
-crc	SRR30050043	SRR30050043	CRC	nanovi_gtdb	emu	gtdb	0.3719219384515477	0.14095430803591683	Streptococcus	Streptococcus	0.0	0.04861090821094875
-crc	SRR30050043	SRR30050043	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.37563624582033234	0.14381355652738506	Streptococcus	Streptococcus	0.0	0.04920032561794034
+crc	SRR30050040	SRR30050040	CRC	nanovi_emudb	emu	ncbi	0.015740182890427855	0.010513669999242248	Escherichia	Escherichia	0.0	0.0
+crc	SRR30050040	SRR30050040	CRC	nanovi_gtdb	emu	gtdb	0.15118297834415012	0.07070073216646075	Escherichia	Escherichia	0.0	0.020255435346128264
+crc	SRR30050040	SRR30050040	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.1474375558249428	0.06601509383714377	Escherichia	Escherichia	0.0	0.021923331162250766
+crc	SRR30050041	SRR30050041	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00021969773983051253	0.00010733577744767206	Mediterraneibacter	Mediterraneibacter	0.0	0.0
+crc	SRR30050041	SRR30050041	CRC	nanovi_emudb	emu	ncbi	0.0851975537959	0.0523129605809241	Mediterraneibacter	Mediterraneibacter	0.0	0.0
+crc	SRR30050041	SRR30050041	CRC	nanovi_gtdb	emu	gtdb	0.4199747005746519	0.2923378346474021	Bifidobacterium	Bifidobacterium	0.0	0.11596439209694148
+crc	SRR30050041	SRR30050041	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.42534588678480467	0.28983441696642204	Bifidobacterium	Bifidobacterium	0.0	0.11633947541419443
+crc	SRR30050042	SRR30050042	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0005002013558473067	9.624442494938416e-05	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050042	SRR30050042	CRC	nanovi_emudb	emu	ncbi	0.016198726709847188	0.010497806014865293	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050042	SRR30050042	CRC	nanovi_gtdb	emu	gtdb	0.40582115229581955	0.06605499124826882	Faecalibacterium	Faecalibacterium	0.0	0.0047670481211331064
+crc	SRR30050042	SRR30050042	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4056780089764826	0.06492435174453137	Faecalibacterium	Faecalibacterium	0.0	0.00696255145911371
+crc	SRR30050043	SRR30050043	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00029945317678651206	6.777362454831121e-05	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050043	SRR30050043	CRC	nanovi_emudb	emu	ncbi	0.04591380889376892	0.022372255295189002	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050043	SRR30050043	CRC	nanovi_gtdb	emu	gtdb	0.37192193845154753	0.14095430803591683	Streptococcus	Streptococcus	0.0	0.04861090821094875
+crc	SRR30050043	SRR30050043	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.37563624582033195	0.143813556527385	Streptococcus	Streptococcus	0.0	0.04920032561794034
 crc	SRR30050044	SRR30050044	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00029980585687121113	0.00028264789397510956	Ruminococcus	Ruminococcus	0.0	0.0
 crc	SRR30050044	SRR30050044	CRC	nanovi_emudb	emu	ncbi	0.03322554812546157	0.027421406898514883	Ruminococcus	Ruminococcus	0.0	0.0
-crc	SRR30050044	SRR30050044	CRC	nanovi_gtdb	emu	gtdb	0.4397536213388801	0.17059002608154714	Ruminococcoides	Ruminococcoides	0.0	0.09278473996411933
+crc	SRR30050044	SRR30050044	CRC	nanovi_gtdb	emu	gtdb	0.43975362133888	0.17059002608154708	Ruminococcoides	Ruminococcoides	0.0	0.09278473996411933
 crc	SRR30050044	SRR30050044	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4410372312929701	0.17348893429324377	Ruminococcoides	Ruminococcoides	0.0	0.09054510407411269
 crc	SRR30050045	SRR30050045	CRC	nanovi_emudb	emu_same_sam	ncbi	0.000767531985009124	0.0007245784655220447	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050045	SRR30050045	CRC	nanovi_emudb	emu	ncbi	0.048360928180780784	0.027778686467619287	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050045	SRR30050045	CRC	nanovi_gtdb	emu	gtdb	0.3720978402500785	0.15127365982623284	Phocaeicola	Phocaeicola	0.0	0.07527795890992356
-crc	SRR30050045	SRR30050045	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3781966795067305	0.14829723307938528	Phocaeicola	Phocaeicola	0.0	0.07921981358560033
+crc	SRR30050045	SRR30050045	CRC	nanovi_emudb	emu	ncbi	0.048360928180780804	0.027778686467619287	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050045	SRR30050045	CRC	nanovi_gtdb	emu	gtdb	0.37209784025007875	0.15127365982623284	Phocaeicola	Phocaeicola	0.0	0.07527795890992356
+crc	SRR30050045	SRR30050045	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3781966795067307	0.14829723307938528	Phocaeicola	Phocaeicola	0.0	0.07921981358560033
 crc	SRR30050046	SRR30050046	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00015855339322518632	8.962046630748514e-05	Fusobacterium	Fusobacterium	0.0	0.0
-crc	SRR30050046	SRR30050046	CRC	nanovi_emudb	emu	ncbi	0.046691589766103755	0.03348787118478979	Fusobacterium	Fusobacterium	0.0	0.0
-crc	SRR30050046	SRR30050046	CRC	nanovi_gtdb	emu	gtdb	0.24964441129386192	0.19646908826606538	Fusobacterium	Fusobacterium	0.0	0.03176689210017535
-crc	SRR30050046	SRR30050046	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.24686189154224797	0.19163167066205974	Fusobacterium	Fusobacterium	0.0	0.037511034151856956
+crc	SRR30050046	SRR30050046	CRC	nanovi_emudb	emu	ncbi	0.04669158976610373	0.03348787118478978	Fusobacterium	Fusobacterium	0.0	0.0
+crc	SRR30050046	SRR30050046	CRC	nanovi_gtdb	emu	gtdb	0.24964441129386197	0.19646908826606532	Fusobacterium	Fusobacterium	0.0	0.03176689210017535
+crc	SRR30050046	SRR30050046	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.24686189154224802	0.19163167066205972	Fusobacterium	Fusobacterium	0.0	0.037511034151856956
 crc	SRR30050047	SRR30050047	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0013420085475340556	0.0012237371859350511	Roseburia	Roseburia	0.0	0.0
-crc	SRR30050047	SRR30050047	CRC	nanovi_emudb	emu	ncbi	0.03217240743012646	0.024765325616936545	Roseburia	Roseburia	0.0	0.0
-crc	SRR30050047	SRR30050047	CRC	nanovi_gtdb	emu	gtdb	0.3410477155660231	0.12356431104847426	Agathobacter	Agathobacter	0.0	0.06772172751920828
-crc	SRR30050047	SRR30050047	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.34230064238486885	0.12766048695874405	Agathobacter	Agathobacter	0.0	0.06926050879480027
+crc	SRR30050047	SRR30050047	CRC	nanovi_emudb	emu	ncbi	0.032172407430126476	0.024765325616936555	Roseburia	Roseburia	0.0	0.0
+crc	SRR30050047	SRR30050047	CRC	nanovi_gtdb	emu	gtdb	0.341047715566023	0.1235643110484743	Agathobacter	Agathobacter	0.0	0.06772172751920828
+crc	SRR30050047	SRR30050047	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3423006423848687	0.12766048695874405	Agathobacter	Agathobacter	0.0	0.06926050879480027
 crc	SRR30050048	SRR30050048	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00043051627375818727	0.00014085801027988155	Faecalibacterium	Faecalibacterium	0.0	0.0
 crc	SRR30050048	SRR30050048	CRC	nanovi_emudb	emu	ncbi	0.10460354576517623	0.05448879719231417	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050048	SRR30050048	CRC	nanovi_gtdb	emu	gtdb	0.5224487243415457	0.2328642222196884	Faecalibacterium	Faecalibacterium	0.0	0.07854612192985234
-crc	SRR30050048	SRR30050048	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5259304191031633	0.24005649330348425	Faecalibacterium	Faecalibacterium	0.0	0.08856827800747792
-crc	SRR30050049	SRR30050049	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0014491197480245334	0.0013552545287621404	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050049	SRR30050049	CRC	nanovi_emudb	emu	ncbi	0.0588955682898604	0.03946690762264146	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050049	SRR30050049	CRC	nanovi_gtdb	emu	gtdb	0.40095494729241377	0.25930513080167783	Phocaeicola	Phocaeicola	0.0	0.10783769390727195
-crc	SRR30050049	SRR30050049	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4006750134034193	0.2620697795460706	Phocaeicola	Phocaeicola	0.0	0.10290335731350944
-crc	SRR30050050	SRR30050050	CRC	nanovi_emudb	emu_same_sam	ncbi	0.001697773902963413	0.0016416523130743067	Escherichia	Escherichia	0.0	0.0
-crc	SRR30050050	SRR30050050	CRC	nanovi_emudb	emu	ncbi	0.05034577079757936	0.02962248273490139	Escherichia	Escherichia	0.0	0.0
-crc	SRR30050050	SRR30050050	CRC	nanovi_gtdb	emu	gtdb	0.33097609313488585	0.13364303239631845	Escherichia	Escherichia	0.0	0.04260626069315742
-crc	SRR30050050	SRR30050050	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3267682499556529	0.12941640215202352	Escherichia	Escherichia	0.0	0.03688230797823046
-crc	SRR30050051	SRR30050051	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0014377012723356254	0.0012690984674845725	Prevotella	Prevotella	0.0	0.0
-crc	SRR30050051	SRR30050051	CRC	nanovi_emudb	emu	ncbi	0.1735679707472585	0.14385604730157234	Prevotella	Prevotella	0.0	0.0
-crc	SRR30050051	SRR30050051	CRC	nanovi_gtdb	emu	gtdb	0.7993226227611908	0.4001136240076478	Prevotella	Prevotella	0.0	0.17567155502162932
-crc	SRR30050051	SRR30050051	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.7991407563554268	0.41335026889519205	Prevotella	Prevotella	0.0	0.10310684106284741
-crc	SRR30050052	SRR30050052	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0013128260901465558	0.0010261783423367483	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050052	SRR30050052	CRC	nanovi_emudb	emu	ncbi	0.03549376306369255	0.023366074620555403	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050052	SRR30050052	CRC	nanovi_gtdb	emu	gtdb	0.3974695089957537	0.20768426371523127	Phocaeicola	Phocaeicola	0.0	0.14335228514402834
+crc	SRR30050048	SRR30050048	CRC	nanovi_gtdb	emu	gtdb	0.5224487243415454	0.23286422221968844	Faecalibacterium	Faecalibacterium	0.0	0.07854612192985234
+crc	SRR30050048	SRR30050048	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5259304191031635	0.24005649330348428	Faecalibacterium	Faecalibacterium	0.0	0.08856827800747792
+crc	SRR30050049	SRR30050049	CRC	nanovi_emudb	emu_same_sam	ncbi	0.001449119748024533	0.0013552545287621402	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050049	SRR30050049	CRC	nanovi_emudb	emu	ncbi	0.05889556828986038	0.03946690762264146	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050049	SRR30050049	CRC	nanovi_gtdb	emu	gtdb	0.40095494729241354	0.25930513080167783	Phocaeicola	Phocaeicola	0.0	0.10783769390727195
+crc	SRR30050049	SRR30050049	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.40067501340341916	0.2620697795460706	Phocaeicola	Phocaeicola	0.0	0.10290335731350944
+crc	SRR30050050	SRR30050050	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0016977739029634127	0.0016416523130743065	Escherichia	Escherichia	0.0	0.0
+crc	SRR30050050	SRR30050050	CRC	nanovi_emudb	emu	ncbi	0.05034577079757936	0.029622482734901374	Escherichia	Escherichia	0.0	0.0
+crc	SRR30050050	SRR30050050	CRC	nanovi_gtdb	emu	gtdb	0.33097609313488574	0.13364303239631847	Escherichia	Escherichia	0.0	0.04260626069315742
+crc	SRR30050050	SRR30050050	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3267682499556529	0.12941640215202355	Escherichia	Escherichia	0.0	0.03688230797823046
+crc	SRR30050051	SRR30050051	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0014377012723356258	0.0012690984674845727	Prevotella	Prevotella	0.0	0.0
+crc	SRR30050051	SRR30050051	CRC	nanovi_emudb	emu	ncbi	0.17356797074725855	0.14385604730157234	Prevotella	Prevotella	0.0	0.0
+crc	SRR30050051	SRR30050051	CRC	nanovi_gtdb	emu	gtdb	0.7993226227611908	0.40011362400764783	Prevotella	Prevotella	0.0	0.17567155502162932
+crc	SRR30050051	SRR30050051	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.7991407563554273	0.41335026889519205	Prevotella	Prevotella	0.0	0.10310684106284741
+crc	SRR30050052	SRR30050052	CRC	nanovi_emudb	emu_same_sam	ncbi	0.001312826090146556	0.0010261783423367481	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050052	SRR30050052	CRC	nanovi_emudb	emu	ncbi	0.03549376306369256	0.023366074620555396	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050052	SRR30050052	CRC	nanovi_gtdb	emu	gtdb	0.39746950899575356	0.20768426371523122	Phocaeicola	Phocaeicola	0.0	0.14335228514402834
 crc	SRR30050052	SRR30050052	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.39549289843600316	0.21439768694654668	Phocaeicola	Phocaeicola	0.0	0.1524243880189588
-crc	SRR30050053	SRR30050053	CRC	nanovi_emudb	emu_same_sam	ncbi	0.003960741453382461	0.0031516240483029506	Fusobacterium	Fusobacterium	0.0	0.0
-crc	SRR30050053	SRR30050053	CRC	nanovi_emudb	emu	ncbi	0.054675411089814836	0.02716193750764088	Fusobacterium	Fusobacterium	0.0	0.0
-crc	SRR30050053	SRR30050053	CRC	nanovi_gtdb	emu	gtdb	0.2664401267889381	0.1316635713960542	Phocaeicola	Fusobacterium	0.0	0.05843174116682618
-crc	SRR30050053	SRR30050053	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.26541431206739324	0.12887916471318295	Phocaeicola	Fusobacterium	0.0	0.05348958087653598
-crc	SRR30050054	SRR30050054	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0022560153527128664	0.001476222728167766	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050054	SRR30050054	CRC	nanovi_emudb	emu	ncbi	0.05854658065719466	0.020483887856509127	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050054	SRR30050054	CRC	nanovi_gtdb	emu	gtdb	0.6170649406029021	0.1903116651203023	Faecalibacterium	Faecalibacterium	0.0	0.13738028681979578
-crc	SRR30050054	SRR30050054	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6039406176200478	0.16890430090445938	Faecalibacterium	Faecalibacterium	0.0	0.10271383184316979
-crc	SRR30050055	SRR30050055	CRC	nanovi_emudb	emu_same_sam	ncbi	0.002883442496749061	0.002654270096518972	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050055	SRR30050055	CRC	nanovi_emudb	emu	ncbi	0.08448701046788681	0.06988943315520568	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050055	SRR30050055	CRC	nanovi_gtdb	emu	gtdb	0.5012409769478001	0.2736073935977449	Gemmiger	Gemmiger	0.0	0.06599079066681195
-crc	SRR30050055	SRR30050055	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.501285390418401	0.2681589382463324	Gemmiger	Gemmiger	0.0	0.051902060881423066
-crc	SRR30050056	SRR30050056	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0028106440767288856	0.0021073459136383608	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050056	SRR30050056	CRC	nanovi_emudb	emu	ncbi	0.08931111970887355	0.07124527210620174	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050056	SRR30050056	CRC	nanovi_gtdb	emu	gtdb	0.6027561037753293	0.32790920277172353	Faecalibacterium	Faecalibacterium	0.0	0.12723952773969738
-crc	SRR30050056	SRR30050056	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6031166570224609	0.3304358982365908	Faecalibacterium	Faecalibacterium	0.0	0.11792352654998453
-crc	SRR30050057	SRR30050057	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0033367085523906175	0.0020132859567831007	Streptococcus	Streptococcus	0.0	0.0
-crc	SRR30050057	SRR30050057	CRC	nanovi_emudb	emu	ncbi	0.10064171686085913	0.03632086358130736	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050053	SRR30050053	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00396074145338246	0.0031516240483029506	Fusobacterium	Fusobacterium	0.0	0.0
+crc	SRR30050053	SRR30050053	CRC	nanovi_emudb	emu	ncbi	0.054675411089814836	0.027161937507640888	Fusobacterium	Fusobacterium	0.0	0.0
+crc	SRR30050053	SRR30050053	CRC	nanovi_gtdb	emu	gtdb	0.2664401267889381	0.13166357139605422	Phocaeicola	Fusobacterium	0.0	0.05843174116682618
+crc	SRR30050053	SRR30050053	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.26541431206739324	0.12887916471318298	Phocaeicola	Fusobacterium	0.0	0.05348958087653598
+crc	SRR30050054	SRR30050054	CRC	nanovi_emudb	emu_same_sam	ncbi	0.002256015352712866	0.0014762227281677658	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050054	SRR30050054	CRC	nanovi_emudb	emu	ncbi	0.05854658065719463	0.02048388785650913	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050054	SRR30050054	CRC	nanovi_gtdb	emu	gtdb	0.6170649406029015	0.19031166512030223	Faecalibacterium	Faecalibacterium	0.0	0.13738028681979578
+crc	SRR30050054	SRR30050054	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6039406176200475	0.1689043009044594	Faecalibacterium	Faecalibacterium	0.0	0.10271383184316979
+crc	SRR30050055	SRR30050055	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0028834424967490624	0.002654270096518972	Gemmiger	Gemmiger	0.0	0.0
+crc	SRR30050055	SRR30050055	CRC	nanovi_emudb	emu	ncbi	0.08448701046788686	0.06988943315520568	Gemmiger	Gemmiger	0.0	0.0
+crc	SRR30050055	SRR30050055	CRC	nanovi_gtdb	emu	gtdb	0.5012409769478	0.2736073935977449	Gemmiger	Gemmiger	0.0	0.06599079066681195
+crc	SRR30050055	SRR30050055	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5012853904184009	0.2681589382463324	Gemmiger	Gemmiger	0.0	0.051902060881423066
+crc	SRR30050056	SRR30050056	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0028106440767288864	0.0021073459136383603	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050056	SRR30050056	CRC	nanovi_emudb	emu	ncbi	0.08931111970887351	0.07131830313163585	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050056	SRR30050056	CRC	nanovi_gtdb	emu	gtdb	0.6027561037753288	0.32790920277172336	Faecalibacterium	Faecalibacterium	0.0	0.12723952773969738
+crc	SRR30050056	SRR30050056	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6031166570224605	0.3304358982365905	Faecalibacterium	Faecalibacterium	0.0	0.11792352654998453
+crc	SRR30050057	SRR30050057	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0033367085523906166	0.002013285956783101	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050057	SRR30050057	CRC	nanovi_emudb	emu	ncbi	0.1006417168608591	0.03632086358130738	Streptococcus	Streptococcus	0.0	0.0
 crc	SRR30050057	SRR30050057	CRC	nanovi_gtdb	emu	gtdb	0.5301044544055884	0.23407632326146605	Streptococcus	Streptococcus	0.0	0.20685527243134585
-crc	SRR30050057	SRR30050057	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5205151866469124	0.23408904171884126	Streptococcus	Streptococcus	0.0	0.15016213011078583
+crc	SRR30050057	SRR30050057	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5205151866469125	0.23408904171884135	Streptococcus	Streptococcus	0.0	0.15016213011078583
 crc	SRR30050058	SRR30050058	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0019576284981885042	0.0018350239659790254	Fusobacterium	Fusobacterium	0.0	0.0
-crc	SRR30050058	SRR30050058	CRC	nanovi_emudb	emu	ncbi	0.042926298572560785	0.032572418899235546	Fusobacterium	Fusobacterium	0.0	0.0
-crc	SRR30050058	SRR30050058	CRC	nanovi_gtdb	emu	gtdb	0.5211971549817175	0.23167355056253813	Fusobacterium	Fusobacterium	0.0	0.046756160884160985
-crc	SRR30050058	SRR30050058	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5201701746917454	0.23600130426226848	Fusobacterium	Fusobacterium	0.0	0.0552192309825476
+crc	SRR30050058	SRR30050058	CRC	nanovi_emudb	emu	ncbi	0.0429262985725608	0.03257241889923555	Fusobacterium	Fusobacterium	0.0	0.0
+crc	SRR30050058	SRR30050058	CRC	nanovi_gtdb	emu	gtdb	0.5211971549817176	0.23167355056253813	Fusobacterium	Fusobacterium	0.0	0.046756160884160985
+crc	SRR30050058	SRR30050058	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5201701746917452	0.2360013042622685	Fusobacterium	Fusobacterium	0.0	0.0552192309825476
 crc	SRR30050059	SRR30050059	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0005108467223994405	0.00012783876078981192	Akkermansia	Akkermansia	0.0	0.0
-crc	SRR30050059	SRR30050059	CRC	nanovi_emudb	emu	ncbi	0.14990191210161977	0.13877457780288774	Akkermansia	Akkermansia	0.0	0.0
-crc	SRR30050059	SRR30050059	CRC	nanovi_gtdb	emu	gtdb	0.5627464984049505	0.5079867488279802	Akkermansia	Akkermansia	0.0	0.13917499568777725
-crc	SRR30050059	SRR30050059	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.567684855992585	0.5151206867629046	Akkermansia	Akkermansia	0.0	0.03866767592620704
-crc	SRR30050060	SRR30050060	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0022825278258050492	0.0010433640717298351	Streptococcus	Streptococcus	0.0	0.0
-crc	SRR30050060	SRR30050060	CRC	nanovi_emudb	emu	ncbi	0.19671067378436505	0.06525455400491312	Streptococcus	Streptococcus	0.0	0.0
-crc	SRR30050060	SRR30050060	CRC	nanovi_gtdb	emu	gtdb	0.5254797885899788	0.2919681280773849	Streptococcus	Streptococcus	0.0	0.04365437139401395
-crc	SRR30050060	SRR30050060	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.39783196300079876	0.28743779092815785	Streptococcus	Streptococcus	0.0	0.059033583527605786
+crc	SRR30050059	SRR30050059	CRC	nanovi_emudb	emu	ncbi	0.14990191210161977	0.13877457780288768	Akkermansia	Akkermansia	0.0	0.0
+crc	SRR30050059	SRR30050059	CRC	nanovi_gtdb	emu	gtdb	0.5627464984049502	0.5079867488279803	Akkermansia	Akkermansia	0.0	0.13917499568777725
+crc	SRR30050059	SRR30050059	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5676848559925843	0.5151206867629045	Akkermansia	Akkermansia	0.0	0.03866767592620704
+crc	SRR30050060	SRR30050060	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0022825278258050497	0.001043364071729835	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050060	SRR30050060	CRC	nanovi_emudb	emu	ncbi	0.19671067378436502	0.06525455400491312	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050060	SRR30050060	CRC	nanovi_gtdb	emu	gtdb	0.525479788589979	0.291968128077385	Streptococcus	Streptococcus	0.0	0.04365437139401395
+crc	SRR30050060	SRR30050060	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3978319630007986	0.287437790928158	Streptococcus	Streptococcus	0.0	0.059033583527605786
 crc	SRR30050061	SRR30050061	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00039172058764150113	0.00024873957309909725	Escherichia	Escherichia	0.0	0.0
-crc	SRR30050061	SRR30050061	CRC	nanovi_emudb	emu	ncbi	0.051871787640405675	0.046879385928694374	Escherichia	Escherichia	0.0	0.0
-crc	SRR30050061	SRR30050061	CRC	nanovi_gtdb	emu	gtdb	0.28151347978994223	0.1735678401703397	Escherichia	Escherichia	0.0	0.08846081187163274
-crc	SRR30050061	SRR30050061	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.27446523858193755	0.1617390564040886	Escherichia	Escherichia	0.0	0.0925107793057217
-crc	SRR30050062	SRR30050062	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0016753952776492884	0.00113512130297383	Succinivibrio	Succinivibrio	0.0	0.0
-crc	SRR30050062	SRR30050062	CRC	nanovi_emudb	emu	ncbi	0.09143363762016705	0.06639802143251555	Succinivibrio	Succinivibrio	0.0	0.0
-crc	SRR30050062	SRR30050062	CRC	nanovi_gtdb	emu	gtdb	0.6465728118123932	0.3815764039127175	Succinivibrio	Succinivibrio	0.0	0.05538071369551676
+crc	SRR30050061	SRR30050061	CRC	nanovi_emudb	emu	ncbi	0.051871787640405655	0.04687938592869434	Escherichia	Escherichia	0.0	0.0
+crc	SRR30050061	SRR30050061	CRC	nanovi_gtdb	emu	gtdb	0.2815134797899422	0.17356784017033974	Escherichia	Escherichia	0.0	0.08846081187163274
+crc	SRR30050061	SRR30050061	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.2744652385819375	0.16173905640408862	Escherichia	Escherichia	0.0	0.0925107793057217
+crc	SRR30050062	SRR30050062	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0016753952776492882	0.00113512130297383	Succinivibrio	Succinivibrio	0.0	0.0
+crc	SRR30050062	SRR30050062	CRC	nanovi_emudb	emu	ncbi	0.09143363762016712	0.06639802143251555	Succinivibrio	Succinivibrio	0.0	0.0
+crc	SRR30050062	SRR30050062	CRC	nanovi_gtdb	emu	gtdb	0.6465728118123931	0.3815764039127175	Succinivibrio	Succinivibrio	0.0	0.05538071369551676
 crc	SRR30050062	SRR30050062	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6470697077934502	0.3822528829168198	Succinivibrio	Succinivibrio	0.0	0.05605789655342304
-crc	SRR30050063	SRR30050063	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0016135297640120666	0.001171758241730783	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050063	SRR30050063	CRC	nanovi_emudb	emu	ncbi	0.06578506768970643	0.031174787547798198	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050063	SRR30050063	CRC	nanovi_gtdb	emu	gtdb	0.4397468580732298	0.19739354759103314	Faecalibacterium	Faecalibacterium	0.0	0.03774769811873041
-crc	SRR30050063	SRR30050063	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4430634154586891	0.19825138129431608	Faecalibacterium	Faecalibacterium	0.0	0.030876880709520396
-crc	SRR30050064	SRR30050064	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0005028842162213688	0.00019716013987582809	Streptococcus	Streptococcus	0.0	0.0
-crc	SRR30050064	SRR30050064	CRC	nanovi_emudb	emu	ncbi	0.20911771514505678	0.12285738316083714	Streptococcus	Streptococcus	0.0	0.0
-crc	SRR30050064	SRR30050064	CRC	nanovi_gtdb	emu	gtdb	0.6626089292873555	0.39168098188338896	Streptococcus	Streptococcus	0.0	0.15925942054338543
-crc	SRR30050064	SRR30050064	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6712687135776101	0.38125665238173406	Streptococcus	Streptococcus	0.0	0.1332673333292363
+crc	SRR30050063	SRR30050063	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0016135297640120666	0.0011717582417307827	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050063	SRR30050063	CRC	nanovi_emudb	emu	ncbi	0.0657850676897064	0.03117478754779819	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050063	SRR30050063	CRC	nanovi_gtdb	emu	gtdb	0.43974685807322994	0.1973935475910331	Faecalibacterium	Faecalibacterium	0.0	0.03774769811873041
+crc	SRR30050063	SRR30050063	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.44306341545868916	0.1982513812943162	Faecalibacterium	Faecalibacterium	0.0	0.030876880709520396
+crc	SRR30050064	SRR30050064	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0005028842162213688	0.00018621036435782833	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050064	SRR30050064	CRC	nanovi_emudb	emu	ncbi	0.20911771514505673	0.12285738316083711	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050064	SRR30050064	CRC	nanovi_gtdb	emu	gtdb	0.6626089292873555	0.3916809818833889	Streptococcus	Streptococcus	0.0	0.15925942054338543
+crc	SRR30050064	SRR30050064	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6712687135776102	0.381256652381734	Streptococcus	Streptococcus	0.0	0.1332673333292363
 crc	SRR30050065	SRR30050065	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00023326789283646112	0.00013001863449169982	Blautia	Blautia	0.0	0.0
-crc	SRR30050065	SRR30050065	CRC	nanovi_emudb	emu	ncbi	0.06955278919419385	0.0518376220297648	Blautia	Blautia	0.0	0.0
-crc	SRR30050065	SRR30050065	CRC	nanovi_gtdb	emu	gtdb	0.46263907975562	0.3247502585175112	Bacteroides	Bacteroides	0.0	0.1441587708025321
-crc	SRR30050065	SRR30050065	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.45951715305592905	0.3200189207337932	Bacteroides	Bacteroides	0.0	0.1484407831881159
-crc	SRR30050066	SRR30050066	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0019388378845602969	0.0013300923124103126	Butyricimonas	Butyricimonas	0.0	0.0
-crc	SRR30050066	SRR30050066	CRC	nanovi_emudb	emu	ncbi	0.21746704714812198	0.19079531631793256	Butyricimonas	Bacteroidales	0.0	0.0
-crc	SRR30050066	SRR30050066	CRC	nanovi_gtdb	emu	gtdb	0.6451838610686291	0.44190965369597496	Cryptobacteroides	Holdemanella	0.0	0.18777394798944183
-crc	SRR30050066	SRR30050066	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6467397228221873	0.457789342854525	Cryptobacteroides	Butyricimonas	0.0	0.07261493093435788
-crc	SRR30050067	SRR30050067	CRC	nanovi_emudb	emu_same_sam	ncbi	0.004216490667973376	0.0033595278326739608	Streptococcus	Streptococcus	0.0	0.0
-crc	SRR30050067	SRR30050067	CRC	nanovi_emudb	emu	ncbi	0.09530855963385969	0.06684436224561398	Streptococcus	Streptococcus	0.0	0.0
-crc	SRR30050067	SRR30050067	CRC	nanovi_gtdb	emu	gtdb	0.5108163707348916	0.1958482694658747	Streptococcus	Streptococcus	0.0	0.057451765204261505
-crc	SRR30050067	SRR30050067	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5119304200372535	0.19869365636059605	Streptococcus	Streptococcus	0.0	0.0507279390629411
+crc	SRR30050065	SRR30050065	CRC	nanovi_emudb	emu	ncbi	0.06955278919419382	0.05183762202976478	Blautia	Blautia	0.0	0.0
+crc	SRR30050065	SRR30050065	CRC	nanovi_gtdb	emu	gtdb	0.46263907975561996	0.32475025851751127	Bacteroides	Bacteroides	0.0	0.1441587708025321
+crc	SRR30050065	SRR30050065	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4595171530559292	0.32001892073379323	Bacteroides	Bacteroides	0.0	0.1484407831881159
+crc	SRR30050066	SRR30050066	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0019388378845602967	0.0013300923124104102	Butyricimonas	Butyricimonas	0.0	0.0
+crc	SRR30050066	SRR30050066	CRC	nanovi_emudb	emu	ncbi	0.21746704714812207	0.18977037293238783	Butyricimonas	Bacteroidales	0.0	0.0
+crc	SRR30050066	SRR30050066	CRC	nanovi_gtdb	emu	gtdb	0.6451838610686291	0.4419096536959751	Cryptobacteroides	Holdemanella	0.0	0.18777394798944183
+crc	SRR30050066	SRR30050066	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6467397228221877	0.45778934285452505	Cryptobacteroides	Butyricimonas	0.0	0.07261493093435788
+crc	SRR30050067	SRR30050067	CRC	nanovi_emudb	emu_same_sam	ncbi	0.004216490667973379	0.00335952783267396	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050067	SRR30050067	CRC	nanovi_emudb	emu	ncbi	0.09530855963385969	0.06684436224561396	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050067	SRR30050067	CRC	nanovi_gtdb	emu	gtdb	0.5108163707348915	0.19584826946587477	Streptococcus	Streptococcus	0.0	0.057451765204261505
+crc	SRR30050067	SRR30050067	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5119304200372534	0.198693656360596	Streptococcus	Streptococcus	0.0	0.0507279390629411
 crc	SRR30050068	SRR30050068	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0005529986719331748	0.0002177898991129151	Methanobrevibacter	Methanobrevibacter	0.0	0.0
-crc	SRR30050068	SRR30050068	CRC	nanovi_emudb	emu	ncbi	0.0739268811626095	0.07080743770015416	Methanobrevibacter	Methanobrevibacter	0.0	0.0
-crc	SRR30050068	SRR30050068	CRC	nanovi_gtdb	emu	gtdb	0.4621104952444361	0.3552945691523108	Methanocatella	Methanocatella	0.0	0.04793960290982173
-crc	SRR30050068	SRR30050068	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4576202334079523	0.3518382611867496	Methanocatella	Methanocatella	0.0	0.032914286990033854
-crc	SRR30050069	SRR30050069	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00301554874764627	0.0029633304123951494	Bacillus	Bacillus	0.0	0.0
-crc	SRR30050069	SRR30050069	CRC	nanovi_emudb	emu	ncbi	0.24398179937218828	0.21093624752860507	Bacillus	Faecalibacterium	0.0	0.0
-crc	SRR30050069	SRR30050069	CRC	nanovi_gtdb	emu	gtdb	0.7053582392901793	0.47934940094682926	Bacteroides	Faecalibacterium	0.0	0.10853972804126659
-crc	SRR30050069	SRR30050069	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.7051091081132057	0.48064435456307864	Bacteroides	Bacillus	0.0	0.11622203934791613
-crc	SRR30050070	SRR30050070	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0012492694520848226	0.0012289915108311686	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050070	SRR30050070	CRC	nanovi_emudb	emu	ncbi	0.07059374877785116	0.05359577608870814	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050070	SRR30050070	CRC	nanovi_gtdb	emu	gtdb	0.4060591364034572	0.1446610443296709	Gemmiger	Gemmiger	0.0	0.028114397648943884
-crc	SRR30050070	SRR30050070	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3913810658393346	0.12357670669612791	Gemmiger	Gemmiger	0.0	0.03250792492033889
-crc	SRR30050071	SRR30050071	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0016428571946922705	0.0001515300274098527	Escherichia	Escherichia	0.0	0.0
-crc	SRR30050071	SRR30050071	CRC	nanovi_emudb	emu	ncbi	0.14560920217539078	0.11424332686733626	Escherichia	Escherichia	0.0	0.0
+crc	SRR30050068	SRR30050068	CRC	nanovi_emudb	emu	ncbi	0.07392688116260948	0.07080743770015417	Methanobrevibacter	Methanobrevibacter	0.0	0.0
+crc	SRR30050068	SRR30050068	CRC	nanovi_gtdb	emu	gtdb	0.46211049524443604	0.35529456915231067	Methanocatella	Methanocatella	0.0	0.04793960290982173
+crc	SRR30050068	SRR30050068	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4576202334079523	0.35183826118674955	Methanocatella	Methanocatella	0.0	0.032914286990033854
+crc	SRR30050069	SRR30050069	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0030155487476462694	0.002963330412395237	Bacillus	Bacillus	0.0	0.0
+crc	SRR30050069	SRR30050069	CRC	nanovi_emudb	emu	ncbi	0.2439817993721882	0.21260507796922914	Bacillus	Faecalibacterium	0.0	0.0
+crc	SRR30050069	SRR30050069	CRC	nanovi_gtdb	emu	gtdb	0.7053582392901797	0.4793494009468293	Bacteroides	Faecalibacterium	0.0	0.10853972804126659
+crc	SRR30050069	SRR30050069	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.7051091081132059	0.4806443545630788	Bacteroides	Bacillus	0.0	0.11622203934791613
+crc	SRR30050070	SRR30050070	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0012492694520848224	0.0012289915108311686	Gemmiger	Gemmiger	0.0	0.0
+crc	SRR30050070	SRR30050070	CRC	nanovi_emudb	emu	ncbi	0.07059374877785114	0.05359577608870816	Gemmiger	Gemmiger	0.0	0.0
+crc	SRR30050070	SRR30050070	CRC	nanovi_gtdb	emu	gtdb	0.4060591364034573	0.14466104432967092	Gemmiger	Gemmiger	0.0	0.028114397648943884
+crc	SRR30050070	SRR30050070	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3913810658393346	0.1235767066961279	Gemmiger	Gemmiger	0.0	0.03250792492033889
+crc	SRR30050071	SRR30050071	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0016428571946922707	0.0001515300274098527	Escherichia	Escherichia	0.0	0.0
+crc	SRR30050071	SRR30050071	CRC	nanovi_emudb	emu	ncbi	0.14560920217539083	0.11424332686733626	Escherichia	Escherichia	0.0	0.0
 crc	SRR30050071	SRR30050071	CRC	nanovi_gtdb	emu	gtdb	0.23986609879532378	0.1777450137703143	Escherichia	Escherichia	0.0	0.09944186186072172
-crc	SRR30050071	SRR30050071	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.21966398258644304	0.18078610818829446	Escherichia	Escherichia	0.0	0.015354097892069637
-crc	SRR30050072	SRR30050072	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0016538354443731609	0.0015523255189102618	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050072	SRR30050072	CRC	nanovi_emudb	emu	ncbi	0.06579926163542249	0.051402357471323996	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050072	SRR30050072	CRC	nanovi_gtdb	emu	gtdb	0.48042621735697366	0.26043893517583333	Phocaeicola	Phocaeicola	0.0	0.05512406099946618
-crc	SRR30050072	SRR30050072	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4665660779549134	0.24863840387910927	Phocaeicola	Phocaeicola	0.0	0.0738478936363314
+crc	SRR30050071	SRR30050071	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.219663982586443	0.18078610818829452	Escherichia	Escherichia	0.0	0.015354097892069637
+crc	SRR30050072	SRR30050072	CRC	nanovi_emudb	emu_same_sam	ncbi	0.001653835444373161	0.0015523255189102692	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050072	SRR30050072	CRC	nanovi_emudb	emu	ncbi	0.0657992616354225	0.05099363542077999	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050072	SRR30050072	CRC	nanovi_gtdb	emu	gtdb	0.4804262173569731	0.2604389351758332	Phocaeicola	Phocaeicola	0.0	0.05512406099946618
+crc	SRR30050072	SRR30050072	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4665660779549131	0.2486384038791092	Phocaeicola	Phocaeicola	0.0	0.0738478936363314
 crc	SRR30050073	SRR30050073	CRC	nanovi_emudb	emu_same_sam	ncbi	0.000739803099660656	0.00034245947005150123	Butyricimonas	Butyricimonas	0.0	0.0
-crc	SRR30050073	SRR30050073	CRC	nanovi_emudb	emu	ncbi	0.36421757248054015	0.332587400086397	Butyricimonas	Bacteroidales	0.0	0.0
-crc	SRR30050073	SRR30050073	CRC	nanovi_gtdb	emu	gtdb	0.7698556583529941	0.6335605896909468	Cryptobacteroides	Prevotella	0.0	0.2899312057390784
-crc	SRR30050073	SRR30050073	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.7752723161396555	0.6410317466701422	Cryptobacteroides	Butyricimonas	0.0	0.0616081985046619
+crc	SRR30050073	SRR30050073	CRC	nanovi_emudb	emu	ncbi	0.3642175724805402	0.33258740008639703	Butyricimonas	Bacteroidales	0.0	0.0
+crc	SRR30050073	SRR30050073	CRC	nanovi_gtdb	emu	gtdb	0.7698556583529947	0.6335605896909465	Cryptobacteroides	Prevotella	0.0	0.2899312057390784
+crc	SRR30050073	SRR30050073	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.7752723161396561	0.6410317466701422	Cryptobacteroides	Butyricimonas	0.0	0.0616081985046619
 crc	SRR30050074	SRR30050074	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0002612692061544123	0.00022359062514552169	Butyrivibrio	Butyrivibrio	0.0	0.0
-crc	SRR30050074	SRR30050074	CRC	nanovi_emudb	emu	ncbi	0.07385903917099469	0.0615036180319465	Butyrivibrio	Butyrivibrio	0.0	0.0
-crc	SRR30050074	SRR30050074	CRC	nanovi_gtdb	emu	gtdb	0.3534405206883777	0.2694141398983585	Butyrivibrio	Butyrivibrio	0.0	0.08051006668744241
-crc	SRR30050074	SRR30050074	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.35340845618814354	0.27106746208992794	Butyrivibrio	Butyrivibrio	0.0	0.0664371169935306
+crc	SRR30050074	SRR30050074	CRC	nanovi_emudb	emu	ncbi	0.07385903917099462	0.0615036180319465	Butyrivibrio	Butyrivibrio	0.0	0.0
+crc	SRR30050074	SRR30050074	CRC	nanovi_gtdb	emu	gtdb	0.35344052068837756	0.2694141398983585	Butyrivibrio	Butyrivibrio	0.0	0.08051006668744241
+crc	SRR30050074	SRR30050074	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3534084561881436	0.27106746208992805	Butyrivibrio	Butyrivibrio	0.0	0.0664371169935306
 crc	SRR30050075	SRR30050075	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00020810350521779084	0.0001692448739581884	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050075	SRR30050075	CRC	nanovi_emudb	emu	ncbi	0.04162240093013108	0.028205442738851776	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050075	SRR30050075	CRC	nanovi_gtdb	emu	gtdb	0.3318704810879412	0.19522497709983416	Bifidobacterium	Bifidobacterium	0.0	0.09008487284900915
-crc	SRR30050075	SRR30050075	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.33070968801352185	0.19192905633936708	Bifidobacterium	Bifidobacterium	0.0	0.08664594912914558
+crc	SRR30050075	SRR30050075	CRC	nanovi_emudb	emu	ncbi	0.04162240093013108	0.02820544273885177	Bifidobacterium	Bifidobacterium	0.0	0.0
+crc	SRR30050075	SRR30050075	CRC	nanovi_gtdb	emu	gtdb	0.33187048108794115	0.19522497709983416	Bifidobacterium	Bifidobacterium	0.0	0.09008487284900915
+crc	SRR30050075	SRR30050075	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3307096880135216	0.19192905633936708	Bifidobacterium	Bifidobacterium	0.0	0.08664594912914558
 crc	SRR30050076	SRR30050076	CRC	nanovi_emudb	emu_same_sam	ncbi	0.000182876563952282	0.00017189887284849593	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050076	SRR30050076	CRC	nanovi_emudb	emu	ncbi	0.02141552599664321	0.013060736141760548	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050076	SRR30050076	CRC	nanovi_gtdb	emu	gtdb	0.48397088673489047	0.0837153278054064	Faecalibacterium	Faecalibacterium	0.0	0.037954956514931054
-crc	SRR30050076	SRR30050076	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.48629297291029966	0.08049201716777932	Faecalibacterium	Faecalibacterium	0.0	0.03327484063551047
-crc	SRR30050077	SRR30050077	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0023511853709846965	0.0020461767983534756	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050077	SRR30050077	CRC	nanovi_emudb	emu	ncbi	0.04497078326091107	0.030629807443946173	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050077	SRR30050077	CRC	nanovi_gtdb	emu	gtdb	0.36297307910600785	0.16898349163856038	Phocaeicola	Faecalibacterium	0.0	0.09396610524117653
-crc	SRR30050077	SRR30050077	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.36345660150052295	0.16627078983898214	Phocaeicola	Faecalibacterium	0.0	0.09235353584709077
+crc	SRR30050076	SRR30050076	CRC	nanovi_emudb	emu	ncbi	0.021415525996643207	0.013060736141760546	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050076	SRR30050076	CRC	nanovi_gtdb	emu	gtdb	0.48397088673489047	0.08371532780540639	Faecalibacterium	Faecalibacterium	0.0	0.037954956514931054
+crc	SRR30050076	SRR30050076	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.48629297291029966	0.08049201716777928	Faecalibacterium	Faecalibacterium	0.0	0.03327484063551047
+crc	SRR30050077	SRR30050077	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0023511853709846956	0.0020461767983534335	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050077	SRR30050077	CRC	nanovi_emudb	emu	ncbi	0.044970783260911064	0.03030878473894511	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050077	SRR30050077	CRC	nanovi_gtdb	emu	gtdb	0.3629730791060076	0.16898349163856038	Phocaeicola	Faecalibacterium	0.0	0.09396610524117653
+crc	SRR30050077	SRR30050077	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.36345660150052295	0.1662707898389821	Phocaeicola	Faecalibacterium	0.0	0.09235353584709077
 crc	SRR30050078	SRR30050078	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0007137830955235143	0.00029889908452115834	Butyricimonas	Butyricimonas	0.0	0.0
-crc	SRR30050078	SRR30050078	CRC	nanovi_emudb	emu	ncbi	0.2888629306531589	0.2546938732191226	Butyricimonas	Escherichia	0.0	0.0
-crc	SRR30050078	SRR30050078	CRC	nanovi_gtdb	emu	gtdb	0.5847716882886355	0.516896880182371	Cryptobacteroides	Escherichia	0.0	0.21832341878261916
-crc	SRR30050078	SRR30050078	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5872110727482842	0.5178681468385855	Cryptobacteroides	Butyricimonas	0.0	0.08662242326597698
-crc	SRR30050079	SRR30050079	CRC	nanovi_emudb	emu_same_sam	ncbi	0.003760652231070173	0.0017435504799197528	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050079	SRR30050079	CRC	nanovi_emudb	emu	ncbi	0.16807664990984772	0.12984098525391846	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050079	SRR30050079	CRC	nanovi_gtdb	emu	gtdb	0.6700089450681673	0.4360140267874769	Faecalibacterium	Faecalibacterium	0.0	0.24903601641415066
-crc	SRR30050079	SRR30050079	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6729082265278463	0.42985002400288685	Faecalibacterium	Faecalibacterium	0.0	0.17978398053516034
-crc	SRR30050080	SRR30050080	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0014217599481677857	0.0002205546980105197	Klebsiella	Klebsiella	0.0	0.0
-crc	SRR30050080	SRR30050080	CRC	nanovi_emudb	emu	ncbi	0.06361729916904696	0.054295937226018526	Klebsiella	Klebsiella	0.0	0.0
-crc	SRR30050080	SRR30050080	CRC	nanovi_gtdb	emu	gtdb	0.4256678401830965	0.20372932500484672	Klebsiella	Klebsiella	0.0	0.03474868799044089
-crc	SRR30050080	SRR30050080	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.42010597500893754	0.20365477622722933	Klebsiella	Klebsiella	0.0	0.05676468013122176
+crc	SRR30050078	SRR30050078	CRC	nanovi_emudb	emu	ncbi	0.288862930653159	0.2565201113539722	Butyricimonas	Escherichia	0.0	0.0
+crc	SRR30050078	SRR30050078	CRC	nanovi_gtdb	emu	gtdb	0.5847716882886356	0.5168968801823711	Cryptobacteroides	Escherichia	0.0	0.21832341878261916
+crc	SRR30050078	SRR30050078	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.587211072748284	0.5178681468385853	Cryptobacteroides	Butyricimonas	0.0	0.08662242326597698
+crc	SRR30050079	SRR30050079	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0037606522310701745	0.0017435504799197526	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050079	SRR30050079	CRC	nanovi_emudb	emu	ncbi	0.1680766499098478	0.12984098525391857	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050079	SRR30050079	CRC	nanovi_gtdb	emu	gtdb	0.6700089450681675	0.4360140267874771	Faecalibacterium	Faecalibacterium	0.0	0.24903601641415066
+crc	SRR30050079	SRR30050079	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6729082265278463	0.429850024002887	Faecalibacterium	Faecalibacterium	0.0	0.17978398053516034
+crc	SRR30050080	SRR30050080	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0014217599481677855	0.0002205546980105197	Klebsiella	Klebsiella	0.0	0.0
+crc	SRR30050080	SRR30050080	CRC	nanovi_emudb	emu	ncbi	0.06361729916904695	0.05429593722601853	Klebsiella	Klebsiella	0.0	0.0
+crc	SRR30050080	SRR30050080	CRC	nanovi_gtdb	emu	gtdb	0.4256678401830966	0.2037293250048468	Klebsiella	Klebsiella	0.0	0.03474868799044089
+crc	SRR30050080	SRR30050080	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.42010597500893765	0.2036547762272295	Klebsiella	Klebsiella	0.0	0.05676468013122176
 crc	SRR30050081	SRR30050081	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0022006451124255127	0.0020643563822355182	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050081	SRR30050081	CRC	nanovi_emudb	emu	ncbi	0.14002125874161903	0.12545696991821984	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050081	SRR30050081	CRC	nanovi_gtdb	emu	gtdb	0.5837078781667756	0.37066919435597906	Faecalibacterium	Faecalibacterium	0.0	0.18039424394602224
-crc	SRR30050081	SRR30050081	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5796742020821968	0.35130903410583914	Faecalibacterium	Faecalibacterium	0.0	0.12636519363542295
-crc	SRR30050082	SRR30050082	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0013941540714916545	0.0013242939496538114	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050082	SRR30050082	CRC	nanovi_emudb	emu	ncbi	0.09049652007597819	0.06751382873765362	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050082	SRR30050082	CRC	nanovi_gtdb	emu	gtdb	0.6260118900879875	0.3516830793848224	Faecalibacterium	Faecalibacterium	0.0	0.1252040819698978
-crc	SRR30050082	SRR30050082	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6261969964622579	0.35252754790361485	Faecalibacterium	Faecalibacterium	0.0	0.12766557506844206
-crc	SRR30050083	SRR30050083	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0019537130949121386	0.001469881516774417	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050083	SRR30050083	CRC	nanovi_emudb	emu	ncbi	0.10638560967983145	0.03502147293373773	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050083	SRR30050083	CRC	nanovi_gtdb	emu	gtdb	0.6760145334189632	0.15590424102831427	Faecalibacterium	Faecalibacterium	0.0	0.07481809185976598
-crc	SRR30050083	SRR30050083	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6803776805288799	0.1412262364466317	Faecalibacterium	Faecalibacterium	0.0	0.04579050613745173
+crc	SRR30050081	SRR30050081	CRC	nanovi_emudb	emu	ncbi	0.14002125874161905	0.1254569699182199	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050081	SRR30050081	CRC	nanovi_gtdb	emu	gtdb	0.5837078781667758	0.3706691943559791	Faecalibacterium	Faecalibacterium	0.0	0.18039424394602224
+crc	SRR30050081	SRR30050081	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.579674202082197	0.35130903410583914	Faecalibacterium	Faecalibacterium	0.0	0.12636519363542295
+crc	SRR30050082	SRR30050082	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0013941540714916536	0.0013242939496538114	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050082	SRR30050082	CRC	nanovi_emudb	emu	ncbi	0.09049652007597815	0.06751382873765359	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050082	SRR30050082	CRC	nanovi_gtdb	emu	gtdb	0.6260118900879877	0.35168307938482246	Faecalibacterium	Faecalibacterium	0.0	0.1252040819698978
+crc	SRR30050082	SRR30050082	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6261969964622582	0.3525275479036149	Faecalibacterium	Faecalibacterium	0.0	0.12766557506844206
+crc	SRR30050083	SRR30050083	CRC	nanovi_emudb	emu_same_sam	ncbi	0.001953713094912138	0.0014698815167744172	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050083	SRR30050083	CRC	nanovi_emudb	emu	ncbi	0.1063856096798314	0.03502147293373773	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050083	SRR30050083	CRC	nanovi_gtdb	emu	gtdb	0.6760145334189628	0.15590424102831424	Faecalibacterium	Faecalibacterium	0.0	0.07481809185976598
+crc	SRR30050083	SRR30050083	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6803776805288799	0.14122623644663174	Faecalibacterium	Faecalibacterium	0.0	0.04579050613745173
 crc	SRR30050084	SRR30050084	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0002574051892930962	0.0002185150943304155	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050084	SRR30050084	CRC	nanovi_emudb	emu	ncbi	0.1267775860347486	0.09771986496989259	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050084	SRR30050084	CRC	nanovi_gtdb	emu	gtdb	0.5579996070451226	0.2541255667055911	Phocaeicola	Phocaeicola	0.0	0.07314364470823818
-crc	SRR30050084	SRR30050084	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5089805491352496	0.2507163644974439	Phocaeicola	Phocaeicola	0.0	0.0878771930786233
+crc	SRR30050084	SRR30050084	CRC	nanovi_emudb	emu	ncbi	0.1267775860347486	0.09771986496989257	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050084	SRR30050084	CRC	nanovi_gtdb	emu	gtdb	0.5579996070451225	0.25412556670559117	Phocaeicola	Phocaeicola	0.0	0.07314364470823818
+crc	SRR30050084	SRR30050084	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5089805491352496	0.25071636449744383	Phocaeicola	Phocaeicola	0.0	0.0878771930786233
 crc	SRR30050085	SRR30050085	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0008117525697000365	0.00038134875837670984	Dialister	Dialister	0.0	0.0
-crc	SRR30050085	SRR30050085	CRC	nanovi_emudb	emu	ncbi	0.17787133380494374	0.129012069186162	Dialister	Dialister	0.0	0.0
-crc	SRR30050085	SRR30050085	CRC	nanovi_gtdb	emu	gtdb	0.7126568811412883	0.43828161795734044	Prevotella	Dialister	0.0	0.14618092925839477
-crc	SRR30050085	SRR30050085	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.7124461259178079	0.45846263756211286	Prevotella	Dialister	0.0	0.10729960543198813
-crc	SRR30050086	SRR30050086	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0018604399881031945	0.001019330423891401	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050086	SRR30050086	CRC	nanovi_emudb	emu	ncbi	0.078269612484728	0.06599643923092265	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050086	SRR30050086	CRC	nanovi_gtdb	emu	gtdb	0.4784396062538697	0.13753207190995045	Phocaeicola	Phocaeicola	0.0	0.0885196231804136
-crc	SRR30050086	SRR30050086	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4472296222754633	0.13946166544718272	Phocaeicola	Phocaeicola	0.0	0.07998248605973839
-crc	SRR30050087	SRR30050087	CRC	nanovi_emudb	emu_same_sam	ncbi	0.001896849612736832	0.0006364190680798841	Bacteroides	Bacteroides	0.0	0.0
-crc	SRR30050087	SRR30050087	CRC	nanovi_emudb	emu	ncbi	0.0501409948427845	0.03634067522192644	Bacteroides	Bacteroides	0.0	0.0
-crc	SRR30050087	SRR30050087	CRC	nanovi_gtdb	emu	gtdb	0.4480938392807867	0.2731861446818296	Bacteroides	Bacteroides	0.0	0.11657028362789046
-crc	SRR30050087	SRR30050087	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.43916247325204094	0.26065134596734224	Bacteroides	Bacteroides	0.0	0.12198757292360271
+crc	SRR30050085	SRR30050085	CRC	nanovi_emudb	emu	ncbi	0.17787133380494372	0.129012069186162	Dialister	Dialister	0.0	0.0
+crc	SRR30050085	SRR30050085	CRC	nanovi_gtdb	emu	gtdb	0.712656881141289	0.4382816179573405	Prevotella	Dialister	0.0	0.14618092925839477
+crc	SRR30050085	SRR30050085	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.7124461259178079	0.4584626375621128	Prevotella	Dialister	0.0	0.10729960543198813
+crc	SRR30050086	SRR30050086	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0018604399881031945	0.0010193304238914013	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050086	SRR30050086	CRC	nanovi_emudb	emu	ncbi	0.07826961248472802	0.06599643923092265	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050086	SRR30050086	CRC	nanovi_gtdb	emu	gtdb	0.4784396062538699	0.13753207190995043	Phocaeicola	Phocaeicola	0.0	0.0885196231804136
+crc	SRR30050086	SRR30050086	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.44722962227546353	0.13946166544718275	Phocaeicola	Phocaeicola	0.0	0.07998248605973839
+crc	SRR30050087	SRR30050087	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0018968496127368317	0.0006364190680798757	Bacteroides	Bacteroides	0.0	0.0
+crc	SRR30050087	SRR30050087	CRC	nanovi_emudb	emu	ncbi	0.050140994842784496	0.0353927358871643	Bacteroides	Bacteroides	0.0	0.0
+crc	SRR30050087	SRR30050087	CRC	nanovi_gtdb	emu	gtdb	0.4480938392807866	0.2731861446818295	Bacteroides	Bacteroides	0.0	0.11657028362789046
+crc	SRR30050087	SRR30050087	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4391624732520408	0.26065134596734224	Bacteroides	Bacteroides	0.0	0.12198757292360271
 crc	SRR30050088	SRR30050088	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00014743930187899128	0.00012207917107625026	Phocaeicola	Phocaeicola	0.0	0.0
 crc	SRR30050088	SRR30050088	CRC	nanovi_emudb	emu	ncbi	0.03754647528169937	0.02422465476800041	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050088	SRR30050088	CRC	nanovi_gtdb	emu	gtdb	0.46917154228054836	0.15591462664697575	Phocaeicola	Phocaeicola	0.0	0.07959396022776878
-crc	SRR30050088	SRR30050088	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.46918101520724864	0.14224437986105323	Phocaeicola	Phocaeicola	0.0	0.07293744620868564
-crc	SRR30050089	SRR30050089	CRC	nanovi_emudb	emu_same_sam	ncbi	0.002172816973191454	0.0015581881943249533	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050089	SRR30050089	CRC	nanovi_emudb	emu	ncbi	0.06706505471135096	0.04606498151411277	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050088	SRR30050088	CRC	nanovi_gtdb	emu	gtdb	0.4691715422805484	0.15591462664697575	Phocaeicola	Phocaeicola	0.0	0.07959396022776878
+crc	SRR30050088	SRR30050088	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.46918101520724853	0.14224437986105323	Phocaeicola	Phocaeicola	0.0	0.07293744620868564
+crc	SRR30050089	SRR30050089	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0021728169731914542	0.0015581881943249531	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050089	SRR30050089	CRC	nanovi_emudb	emu	ncbi	0.06706505471135094	0.046064981514112785	Faecalibacterium	Faecalibacterium	0.0	0.0
 crc	SRR30050089	SRR30050089	CRC	nanovi_gtdb	emu	gtdb	0.4686137764329781	0.21888522985248013	Faecalibacterium	Faecalibacterium	0.0	0.06044481036109532
-crc	SRR30050089	SRR30050089	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.45742462465773603	0.2117973662040334	Faecalibacterium	Faecalibacterium	0.0	0.06850027595860171
-crc	SRR30050090	SRR30050090	CRC	nanovi_emudb	emu_same_sam	ncbi	0.002665069230613953	0.0023456500829270505	Prevotella	Prevotella	0.0	0.0
-crc	SRR30050090	SRR30050090	CRC	nanovi_emudb	emu	ncbi	0.07083082991574852	0.0376229568858915	Prevotella	Prevotella	0.0	0.0
-crc	SRR30050090	SRR30050090	CRC	nanovi_gtdb	emu	gtdb	0.415922825775354	0.22371615999717992	Prevotella	Prevotella	0.0	0.1284651736163705
-crc	SRR30050090	SRR30050090	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.41875924320202557	0.22423933642055338	Prevotella	Prevotella	0.0	0.1154917459380192
+crc	SRR30050089	SRR30050089	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.45742462465773615	0.21179736620403344	Faecalibacterium	Faecalibacterium	0.0	0.06850027595860171
+crc	SRR30050090	SRR30050090	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0026650692306139524	0.0023456500829270492	Prevotella	Prevotella	0.0	0.0
+crc	SRR30050090	SRR30050090	CRC	nanovi_emudb	emu	ncbi	0.0708308299157485	0.0376229568858915	Prevotella	Prevotella	0.0	0.0
+crc	SRR30050090	SRR30050090	CRC	nanovi_gtdb	emu	gtdb	0.4159228257753541	0.22371615999717984	Prevotella	Prevotella	0.0	0.1284651736163705
+crc	SRR30050090	SRR30050090	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4187592432020257	0.2242393364205535	Prevotella	Prevotella	0.0	0.1154917459380192
 crc	SRR30050091	SRR30050091	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0013354818738279095	0.0003531799457159715	Escherichia	Escherichia	0.0	0.0
-crc	SRR30050091	SRR30050091	CRC	nanovi_emudb	emu	ncbi	0.009573392807725607	0.006411046114510046	Escherichia	Escherichia	0.0	0.0
-crc	SRR30050091	SRR30050091	CRC	nanovi_gtdb	emu	gtdb	0.16091457091734057	0.05423815509313836	Escherichia	Escherichia	0.0	0.0051349284387631955
+crc	SRR30050091	SRR30050091	CRC	nanovi_emudb	emu	ncbi	0.009573392807725605	0.006411046114510047	Escherichia	Escherichia	0.0	0.0
+crc	SRR30050091	SRR30050091	CRC	nanovi_gtdb	emu	gtdb	0.16091457091734065	0.05423815509313836	Escherichia	Escherichia	0.0	0.0051349284387631955
 crc	SRR30050091	SRR30050091	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.1628793574614636	0.0533518089428636	Escherichia	Escherichia	0.0	0.004639055596360307
 crc	SRR30050092	SRR30050092	CRC	nanovi_emudb	emu_same_sam	ncbi	0.001179786300119982	0.0006821835230266274	Pseudoclostridium	Pseudoclostridium	0.0	0.0
-crc	SRR30050092	SRR30050092	CRC	nanovi_emudb	emu	ncbi	0.221582704521376	0.1675685159900611	Pseudoclostridium	Oscillibacter	0.0	0.0
-crc	SRR30050092	SRR30050092	CRC	nanovi_gtdb	emu	gtdb	0.7517454579321224	0.660420544768343	CAG-273	Oscillibacter	0.0	0.15239931926000522
-crc	SRR30050092	SRR30050092	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.7462436873243946	0.6644467042864302	CAG-273	Pseudoclostridium	0.0	0.1284294284647197
+crc	SRR30050092	SRR30050092	CRC	nanovi_emudb	emu	ncbi	0.22158270452137585	0.1675685159900611	Pseudoclostridium	Oscillibacter	0.0	0.0
+crc	SRR30050092	SRR30050092	CRC	nanovi_gtdb	emu	gtdb	0.7517454579321219	0.6604205447683429	CAG-273	Oscillibacter	0.0	0.15239931926000522
+crc	SRR30050092	SRR30050092	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.7462436873243941	0.6644467042864303	CAG-273	Pseudoclostridium	0.0	0.1284294284647197
 crc	SRR30050093	SRR30050093	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0003112271651610906	0.00017737291652074577	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050093	SRR30050093	CRC	nanovi_emudb	emu	ncbi	0.06034621451274044	0.043346577098848635	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050093	SRR30050093	CRC	nanovi_gtdb	emu	gtdb	0.5371676900145762	0.22261895802807638	Gemmiger	Gemmiger	0.0	0.08512809585472658
-crc	SRR30050093	SRR30050093	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5319683612956021	0.22560574036057057	Gemmiger	Gemmiger	0.0	0.07531213554379813
-crc	SRR30050094	SRR30050094	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0005451649818981728	0.0002999922247496219	Holdemanella	Holdemanella	0.0	0.0
-crc	SRR30050094	SRR30050094	CRC	nanovi_emudb	emu	ncbi	0.08230887352335724	0.06789655759762395	Holdemanella	Holdemanella	0.0	0.0
-crc	SRR30050094	SRR30050094	CRC	nanovi_gtdb	emu	gtdb	0.5683100285020672	0.23767315492322236	Holdemanella	Holdemanella	0.0	0.08050659915126127
+crc	SRR30050093	SRR30050093	CRC	nanovi_emudb	emu	ncbi	0.06034621451274046	0.04334657709884865	Gemmiger	Gemmiger	0.0	0.0
+crc	SRR30050093	SRR30050093	CRC	nanovi_gtdb	emu	gtdb	0.5371676900145763	0.22261895802807635	Gemmiger	Gemmiger	0.0	0.08512809585472658
+crc	SRR30050093	SRR30050093	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.531968361295602	0.22560574036057057	Gemmiger	Gemmiger	0.0	0.07531213554379813
+crc	SRR30050094	SRR30050094	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0005451649818981728	0.0002999922247496218	Holdemanella	Holdemanella	0.0	0.0
+crc	SRR30050094	SRR30050094	CRC	nanovi_emudb	emu	ncbi	0.08230887352335726	0.06789655759762392	Holdemanella	Holdemanella	0.0	0.0
+crc	SRR30050094	SRR30050094	CRC	nanovi_gtdb	emu	gtdb	0.5683100285020672	0.23767315492322233	Holdemanella	Holdemanella	0.0	0.08050659915126127
 crc	SRR30050094	SRR30050094	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5673625806039577	0.24181913816135236	Holdemanella	Holdemanella	0.0	0.05181732567239188
-crc	SRR30050095	SRR30050095	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0032924871317628075	0.0013260529535019045	Ruminococcus	Ruminococcus	0.0	0.0
-crc	SRR30050095	SRR30050095	CRC	nanovi_emudb	emu	ncbi	0.21870417039420162	0.18191308027142794	Ruminococcus	Ruminococcus	0.0	0.0
-crc	SRR30050095	SRR30050095	CRC	nanovi_gtdb	emu	gtdb	0.7283071778353596	0.6022792036296613	CAG-177	Ruminococcoides	0.0	0.20654581730787883
-crc	SRR30050095	SRR30050095	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.7319081890782394	0.6030057558489643	CAG-177	Ruminococcoides	0.0	0.1649404810056524
+crc	SRR30050095	SRR30050095	CRC	nanovi_emudb	emu_same_sam	ncbi	0.003292487131762808	0.0013260529535019043	Ruminococcus	Ruminococcus	0.0	0.0
+crc	SRR30050095	SRR30050095	CRC	nanovi_emudb	emu	ncbi	0.21870417039420162	0.18191308027142786	Ruminococcus	Ruminococcus	0.0	0.0
+crc	SRR30050095	SRR30050095	CRC	nanovi_gtdb	emu	gtdb	0.7283071778353595	0.6022792036296613	CAG-177	Ruminococcoides	0.0	0.20654581730787883
+crc	SRR30050095	SRR30050095	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.7319081890782397	0.6030057558489643	CAG-177	Ruminococcoides	0.0	0.1649404810056524
 crc	SRR30050096	SRR30050096	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00047151738689066964	0.0003139689360392296	Parabacteroides	Parabacteroides	0.0	0.0
-crc	SRR30050096	SRR30050096	CRC	nanovi_emudb	emu	ncbi	0.09647204744953938	0.064981100309811	Parabacteroides	Parabacteroides	0.0	0.0
-crc	SRR30050096	SRR30050096	CRC	nanovi_gtdb	emu	gtdb	0.5263689742524592	0.40991433060962607	Parabacteroides	Parabacteroides	0.0	0.12498852962301751
-crc	SRR30050096	SRR30050096	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5251950379224555	0.4067403736917433	Parabacteroides	Parabacteroides	0.0	0.12274360862238486
-crc	SRR30050097	SRR30050097	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0015758620510929534	0.0015034966449789854	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050097	SRR30050097	CRC	nanovi_emudb	emu	ncbi	0.07372725652300696	0.044214473510351585	Gemmiger	Gemmiger	0.0	0.0
+crc	SRR30050096	SRR30050096	CRC	nanovi_emudb	emu	ncbi	0.0964720474495394	0.06498110030981098	Parabacteroides	Parabacteroides	0.0	0.0
+crc	SRR30050096	SRR30050096	CRC	nanovi_gtdb	emu	gtdb	0.5263689742524589	0.409914330609626	Parabacteroides	Parabacteroides	0.0	0.12498852962301751
+crc	SRR30050096	SRR30050096	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5251950379224553	0.4067403736917432	Parabacteroides	Parabacteroides	0.0	0.12274360862238486
+crc	SRR30050097	SRR30050097	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0015758620510929534	0.0015034966449789856	Gemmiger	Gemmiger	0.0	0.0
+crc	SRR30050097	SRR30050097	CRC	nanovi_emudb	emu	ncbi	0.07372725652300699	0.044214473510351585	Gemmiger	Gemmiger	0.0	0.0
 crc	SRR30050097	SRR30050097	CRC	nanovi_gtdb	emu	gtdb	0.3586935745273077	0.15930873919553973	Gemmiger	Gemmiger	0.0	0.09092238793383967
-crc	SRR30050097	SRR30050097	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.36524215409340305	0.16440113862980205	Gemmiger	Gemmiger	0.0	0.06933514854841
-crc	SRR30050098	SRR30050098	CRC	nanovi_emudb	emu_same_sam	ncbi	0.001602598159213394	0.0012445508579781793	Akkermansia	Akkermansia	0.0	0.0
-crc	SRR30050098	SRR30050098	CRC	nanovi_emudb	emu	ncbi	0.2225074095974845	0.16021422784491388	Akkermansia	Akkermansia	0.0	0.0
+crc	SRR30050097	SRR30050097	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3652421540934031	0.16440113862980205	Gemmiger	Gemmiger	0.0	0.06933514854841
+crc	SRR30050098	SRR30050098	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0016025981592133942	0.0012445508579781793	Akkermansia	Akkermansia	0.0	0.0
+crc	SRR30050098	SRR30050098	CRC	nanovi_emudb	emu	ncbi	0.22250740959748447	0.16021422784491393	Akkermansia	Akkermansia	0.0	0.0
 crc	SRR30050098	SRR30050098	CRC	nanovi_gtdb	emu	gtdb	0.6929151974507206	0.5688461345489252	Cryptobacteroides	Akkermansia	0.0	0.19013550521077494
-crc	SRR30050098	SRR30050098	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6906884386298031	0.5448487635275734	Cryptobacteroides	Akkermansia	0.0	0.12911446017302214
-crc	SRR30050099	SRR30050099	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00012576573284092034	7.612968541176844e-05	Akkermansia	Akkermansia	0.0	0.0
-crc	SRR30050099	SRR30050099	CRC	nanovi_emudb	emu	ncbi	0.01631473802281676	0.012601183184459675	Akkermansia	Akkermansia	0.0	0.0
-crc	SRR30050099	SRR30050099	CRC	nanovi_gtdb	emu	gtdb	0.49686750822952647	0.17018810379162386	Faecalibacterium	Akkermansia	0.0	0.03609905050134438
-crc	SRR30050099	SRR30050099	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.49572950757110584	0.17046094519279348	Faecalibacterium	Akkermansia	0.0	0.03781355987568351
+crc	SRR30050098	SRR30050098	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6906884386298029	0.5448487635275733	Cryptobacteroides	Akkermansia	0.0	0.12911446017302214
+crc	SRR30050099	SRR30050099	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00012576573284092034	7.612968541176833e-05	Akkermansia	Akkermansia	0.0	0.0
+crc	SRR30050099	SRR30050099	CRC	nanovi_emudb	emu	ncbi	0.016314738022816765	0.012601183184459677	Akkermansia	Akkermansia	0.0	0.0
+crc	SRR30050099	SRR30050099	CRC	nanovi_gtdb	emu	gtdb	0.4968675082295267	0.17018810379162394	Faecalibacterium	Akkermansia	0.0	0.03609905050134438
+crc	SRR30050099	SRR30050099	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4957295075711059	0.1704609451927934	Faecalibacterium	Akkermansia	0.0	0.03781355987568351
 crc	SRR30050100	SRR30050100	CRC	nanovi_emudb	emu_same_sam	ncbi	0.000208611005010065	0.00018614750339239006	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050100	SRR30050100	CRC	nanovi_emudb	emu	ncbi	0.05566210618219051	0.04687813166784362	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050100	SRR30050100	CRC	nanovi_emudb	emu	ncbi	0.055662106182190516	0.04687813166784362	Faecalibacterium	Faecalibacterium	0.0	0.0
 crc	SRR30050100	SRR30050100	CRC	nanovi_gtdb	emu	gtdb	0.563005652809186	0.2639432191779706	Phocaeicola	Faecalibacterium	0.0	0.0879480495755627
-crc	SRR30050100	SRR30050100	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5618302914984503	0.26034262310693895	Phocaeicola	Faecalibacterium	0.0	0.08655510765764247
+crc	SRR30050100	SRR30050100	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5618302914984501	0.26034262310693884	Phocaeicola	Faecalibacterium	0.0	0.08655510765764247
 crc	SRR30050101	SRR30050101	CRC	nanovi_emudb	emu_same_sam	ncbi	9.559081494884148e-05	8.3933865139414e-05	Akkermansia	Akkermansia	0.0	0.0
-crc	SRR30050101	SRR30050101	CRC	nanovi_emudb	emu	ncbi	0.04254240487589495	0.03599097940074192	Akkermansia	Akkermansia	0.0	0.0
-crc	SRR30050101	SRR30050101	CRC	nanovi_gtdb	emu	gtdb	0.3310940512492886	0.3115955191928457	Bifidobacterium	Akkermansia	0.0	0.01401977688802301
-crc	SRR30050101	SRR30050101	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3324878561806305	0.3087333534644141	Bifidobacterium	Akkermansia	0.0	0.008834005699877514
-crc	SRR30050102	SRR30050102	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0017021598971130073	0.0016599844818269594	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050102	SRR30050102	CRC	nanovi_emudb	emu	ncbi	0.036940365355719505	0.02090672306921528	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050102	SRR30050102	CRC	nanovi_gtdb	emu	gtdb	0.38745290505796237	0.1728619426687967	Bifidobacterium	Bifidobacterium	0.0	0.14463408538492392
-crc	SRR30050102	SRR30050102	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.40317952605605145	0.1757632764952597	Bifidobacterium	Bifidobacterium	0.0	0.14879945697402525
+crc	SRR30050101	SRR30050101	CRC	nanovi_emudb	emu	ncbi	0.042542404875894946	0.03599097940074192	Akkermansia	Akkermansia	0.0	0.0
+crc	SRR30050101	SRR30050101	CRC	nanovi_gtdb	emu	gtdb	0.33109405124928853	0.31159551919284584	Bifidobacterium	Akkermansia	0.0	0.01401977688802301
+crc	SRR30050101	SRR30050101	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.33248785618063065	0.3087333534644143	Bifidobacterium	Akkermansia	0.0	0.008834005699877514
+crc	SRR30050102	SRR30050102	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0017021598971130073	0.0016599844818269596	Bifidobacterium	Bifidobacterium	0.0	0.0
+crc	SRR30050102	SRR30050102	CRC	nanovi_emudb	emu	ncbi	0.0369403653557195	0.020906723069215292	Bifidobacterium	Bifidobacterium	0.0	0.0
+crc	SRR30050102	SRR30050102	CRC	nanovi_gtdb	emu	gtdb	0.3874529050579626	0.1728619426687967	Bifidobacterium	Bifidobacterium	0.0	0.14463408538492392
+crc	SRR30050102	SRR30050102	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4031795260560515	0.1757632764952597	Bifidobacterium	Bifidobacterium	0.0	0.14879945697402525
 crc	SRR30050103	SRR30050103	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00037041972113014527	0.00017326910251008786	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050103	SRR30050103	CRC	nanovi_emudb	emu	ncbi	0.07591446382375168	0.04689568821912998	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050103	SRR30050103	CRC	nanovi_gtdb	emu	gtdb	0.600211542475736	0.3162434504051471	Gemmiger	Gemmiger	0.0	0.1029008710182369
-crc	SRR30050103	SRR30050103	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6040792900234219	0.3009446208580857	Gemmiger	Gemmiger	0.0	0.09077721578589906
+crc	SRR30050103	SRR30050103	CRC	nanovi_emudb	emu	ncbi	0.07591446382375168	0.04689568821913	Gemmiger	Gemmiger	0.0	0.0
+crc	SRR30050103	SRR30050103	CRC	nanovi_gtdb	emu	gtdb	0.600211542475736	0.3162434504051473	Gemmiger	Gemmiger	0.0	0.1029008710182369
+crc	SRR30050103	SRR30050103	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6040792900234216	0.30094462085808577	Gemmiger	Gemmiger	0.0	0.09077721578589906
 crc	SRR30050104	SRR30050104	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00031283142201466775	0.0001550621424844837	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050104	SRR30050104	CRC	nanovi_emudb	emu	ncbi	0.06571197355313681	0.03129501146598924	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050104	SRR30050104	CRC	nanovi_gtdb	emu	gtdb	0.5505099784353613	0.24318039627769	Gemmiger	Gemmiger	0.0	0.06994247900716558
-crc	SRR30050104	SRR30050104	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5487364927859273	0.22834369054397272	Gemmiger	Gemmiger	0.0	0.05009157911334259
-crc	SRR30050105	SRR30050105	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0002112727869977469	0.00014032217866399692	Bacteroides	Bacteroides	0.0	0.0
-crc	SRR30050105	SRR30050105	CRC	nanovi_emudb	emu	ncbi	0.05522102467067505	0.0355129713451409	Bacteroides	Bacteroides	0.0	0.0
-crc	SRR30050105	SRR30050105	CRC	nanovi_gtdb	emu	gtdb	0.3872232232070296	0.1591336275278535	Bacteroides	Bacteroides	0.0	0.08059234454791854
-crc	SRR30050105	SRR30050105	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.37654807065934737	0.1503691273654522	Bacteroides	Bacteroides	0.0	0.0951477518957626
-crc	SRR30050106	SRR30050106	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0019032268002858823	0.0004597437579771387	Prevotella	Prevotella	0.0	0.0
-crc	SRR30050106	SRR30050106	CRC	nanovi_emudb	emu	ncbi	0.07213657251614033	0.043470078590283186	Prevotella	Prevotella	0.0	0.0
-crc	SRR30050106	SRR30050106	CRC	nanovi_gtdb	emu	gtdb	0.5346106073524072	0.21018264038763146	Prevotella	Prevotella	0.0	0.11031572156878316
-crc	SRR30050106	SRR30050106	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5276135787562799	0.2122400700686337	Prevotella	Prevotella	0.0	0.10412109175870167
-crc	SRR30050107	SRR30050107	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0035121741948144465	0.0027178672500910977	Prevotella	Prevotella	0.0	0.0
-crc	SRR30050107	SRR30050107	CRC	nanovi_emudb	emu	ncbi	0.17742643016340348	0.11653328326731924	Prevotella	Prevotella	0.0	0.0
-crc	SRR30050107	SRR30050107	CRC	nanovi_gtdb	emu	gtdb	0.7521653589709442	0.47166591821107895	Prevotella	Prevotella	0.0	0.1335683989883443
-crc	SRR30050107	SRR30050107	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.7522327899644581	0.47176669867642806	Prevotella	Prevotella	0.0	0.11299292232121115
-crc	SRR30050108	SRR30050108	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0020757779014006538	0.0018420886523305585	Bacteroides	Bacteroides	0.0	0.0
-crc	SRR30050108	SRR30050108	CRC	nanovi_emudb	emu	ncbi	0.1315529468074101	0.10607246363686496	Bacteroides	Bacteroides	0.0	0.0
-crc	SRR30050108	SRR30050108	CRC	nanovi_gtdb	emu	gtdb	0.6139653226324078	0.3758629181316969	Phocaeicola	Phocaeicola	0.0	0.09976325078143713
-crc	SRR30050108	SRR30050108	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6146989491383446	0.3785778874994972	Phocaeicola	Phocaeicola	0.0	0.06884482258771032
-crc	SRR30050109	SRR30050109	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0017806833565793705	0.0012656892563266534	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050109	SRR30050109	CRC	nanovi_emudb	emu	ncbi	0.038277251513011167	0.01842636572396886	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050109	SRR30050109	CRC	nanovi_gtdb	emu	gtdb	0.21440038673915357	0.1253692194633246	Bifidobacterium	Bifidobacterium	0.0	0.03686741010816498
-crc	SRR30050109	SRR30050109	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.21232377850945594	0.13099426396293462	Bifidobacterium	Bifidobacterium	0.0	0.044314191306722824
-crc	SRR30050110	SRR30050110	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0002939643878013999	0.00021134200081304407	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050110	SRR30050110	CRC	nanovi_emudb	emu	ncbi	0.0361674560896405	0.021273886122275775	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050110	SRR30050110	CRC	nanovi_gtdb	emu	gtdb	0.4272094513425877	0.11973999261959269	Faecalibacterium	Faecalibacterium	0.0	0.04635455726170422
-crc	SRR30050110	SRR30050110	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.41791799268400476	0.11772686500414777	Faecalibacterium	Faecalibacterium	0.0	0.045328707953048795
-crc	SRR30050111	SRR30050111	CRC	nanovi_emudb	emu_same_sam	ncbi	0.004222792193279969	0.004183008797415436	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050111	SRR30050111	CRC	nanovi_emudb	emu	ncbi	0.04909566794926939	0.0390099884688966	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050111	SRR30050111	CRC	nanovi_gtdb	emu	gtdb	0.3438709175871936	0.18453141353040842	Phocaeicola	Phocaeicola	0.0	0.059519854851118256
-crc	SRR30050111	SRR30050111	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.33951241867899223	0.17730226826559112	Phocaeicola	Phocaeicola	0.0	0.05737340849630916
-crc	SRR30050112	SRR30050112	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0036490934659350583	0.002807376435436466	Butyrivibrio	Butyrivibrio	0.0	0.0
-crc	SRR30050112	SRR30050112	CRC	nanovi_emudb	emu	ncbi	0.09166582868758259	0.05111257645290864	Butyrivibrio	Butyrivibrio	0.0	0.0
-crc	SRR30050112	SRR30050112	CRC	nanovi_gtdb	emu	gtdb	0.41367784068830243	0.2603889596092399	Butyrivibrio	Butyrivibrio	0.0	0.07051755877779654
-crc	SRR30050112	SRR30050112	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.41325511549436467	0.25894872503880395	Butyrivibrio	Butyrivibrio	0.0	0.06029577036004131
-crc	SRR30050113	SRR30050113	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0037902688951673004	0.003553763724232822	Akkermansia	Akkermansia	0.0	0.0
-crc	SRR30050113	SRR30050113	CRC	nanovi_emudb	emu	ncbi	0.07768043869959132	0.06659393852595367	Akkermansia	Akkermansia	0.0	0.0
-crc	SRR30050113	SRR30050113	CRC	nanovi_gtdb	emu	gtdb	0.5352197846788294	0.43967054402212796	Akkermansia	Akkermansia	0.0	0.04148716863664625
-crc	SRR30050113	SRR30050113	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5335511765665724	0.4367086376319185	Akkermansia	Akkermansia	0.0	0.03796268857892126
-crc	SRR30050114	SRR30050114	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0017911332081368614	0.0014786150045899649	Prevotella	Prevotella	0.0	0.0
-crc	SRR30050114	SRR30050114	CRC	nanovi_emudb	emu	ncbi	0.10768485092587207	0.06465338796164224	Prevotella	Prevotella	0.0	0.0
-crc	SRR30050114	SRR30050114	CRC	nanovi_gtdb	emu	gtdb	0.4149854254027097	0.2732577370451381	Prevotella	Prevotella	0.0	0.1058253619013618
+crc	SRR30050104	SRR30050104	CRC	nanovi_emudb	emu	ncbi	0.06571197355313682	0.03129501146598923	Gemmiger	Gemmiger	0.0	0.0
+crc	SRR30050104	SRR30050104	CRC	nanovi_gtdb	emu	gtdb	0.5505099784353611	0.24318039627769003	Gemmiger	Gemmiger	0.0	0.06994247900716558
+crc	SRR30050104	SRR30050104	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5487364927859276	0.22834369054397274	Gemmiger	Gemmiger	0.0	0.05009157911334259
+crc	SRR30050105	SRR30050105	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0002112727869977469	0.00014032217866397794	Bacteroides	Bacteroides	0.0	0.0
+crc	SRR30050105	SRR30050105	CRC	nanovi_emudb	emu	ncbi	0.05522102467067505	0.03482574540266668	Bacteroides	Bacteroides	0.0	0.0
+crc	SRR30050105	SRR30050105	CRC	nanovi_gtdb	emu	gtdb	0.38722322320702973	0.1591336275278535	Bacteroides	Bacteroides	0.0	0.08059234454791854
+crc	SRR30050105	SRR30050105	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3765480706593475	0.15036912736545222	Bacteroides	Bacteroides	0.0	0.0951477518957626
+crc	SRR30050106	SRR30050106	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0019032268002858819	0.0004597437579771387	Prevotella	Prevotella	0.0	0.0
+crc	SRR30050106	SRR30050106	CRC	nanovi_emudb	emu	ncbi	0.07213657251614032	0.04347007859028319	Prevotella	Prevotella	0.0	0.0
+crc	SRR30050106	SRR30050106	CRC	nanovi_gtdb	emu	gtdb	0.5346106073524072	0.21018264038763151	Prevotella	Prevotella	0.0	0.11031572156878316
+crc	SRR30050106	SRR30050106	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5276135787562795	0.21224007006863374	Prevotella	Prevotella	0.0	0.10412109175870167
+crc	SRR30050107	SRR30050107	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0035121741948144483	0.002717867250091098	Prevotella	Prevotella	0.0	0.0
+crc	SRR30050107	SRR30050107	CRC	nanovi_emudb	emu	ncbi	0.1774264301634036	0.11653328326731921	Prevotella	Prevotella	0.0	0.0
+crc	SRR30050107	SRR30050107	CRC	nanovi_gtdb	emu	gtdb	0.7521653589709437	0.4716659182110787	Prevotella	Prevotella	0.0	0.1335683989883443
+crc	SRR30050107	SRR30050107	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.7522327899644577	0.471766698676428	Prevotella	Prevotella	0.0	0.11299292232121115
+crc	SRR30050108	SRR30050108	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0020757779014006546	0.0018420886523305587	Bacteroides	Bacteroides	0.0	0.0
+crc	SRR30050108	SRR30050108	CRC	nanovi_emudb	emu	ncbi	0.1315529468074101	0.10607246363686491	Bacteroides	Bacteroides	0.0	0.0
+crc	SRR30050108	SRR30050108	CRC	nanovi_gtdb	emu	gtdb	0.6139653226324079	0.3758629181316969	Phocaeicola	Phocaeicola	0.0	0.09976325078143713
+crc	SRR30050108	SRR30050108	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.6146989491383443	0.3785778874994971	Phocaeicola	Phocaeicola	0.0	0.06884482258771032
+crc	SRR30050109	SRR30050109	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0017806833565793703	0.0012656892563266537	Bifidobacterium	Bifidobacterium	0.0	0.0
+crc	SRR30050109	SRR30050109	CRC	nanovi_emudb	emu	ncbi	0.03827725151301116	0.01842636572396886	Bifidobacterium	Bifidobacterium	0.0	0.0
+crc	SRR30050109	SRR30050109	CRC	nanovi_gtdb	emu	gtdb	0.2144003867391535	0.12536921946332463	Bifidobacterium	Bifidobacterium	0.0	0.03686741010816498
+crc	SRR30050109	SRR30050109	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.21232377850945602	0.1309942639629346	Bifidobacterium	Bifidobacterium	0.0	0.044314191306722824
+crc	SRR30050110	SRR30050110	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0002939643878013999	0.00020962278986444362	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050110	SRR30050110	CRC	nanovi_emudb	emu	ncbi	0.0361674560896405	0.02127388612227578	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050110	SRR30050110	CRC	nanovi_gtdb	emu	gtdb	0.42720945134258786	0.11973999261959271	Faecalibacterium	Faecalibacterium	0.0	0.04635455726170422
+crc	SRR30050110	SRR30050110	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.41791799268400465	0.11772686500414774	Faecalibacterium	Faecalibacterium	0.0	0.045328707953048795
+crc	SRR30050111	SRR30050111	CRC	nanovi_emudb	emu_same_sam	ncbi	0.004222792193279967	0.004183008797415435	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050111	SRR30050111	CRC	nanovi_emudb	emu	ncbi	0.04909566794926938	0.03900998846889659	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050111	SRR30050111	CRC	nanovi_gtdb	emu	gtdb	0.34387091758719357	0.18453141353040833	Phocaeicola	Phocaeicola	0.0	0.059519854851118256
+crc	SRR30050111	SRR30050111	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3395124186789923	0.1773022682655912	Phocaeicola	Phocaeicola	0.0	0.05737340849630916
+crc	SRR30050112	SRR30050112	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0036490934659350596	0.002807376435436466	Butyrivibrio	Butyrivibrio	0.0	0.0
+crc	SRR30050112	SRR30050112	CRC	nanovi_emudb	emu	ncbi	0.09166582868758259	0.0524566624744139	Butyrivibrio	Butyrivibrio	0.0	0.0
+crc	SRR30050112	SRR30050112	CRC	nanovi_gtdb	emu	gtdb	0.4136778406883027	0.2603889596092399	Butyrivibrio	Butyrivibrio	0.0	0.07051755877779654
+crc	SRR30050112	SRR30050112	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.413255115494365	0.25894872503880406	Butyrivibrio	Butyrivibrio	0.0	0.06029577036004131
+crc	SRR30050113	SRR30050113	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0037902688951673012	0.0035537637242328214	Akkermansia	Akkermansia	0.0	0.0
+crc	SRR30050113	SRR30050113	CRC	nanovi_emudb	emu	ncbi	0.07768043869959124	0.06659393852595366	Akkermansia	Akkermansia	0.0	0.0
+crc	SRR30050113	SRR30050113	CRC	nanovi_gtdb	emu	gtdb	0.535219784678829	0.43967054402212813	Akkermansia	Akkermansia	0.0	0.04148716863664625
+crc	SRR30050113	SRR30050113	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.5335511765665725	0.43670863763191836	Akkermansia	Akkermansia	0.0	0.03796268857892126
+crc	SRR30050114	SRR30050114	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0017911332081368616	0.0014786150045899649	Prevotella	Prevotella	0.0	0.0
+crc	SRR30050114	SRR30050114	CRC	nanovi_emudb	emu	ncbi	0.10768485092587203	0.06465338796164226	Prevotella	Prevotella	0.0	0.0
+crc	SRR30050114	SRR30050114	CRC	nanovi_gtdb	emu	gtdb	0.4149854254027097	0.2732577370451382	Prevotella	Prevotella	0.0	0.1058253619013618
 crc	SRR30050114	SRR30050114	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4133003006405484	0.26918931791096035	Prevotella	Prevotella	0.0	0.088364237138633
-crc	SRR30050115	SRR30050115	CRC	nanovi_emudb	emu_same_sam	ncbi	0.003045300115878921	0.002223485015191934	Butyricimonas	Butyricimonas	0.0	0.0
-crc	SRR30050115	SRR30050115	CRC	nanovi_emudb	emu	ncbi	0.39934060205215094	0.3709299134038971	Butyricimonas	Bacteroidales	0.0	0.0
-crc	SRR30050115	SRR30050115	CRC	nanovi_gtdb	emu	gtdb	0.7796285936493778	0.7223729131977913	Cryptobacteroides	Ruminococcoides	0.0	0.41790983927243186
-crc	SRR30050115	SRR30050115	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.7790919817229801	0.72235805823293	Cryptobacteroides	Butyricimonas	0.0	0.17097090822348654
-crc	SRR30050116	SRR30050116	healthy	nanovi_emudb	emu_same_sam	ncbi	0.002019449134087247	0.0019785045165795516	Akkermansia	Akkermansia	0.0	0.0
-crc	SRR30050116	SRR30050116	healthy	nanovi_emudb	emu	ncbi	0.08624514718503849	0.07450234430921163	Akkermansia	Akkermansia	0.0	0.0
-crc	SRR30050116	SRR30050116	healthy	nanovi_gtdb	emu	gtdb	0.5771798973471698	0.38763209475869126	Phocaeicola	Akkermansia	0.0	0.09110390824472273
-crc	SRR30050116	SRR30050116	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.5810575626660043	0.3876045667312614	Phocaeicola	Akkermansia	0.0	0.0795496938739363
+crc	SRR30050115	SRR30050115	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0030453001158789214	0.0022234850151919353	Butyricimonas	Butyricimonas	0.0	0.0
+crc	SRR30050115	SRR30050115	CRC	nanovi_emudb	emu	ncbi	0.399340602052151	0.3709299134038968	Butyricimonas	Bacteroidales	0.0	0.0
+crc	SRR30050115	SRR30050115	CRC	nanovi_gtdb	emu	gtdb	0.7796285936493774	0.7223729131977912	Cryptobacteroides	Ruminococcoides	0.0	0.41790983927243186
+crc	SRR30050115	SRR30050115	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.77909198172298	0.7223580582329298	Cryptobacteroides	Butyricimonas	0.0	0.17097090822348654
+crc	SRR30050116	SRR30050116	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0020194491340872474	0.001983473986859219	Akkermansia	Akkermansia	0.0	0.0
+crc	SRR30050116	SRR30050116	healthy	nanovi_emudb	emu	ncbi	0.08624514718503853	0.0746555854631258	Akkermansia	Akkermansia	0.0	0.0
+crc	SRR30050116	SRR30050116	healthy	nanovi_gtdb	emu	gtdb	0.5771798973471699	0.38763209475869126	Phocaeicola	Akkermansia	0.0	0.09110390824472273
+crc	SRR30050116	SRR30050116	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.5810575626660044	0.38760456673126137	Phocaeicola	Akkermansia	0.0	0.0795496938739363
 crc	SRR30050117	SRR30050117	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0005121526128368171	0.00044046581975959865	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050117	SRR30050117	healthy	nanovi_emudb	emu	ncbi	0.048322714649656456	0.034313897703455366	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050117	SRR30050117	healthy	nanovi_gtdb	emu	gtdb	0.5358981233140394	0.24143034853838963	Faecalibacterium	Faecalibacterium	0.0	0.0869263058716508
-crc	SRR30050117	SRR30050117	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.5326638590314395	0.24135802346165486	Faecalibacterium	Faecalibacterium	0.0	0.08454428028367209
-crc	SRR30050118	SRR30050118	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0025743153973720834	0.0023304349689629504	Streptococcus	Streptococcus	0.0	0.0
-crc	SRR30050118	SRR30050118	healthy	nanovi_emudb	emu	ncbi	0.060791797206872444	0.020999291800591173	Streptococcus	Streptococcus	0.0	0.0
-crc	SRR30050118	SRR30050118	healthy	nanovi_gtdb	emu	gtdb	0.38991566404766187	0.18668263924355372	Streptococcus	Streptococcus	0.0	0.15531229466590085
-crc	SRR30050118	SRR30050118	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.37832528939702925	0.17861188227545619	Streptococcus	Streptococcus	0.0	0.13802608094261293
+crc	SRR30050117	SRR30050117	healthy	nanovi_emudb	emu	ncbi	0.048322714649656456	0.03556362293540956	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050117	SRR30050117	healthy	nanovi_gtdb	emu	gtdb	0.5358981233140394	0.24143034853838966	Faecalibacterium	Faecalibacterium	0.0	0.0869263058716508
+crc	SRR30050117	SRR30050117	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.5326638590314394	0.24135802346165489	Faecalibacterium	Faecalibacterium	0.0	0.08454428028367209
+crc	SRR30050118	SRR30050118	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0025743153973720834	0.0023326320391476563	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050118	SRR30050118	healthy	nanovi_emudb	emu	ncbi	0.06079179720687247	0.021209011662628178	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050118	SRR30050118	healthy	nanovi_gtdb	emu	gtdb	0.38991566404766176	0.18668263924355372	Streptococcus	Streptococcus	0.0	0.15531229466590085
+crc	SRR30050118	SRR30050118	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.37832528939702936	0.1786118822754562	Streptococcus	Streptococcus	0.0	0.13802608094261293
 crc	SRR30050119	SRR30050119	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0009250459374516164	0.0006904547646071215	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050119	SRR30050119	healthy	nanovi_emudb	emu	ncbi	0.04098166766236246	0.016515645999462914	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050119	SRR30050119	healthy	nanovi_gtdb	emu	gtdb	0.22007529939124434	0.08133791792076625	Bifidobacterium	Bifidobacterium	0.0	0.07762354142076425
-crc	SRR30050119	SRR30050119	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.21064927062735553	0.08512567432187708	Bifidobacterium	Bifidobacterium	0.0	0.07313158788190065
-crc	SRR30050120	SRR30050120	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0018089458005039406	0.0016050034949345142	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050120	SRR30050120	healthy	nanovi_emudb	emu	ncbi	0.07650634028524925	0.05974909358470785	Phocaeicola	Phocaeicola	0.0	0.0
-crc	SRR30050120	SRR30050120	healthy	nanovi_gtdb	emu	gtdb	0.43261971249006537	0.356148529769948	Phocaeicola	Phocaeicola	0.0	0.06572381859570178
-crc	SRR30050120	SRR30050120	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.4251164241481622	0.3517410840310704	Phocaeicola	Phocaeicola	0.0	0.06192011386119242
-crc	SRR30050121	SRR30050121	healthy	nanovi_emudb	emu_same_sam	ncbi	0.001484552710526403	0.0012352103295682983	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050121	SRR30050121	healthy	nanovi_emudb	emu	ncbi	0.06574432557069665	0.04443228227082691	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050121	SRR30050121	healthy	nanovi_gtdb	emu	gtdb	0.5557382380472621	0.18053266345115193	Prevotella	Faecalibacterium	0.0	0.05892971115631892
+crc	SRR30050119	SRR30050119	healthy	nanovi_emudb	emu	ncbi	0.04098166766236247	0.01651564599946291	Bifidobacterium	Bifidobacterium	0.0	0.0
+crc	SRR30050119	SRR30050119	healthy	nanovi_gtdb	emu	gtdb	0.2200752993912444	0.08133791792076626	Bifidobacterium	Bifidobacterium	0.0	0.07762354142076425
+crc	SRR30050119	SRR30050119	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.21064927062735547	0.08512567432187709	Bifidobacterium	Bifidobacterium	0.0	0.07313158788190065
+crc	SRR30050120	SRR30050120	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0018089458005039404	0.0016050034949346107	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050120	SRR30050120	healthy	nanovi_emudb	emu	ncbi	0.07650634028524926	0.05974909358470778	Phocaeicola	Phocaeicola	0.0	0.0
+crc	SRR30050120	SRR30050120	healthy	nanovi_gtdb	emu	gtdb	0.43261971249006526	0.356148529769948	Phocaeicola	Phocaeicola	0.0	0.06572381859570178
+crc	SRR30050120	SRR30050120	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.42511642414816214	0.35174108403107046	Phocaeicola	Phocaeicola	0.0	0.06192011386119242
+crc	SRR30050121	SRR30050121	healthy	nanovi_emudb	emu_same_sam	ncbi	0.001484552710526403	0.0012352103295682985	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050121	SRR30050121	healthy	nanovi_emudb	emu	ncbi	0.06574432557069662	0.04443228227082689	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050121	SRR30050121	healthy	nanovi_gtdb	emu	gtdb	0.5557382380472617	0.18053266345115193	Prevotella	Faecalibacterium	0.0	0.05892971115631892
 crc	SRR30050121	SRR30050121	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.5561037393553535	0.182664472437554	Prevotella	Faecalibacterium	0.0	0.051970898145069305
-crc	SRR30050122	SRR30050122	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0020742079444715684	0.0016047607373381777	Escherichia	Escherichia	0.0	0.0
-crc	SRR30050122	SRR30050122	healthy	nanovi_emudb	emu	ncbi	0.06962046767216319	0.04248206332156812	Escherichia	Escherichia	0.0	0.0
-crc	SRR30050122	SRR30050122	healthy	nanovi_gtdb	emu	gtdb	0.5016659020108519	0.27963651219274094	Escherichia	Escherichia	0.0	0.10777821331555773
-crc	SRR30050122	SRR30050122	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.49294118010568644	0.27878790424160277	Escherichia	Escherichia	0.0	0.11283760625751418
-crc	SRR30050123	SRR30050123	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0032737242036322656	0.0032170379921355697	Bifidobacterium	Bifidobacterium	0.0	0.0
-crc	SRR30050123	SRR30050123	CRC	nanovi_emudb	emu	ncbi	0.061308951186813114	0.04082435444980895	Bifidobacterium	Bifidobacterium	0.0	0.0
+crc	SRR30050122	SRR30050122	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0020742079444715684	0.0016047607373381764	Escherichia	Escherichia	0.0	0.0
+crc	SRR30050122	SRR30050122	healthy	nanovi_emudb	emu	ncbi	0.06962046767216319	0.04176954185259701	Escherichia	Escherichia	0.0	0.0
+crc	SRR30050122	SRR30050122	healthy	nanovi_gtdb	emu	gtdb	0.5016659020108521	0.27963651219274094	Escherichia	Escherichia	0.0	0.10777821331555773
+crc	SRR30050122	SRR30050122	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.4929411801056865	0.27878790424160266	Escherichia	Escherichia	0.0	0.11283760625751418
+crc	SRR30050123	SRR30050123	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0032737242036322664	0.0032170379921355697	Bifidobacterium	Bifidobacterium	0.0	0.0
+crc	SRR30050123	SRR30050123	CRC	nanovi_emudb	emu	ncbi	0.061308951186813086	0.04082435444980896	Bifidobacterium	Bifidobacterium	0.0	0.0
 crc	SRR30050123	SRR30050123	CRC	nanovi_gtdb	emu	gtdb	0.2848058469812715	0.15438207270246168	Bifidobacterium	Bifidobacterium	0.0	0.05634425898572723
-crc	SRR30050123	SRR30050123	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.28931581624519104	0.15918768862134564	Bifidobacterium	Bifidobacterium	0.0	0.03728932412513869
-crc	SRR30050124	SRR30050124	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0006308268011764637	9.254594336774685e-05	Streptococcus	Streptococcus	0.0	0.0
-crc	SRR30050124	SRR30050124	healthy	nanovi_emudb	emu	ncbi	0.08225027100694406	0.026973085392445393	Streptococcus	Streptococcus	0.0	0.0
-crc	SRR30050124	SRR30050124	healthy	nanovi_gtdb	emu	gtdb	0.5557419440507159	0.2332890304670293	Streptococcus	Streptococcus	0.0	0.23401019964581624
-crc	SRR30050124	SRR30050124	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.5418610346931703	0.21542514592384585	Streptococcus	Streptococcus	0.0	0.21839624196708127
-crc	SRR30050125	SRR30050125	healthy	nanovi_emudb	emu_same_sam	ncbi	0.002674643350650775	0.0024339819210624346	Butyricimonas	Butyricimonas	0.0	0.0
-crc	SRR30050125	SRR30050125	healthy	nanovi_emudb	emu	ncbi	0.245813101017246	0.2018156579032543	Butyricimonas	Bacteroidales	0.0	0.0
-crc	SRR30050125	SRR30050125	healthy	nanovi_gtdb	emu	gtdb	0.7258586988124488	0.5551071508926421	Cryptobacteroides	Gemmiger	0.0	0.17376498517567918
-crc	SRR30050125	SRR30050125	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.7232604529865377	0.5551217803924261	Cryptobacteroides	Butyricimonas	0.0	0.0968534497048494
-crc	SRR30050126	SRR30050126	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0002053977317703461	0.0001266924602746684	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050126	SRR30050126	healthy	nanovi_emudb	emu	ncbi	0.033712374033568825	0.02521382147479611	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050126	SRR30050126	healthy	nanovi_gtdb	emu	gtdb	0.4665589887638439	0.14719626564818	Faecalibacterium	Faecalibacterium	0.0	0.02451079941277638
-crc	SRR30050126	SRR30050126	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.46408204288308114	0.14096279672765927	Faecalibacterium	Faecalibacterium	0.0	0.02376512911679137
-crc	SRR30050127	SRR30050127	healthy	nanovi_emudb	emu_same_sam	ncbi	0.00023245109987232162	0.0001398835115902033	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050127	SRR30050127	healthy	nanovi_emudb	emu	ncbi	0.09650387872713356	0.0773310688021608	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050127	SRR30050127	healthy	nanovi_gtdb	emu	gtdb	0.4861060498039988	0.24985452620702178	Gemmiger	Gemmiger	0.0	0.09212143177091878
-crc	SRR30050127	SRR30050127	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.4846869402579699	0.26036166944534045	Gemmiger	Faecalibacterium	0.0	0.06988803400704095
-crc	SRR30050128	SRR30050128	healthy	nanovi_emudb	emu_same_sam	ncbi	0.003409491157061221	0.003357836272510664	Akkermansia	Akkermansia	0.0	0.0
-crc	SRR30050128	SRR30050128	healthy	nanovi_emudb	emu	ncbi	0.10162702049228232	0.05425435733264522	Akkermansia	Akkermansia	0.0	0.0
-crc	SRR30050128	SRR30050128	healthy	nanovi_gtdb	emu	gtdb	0.6425376712444437	0.4757528841146133	Akkermansia	Akkermansia	0.0	0.14906571917952133
-crc	SRR30050128	SRR30050128	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.6431103440648481	0.4666214737269592	Akkermansia	Akkermansia	0.0	0.13289292083443066
-crc	SRR30050129	SRR30050129	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0038166664540227268	0.002876319181195033	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050129	SRR30050129	healthy	nanovi_emudb	emu	ncbi	0.15323358531320525	0.12360245866540821	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050129	SRR30050129	healthy	nanovi_gtdb	emu	gtdb	0.5991957937115694	0.39040304995847996	Faecalibacterium	Faecalibacterium	0.0	0.08365097185250579
-crc	SRR30050129	SRR30050129	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.6044590779177073	0.3875678750470077	Faecalibacterium	Faecalibacterium	0.0	0.05773909081336729
-crc	SRR30050130	SRR30050130	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0021441441791125075	0.00046272551873321175	Prevotella	Prevotella	0.0	0.0
-crc	SRR30050130	SRR30050130	healthy	nanovi_emudb	emu	ncbi	0.1315768203840501	0.10454249337150628	Prevotella	Prevotella	0.0	0.0
-crc	SRR30050130	SRR30050130	healthy	nanovi_gtdb	emu	gtdb	0.7373652949821536	0.3703235718616586	Prevotella	Prevotella	0.0	0.09986146298917056
-crc	SRR30050130	SRR30050130	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.7430668002715974	0.38145389660333734	Prevotella	Prevotella	0.0	0.10984682278280247
+crc	SRR30050123	SRR30050123	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.28931581624519076	0.15918768862134572	Bifidobacterium	Bifidobacterium	0.0	0.03728932412513869
+crc	SRR30050124	SRR30050124	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0006308268011764637	9.254594336773536e-05	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050124	SRR30050124	healthy	nanovi_emudb	emu	ncbi	0.0822502710069441	0.02697308539244536	Streptococcus	Streptococcus	0.0	0.0
+crc	SRR30050124	SRR30050124	healthy	nanovi_gtdb	emu	gtdb	0.5557419440507161	0.23328903046702934	Streptococcus	Streptococcus	0.0	0.23401019964581624
+crc	SRR30050124	SRR30050124	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.5418610346931706	0.21542514592384587	Streptococcus	Streptococcus	0.0	0.21839624196708127
+crc	SRR30050125	SRR30050125	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0026746433506507753	0.0024339819210624346	Butyricimonas	Butyricimonas	0.0	0.0
+crc	SRR30050125	SRR30050125	healthy	nanovi_emudb	emu	ncbi	0.24581310101724607	0.20181565790325443	Butyricimonas	Bacteroidales	0.0	0.0
+crc	SRR30050125	SRR30050125	healthy	nanovi_gtdb	emu	gtdb	0.7258586988124486	0.5551071508926421	Cryptobacteroides	Gemmiger	0.0	0.17376498517567918
+crc	SRR30050125	SRR30050125	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.7232604529865381	0.5551217803924262	Cryptobacteroides	Butyricimonas	0.0	0.0968534497048494
+crc	SRR30050126	SRR30050126	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0002053977317703461	0.00012669246027472336	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050126	SRR30050126	healthy	nanovi_emudb	emu	ncbi	0.03371237403356882	0.025029973466717367	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050126	SRR30050126	healthy	nanovi_gtdb	emu	gtdb	0.4665589887638439	0.14719626564818009	Faecalibacterium	Faecalibacterium	0.0	0.02451079941277638
+crc	SRR30050126	SRR30050126	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.464082042883081	0.1409627967276593	Faecalibacterium	Faecalibacterium	0.0	0.02376512911679137
+crc	SRR30050127	SRR30050127	healthy	nanovi_emudb	emu_same_sam	ncbi	0.00023245109987232162	0.00013988351159020308	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050127	SRR30050127	healthy	nanovi_emudb	emu	ncbi	0.09650387872713354	0.07733106880216077	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050127	SRR30050127	healthy	nanovi_gtdb	emu	gtdb	0.48610604980399896	0.2498545262070219	Gemmiger	Gemmiger	0.0	0.09212143177091878
+crc	SRR30050127	SRR30050127	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.48468694025797004	0.2603616694453405	Gemmiger	Faecalibacterium	0.0	0.06988803400704095
+crc	SRR30050128	SRR30050128	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0034094911570612205	0.003357836272510664	Akkermansia	Akkermansia	0.0	0.0
+crc	SRR30050128	SRR30050128	healthy	nanovi_emudb	emu	ncbi	0.1016270204922823	0.05425435733264524	Akkermansia	Akkermansia	0.0	0.0
+crc	SRR30050128	SRR30050128	healthy	nanovi_gtdb	emu	gtdb	0.642537671244444	0.4757528841146134	Akkermansia	Akkermansia	0.0	0.14906571917952133
+crc	SRR30050128	SRR30050128	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.6431103440648482	0.46662147372695945	Akkermansia	Akkermansia	0.0	0.13289292083443066
+crc	SRR30050129	SRR30050129	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0038166664540227255	0.0028763191811950325	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050129	SRR30050129	healthy	nanovi_emudb	emu	ncbi	0.15323358531320522	0.12360245866540814	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050129	SRR30050129	healthy	nanovi_gtdb	emu	gtdb	0.5991957937115693	0.3904030499584799	Faecalibacterium	Faecalibacterium	0.0	0.08365097185250579
+crc	SRR30050129	SRR30050129	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.6044590779177074	0.3875678750470077	Faecalibacterium	Faecalibacterium	0.0	0.05773909081336729
+crc	SRR30050130	SRR30050130	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0021441441791125084	0.00046272551873321175	Prevotella	Prevotella	0.0	0.0
+crc	SRR30050130	SRR30050130	healthy	nanovi_emudb	emu	ncbi	0.13157682038405008	0.10454249337150626	Prevotella	Prevotella	0.0	0.0
+crc	SRR30050130	SRR30050130	healthy	nanovi_gtdb	emu	gtdb	0.7373652949821534	0.3703235718616586	Prevotella	Prevotella	0.0	0.09986146298917056
+crc	SRR30050130	SRR30050130	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.7430668002715973	0.38145389660333734	Prevotella	Prevotella	0.0	0.10984682278280247
 crc	SRR30050131	SRR30050131	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0004744241523912411	0.0002481287453356824	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050131	SRR30050131	healthy	nanovi_emudb	emu	ncbi	0.027798471677852113	0.019660031706639047	Gemmiger	Gemmiger	0.0	0.0
-crc	SRR30050131	SRR30050131	healthy	nanovi_gtdb	emu	gtdb	0.49339196745121694	0.20030077244338515	Gemmiger	Gemmiger	0.0	0.07880511910325255
-crc	SRR30050131	SRR30050131	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.49188900676574016	0.20271434979122277	Gemmiger	Gemmiger	0.0	0.0772653248052738
-crc	SRR30050132	SRR30050132	healthy	nanovi_emudb	emu_same_sam	ncbi	0.0023307387138438683	0.0022990195726981955	Ruminococcus	Ruminococcus	0.0	0.0
-crc	SRR30050132	SRR30050132	healthy	nanovi_emudb	emu	ncbi	0.08988829209337848	0.044515686064096754	Ruminococcus	Ruminococcus	0.0	0.0
-crc	SRR30050132	SRR30050132	healthy	nanovi_gtdb	emu	gtdb	0.5633927008053585	0.2843120182537895	Ruminococcoides	Ruminococcoides	0.0	0.11409285835653865
-crc	SRR30050132	SRR30050132	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.5581628542452983	0.2887178936193415	Ruminococcoides	Ruminococcoides	0.0	0.12517988676861697
+crc	SRR30050131	SRR30050131	healthy	nanovi_emudb	emu	ncbi	0.027798471677852106	0.019660031706639044	Gemmiger	Gemmiger	0.0	0.0
+crc	SRR30050131	SRR30050131	healthy	nanovi_gtdb	emu	gtdb	0.49339196745121694	0.2003007724433852	Gemmiger	Gemmiger	0.0	0.07880511910325255
+crc	SRR30050131	SRR30050131	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.49188900676574016	0.20271434979122283	Gemmiger	Gemmiger	0.0	0.0772653248052738
+crc	SRR30050132	SRR30050132	healthy	nanovi_emudb	emu_same_sam	ncbi	0.002330738713843868	0.0022990195726981947	Ruminococcus	Ruminococcus	0.0	0.0
+crc	SRR30050132	SRR30050132	healthy	nanovi_emudb	emu	ncbi	0.08988829209337848	0.04387445545450144	Ruminococcus	Ruminococcus	0.0	0.0
+crc	SRR30050132	SRR30050132	healthy	nanovi_gtdb	emu	gtdb	0.5633927008053585	0.28431201825378943	Ruminococcoides	Ruminococcoides	0.0	0.11409285835653865
+crc	SRR30050132	SRR30050132	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.5581628542452983	0.28871789361934147	Ruminococcoides	Ruminococcoides	0.0	0.12517988676861697
 crc	SRR30050133	SRR30050133	healthy	nanovi_emudb	emu_same_sam	ncbi	0.00017353104618917248	0.00011531966453547115	Akkermansia	Akkermansia	0.0	0.0
-crc	SRR30050133	SRR30050133	healthy	nanovi_emudb	emu	ncbi	0.04471834411641812	0.008240247850408184	Akkermansia	Akkermansia	0.0	0.0
-crc	SRR30050133	SRR30050133	healthy	nanovi_gtdb	emu	gtdb	0.47796164141969605	0.3182892684183082	Akkermansia	Akkermansia	0.0	0.020730427683656034
-crc	SRR30050133	SRR30050133	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.4795916830570587	0.31587409601222916	Akkermansia	Akkermansia	0.0	0.016952554012691624
+crc	SRR30050133	SRR30050133	healthy	nanovi_emudb	emu	ncbi	0.044718344116418125	0.008240247850408182	Akkermansia	Akkermansia	0.0	0.0
+crc	SRR30050133	SRR30050133	healthy	nanovi_gtdb	emu	gtdb	0.477961641419696	0.31828926841830824	Akkermansia	Akkermansia	0.0	0.020730427683656034
+crc	SRR30050133	SRR30050133	healthy	nanovi_gtdb	nanovi_emudb	gtdb	0.4795916830570586	0.31587409601222927	Akkermansia	Akkermansia	0.0	0.016952554012691624
 crc	SRR30050134	SRR30050134	CRC	nanovi_emudb	emu_same_sam	ncbi	0.00025376727501981444	9.184716495315524e-05	Bacteroides	Bacteroides	0.0	0.0
-crc	SRR30050134	SRR30050134	CRC	nanovi_emudb	emu	ncbi	0.06217091489513376	0.032047470807979775	Bacteroides	Catenibacterium	0.0	0.0
-crc	SRR30050134	SRR30050134	CRC	nanovi_gtdb	emu	gtdb	0.41845833061356763	0.2606755552472268	Bacteroides	Catenibacterium	0.0	0.10310748111155818
-crc	SRR30050134	SRR30050134	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4240863939241215	0.2619507406299703	Bacteroides	Bacteroides	0.0	0.0996935652143979
+crc	SRR30050134	SRR30050134	CRC	nanovi_emudb	emu	ncbi	0.062170914895133746	0.03204747080797979	Bacteroides	Catenibacterium	0.0	0.0
+crc	SRR30050134	SRR30050134	CRC	nanovi_gtdb	emu	gtdb	0.41845833061356746	0.2606755552472267	Bacteroides	Catenibacterium	0.0	0.10310748111155818
+crc	SRR30050134	SRR30050134	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.4240863939241214	0.26195074062997026	Bacteroides	Bacteroides	0.0	0.0996935652143979
 crc	SRR30050135	SRR30050135	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0006497314654937764	0.00020576251532012898	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050135	SRR30050135	CRC	nanovi_emudb	emu	ncbi	0.058522584926584804	0.030732633077445972	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050135	SRR30050135	CRC	nanovi_gtdb	emu	gtdb	0.40557490678037145	0.1920998274738437	Faecalibacterium	Faecalibacterium	0.0	0.13440971294454007
-crc	SRR30050135	SRR30050135	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.3997891179704607	0.1801367310771849	Faecalibacterium	Faecalibacterium	0.0	0.11170085852889346
-crc	SRR30050136	SRR30050136	CRC	nanovi_emudb	emu_same_sam	ncbi	0.0021537937278271685	0.0020495518187249634	Faecalibacterium	Faecalibacterium	0.0	0.0
-crc	SRR30050136	SRR30050136	CRC	nanovi_emudb	emu	ncbi	0.030762780599737947	0.018306156241150517	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050135	SRR30050135	CRC	nanovi_emudb	emu	ncbi	0.058522584926584825	0.030732633077445972	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050135	SRR30050135	CRC	nanovi_gtdb	emu	gtdb	0.40557490678037145	0.1920998274738436	Faecalibacterium	Faecalibacterium	0.0	0.13440971294454007
+crc	SRR30050135	SRR30050135	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.39978911797046074	0.18013673107718498	Faecalibacterium	Faecalibacterium	0.0	0.11170085852889346
+crc	SRR30050136	SRR30050136	CRC	nanovi_emudb	emu_same_sam	ncbi	0.002153793727827169	0.002049551818724964	Faecalibacterium	Faecalibacterium	0.0	0.0
+crc	SRR30050136	SRR30050136	CRC	nanovi_emudb	emu	ncbi	0.030762780599737943	0.018306156241150524	Faecalibacterium	Faecalibacterium	0.0	0.0
 crc	SRR30050136	SRR30050136	CRC	nanovi_gtdb	emu	gtdb	0.4195486845435702	0.12731643428452735	Faecalibacterium	Faecalibacterium	0.0	0.03823982745552209
-crc	SRR30050136	SRR30050136	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.41013586692019555	0.12408928742299816	Faecalibacterium	Faecalibacterium	0.0	0.039240286416148726
+crc	SRR30050136	SRR30050136	CRC	nanovi_gtdb	nanovi_emudb	gtdb	0.41013586692019555	0.1240892874229981	Faecalibacterium	Faecalibacterium	0.0	0.039240286416148726

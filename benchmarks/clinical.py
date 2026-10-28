@@ -81,12 +81,20 @@ def run_dir(cohort, arm):
 
 def prepare(cohort):
     src = CLIN / "src"
-    if not src.exists():
-        src.mkdir(parents=True)
-        commit = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True,
-                                check=True).stdout.strip()
-        subprocess.run(f"git -C {REPO} archive HEAD | tar -x -C {src}", shell=True, check=True)
-        (src / "COMMIT").write_text(commit + "\n")
+    head = subprocess.run(["git", "-C", str(REPO), "rev-parse", "HEAD"], capture_output=True, text=True,
+                          check=True).stdout.strip()
+    if not (src / "COMMIT").exists():
+        # extract beside src/ and move it in place, so a failed archive leaves no half-filled src/
+        tmp = CLIN / "src.partial"
+        subprocess.run(["rm", "-rf", str(tmp)], check=True)
+        tmp.mkdir(parents=True)
+        subprocess.run(f"git -C {REPO} archive HEAD | tar -x -C {tmp}", shell=True, check=True)
+        (tmp / "COMMIT").write_text(head + "\n")
+        subprocess.run(["rm", "-rf", str(src)], check=True)
+        tmp.rename(src)
+    elif (src / "COMMIT").read_text().strip() != head:
+        # every cohort runs the same pipeline code; remove src/ to run another commit
+        print(f"note: runs use the pipeline at {(src / 'COMMIT').read_text().strip()} (src/), not HEAD {head}")
     reads = CLIN / "reads" / cohort
     reads.mkdir(parents=True, exist_ok=True)
     rows = []
@@ -207,12 +215,27 @@ def strip(est):
     return normalise(out)
 
 
-def genus(est):
+def genus_of(name, genus_map=None):
+    """Genus of a species name: from genus_map (Emu's taxonomy.tsv, for NCBI names) when it
+    gives one, else the first word ('Candidatus X' kept whole; GTDB names, published tables)."""
+    if genus_map and genus_map.get(name):
+        return genus_map[name]
+    words = name.split()
+    if not words:
+        return name
+    return " ".join(words[:2]) if words[0] == "Candidatus" and len(words) > 1 else words[0]
+
+
+def emu_genera():
+    t = pd.read_csv(EMU_DBS["emu_default"] / "taxonomy.tsv", sep="\t", dtype=str)
+    t = t[t["species"].notna() & t["genus"].notna()]
+    return dict(zip(t["species"], t["genus"]))
+
+
+def genus(est, genus_map=None):
     out = {}
     for k, v in est.items():
-        g = k.split()[0] if k.split() else k
-        if g == "Candidatus" and len(k.split()) > 1:
-            g = " ".join(k.split()[:2])
+        g = genus_of(k, genus_map)
         out[g] = out.get(g, 0.0) + v
     return out
 
@@ -319,7 +342,8 @@ def analyse():
              ("nanovi_gtdb", "nanovi_emudb", "gtdb")]
     rows, samples = [], []
     crc_rows, paper_rows, contrib_rows = [], [], []
-    db_species = database_species()
+    gmap = emu_genera()
+    db_species = database_species(gtdb_names, gmap)
     for cohort in COHORTS:
         if not (run_dir(cohort, "emu_same_sam") / "tables").exists():
             continue
@@ -334,7 +358,7 @@ def analyse():
             group = label[0] if cohort == "vaginal_bv" else (label if cohort == "crc" else "")
             if sample_label in pub:
                 ref = pub[sample_label]
-                genus_ref = published_bins(ref.get("genus_ncbi") or genus(ref["ncbi"]))
+                genus_ref = published_bins(ref.get("genus_ncbi") or genus(ref["ncbi"], gmap))
                 p["published"] = {"ncbi": published_bins(ref["ncbi"]), "gtdb": published_bins(ref["gtdb"]),
                                   "genus": normalise(genus_ref)}
                 unmapped["published"] = ref["unmapped"]
@@ -342,10 +366,11 @@ def analyse():
             for a, b, names in pairs + ([("nanovi_gtdb", "published", "gtdb"), ("nanovi_emudb", "published", "ncbi"),
                                          ("emu", "published", "ncbi")] if "published" in p else []):
                 pa, pb = p[a][names], p[b][names]
-                ga, gb = normalise(genus(pa)), normalise(genus(pb))
+                gm = gmap if names == "ncbi" else None  # GTDB names: the genus is the first word
+                ga, gb = normalise(genus(pa, gm)), normalise(genus(pb, gm))
                 if b == "published":
-                    # the paper's own genus table (NCBI genera; GTDB genera compared with suffixes stripped)
-                    gb = p[b]["genus"]
+                    if names == "ncbi":
+                        gb = p[b]["genus"]  # the paper's own genus table
                     pa, ga = fold(pa, pb), fold(ga, gb)
                 rows.append({**base, "arm_a": a, "arm_b": b, "names": names,
                              "species_bray_curtis": bray_curtis(pa, pb),
@@ -357,16 +382,17 @@ def analyse():
             srow = {**base}
             for arm in p:
                 prof = p[arm]["gtdb"]
-                srow[f"{arm}_species"] = len(prof)
-                srow[f"{arm}_lactobacillus"] = genus(prof).get("Lactobacillus", 0.0)
-                srow[f"{arm}_dominant_genus"] = dominant(genus(prof))
+                named = {k: v for k, v in genus(prof).items() if k != OTHERS}
+                srow[f"{arm}_species"] = sum(1 for k in prof if k != OTHERS)
+                srow[f"{arm}_lactobacillus"] = named.get("Lactobacillus", 0.0)
+                srow[f"{arm}_dominant_genus"] = dominant(named)
             if cohort == "vaginal_bv":
                 w = pub[sample_label]
                 srow["wgs_bacterial_reads"] = w["wgs_bacterial_reads"]
                 srow["wgs_lactobacillus"] = w["wgs_genus_ncbi"].get("Lactobacillus", 0.0)
                 srow["wgs_dominant_genus"] = dominant(w["wgs_genus_ncbi"])
                 for arm in ("nanovi_emudb", "emu"):
-                    srow[f"{arm}_genus_bc_vs_wgs"] = bray_curtis(normalise(genus(p[arm]["ncbi"])),
+                    srow[f"{arm}_genus_bc_vs_wgs"] = bray_curtis(normalise(genus(p[arm]["ncbi"], gmap)),
                                                                  w["wgs_genus_ncbi"])
             samples.append(srow)
             # what separates the two databases: each taxon's share of the Bray-Curtis
@@ -404,7 +430,7 @@ def analyse():
         for level, c in contrib.items():
             total = sum(c.values())
             for k in sorted(c, key=c.get, reverse=True)[:10]:
-                g = k.split()[0]
+                g = genus_of(k) if level == "species" else k
                 contrib_rows.append({"cohort": cohort, "level": level, "taxon": k, "mean_bc_contribution": c[k] / n,
                                      "share_of_bc": c[k] / total if total else float("nan"),
                                      "genus_species_gtdb": db_species["gtdb"].get(g, 0),
@@ -413,15 +439,12 @@ def analyse():
     pair_df = pd.DataFrame(rows)
     write_tsv(pair_df, dest / "clinical_pairs.tsv")
     write_tsv(pd.DataFrame(samples), dest / "clinical_samples.tsv")
-    summary = (pair_df.groupby(["cohort", "arm_a", "arm_b", "names"])
+    summary = (pair_df.assign(same=pair_df["dominant_genus_a"] == pair_df["dominant_genus_b"])
+               .groupby(["cohort", "arm_a", "arm_b", "names"])
                .agg(samples=("run", "count"), species_bc_median=("species_bray_curtis", "median"),
                     species_bc_max=("species_bray_curtis", "max"), genus_bc_median=("genus_bray_curtis", "median"),
-                    genus_bc_max=("genus_bray_curtis", "max"),
-                    dominant_genus_agree=("dominant_genus_a", "size"))
+                    genus_bc_max=("genus_bray_curtis", "max"), dominant_genus_agree=("same", "mean"))
                .reset_index())
-    agree = (pair_df.assign(same=pair_df["dominant_genus_a"] == pair_df["dominant_genus_b"])
-             .groupby(["cohort", "arm_a", "arm_b", "names"])["same"].mean().reset_index(drop=True))
-    summary["dominant_genus_agree"] = agree
     write_tsv(summary, dest / "clinical_summary.tsv")
     if crc_rows:
         crc = pd.concat(crc_rows, ignore_index=True)
@@ -434,13 +457,14 @@ def analyse():
     write_tsv(pd.DataFrame(contrib_rows), dest / "clinical_db_contribution.tsv")
 
 
-def database_species():
-    """Species per genus in each database: GTDB r226 (default build, suffixes stripped,
-    the names the comparisons use) and Emu's default database (NCBI names)."""
-    gtdb = {normalize_gtdb_name(s) for s in pd.read_csv(GTDB_DB / "taxonomy.tsv", sep="\t")["species"]}
+def database_species(gtdb_names, genus_map):
+    """Species per genus in each database: GTDB r226 (default build, suffixes stripped, the
+    names the comparisons use) and Emu's default database (genus from its taxonomy.tsv). The
+    genus names are each database's own: a genus GTDB renamed or split is counted under
+    different names in the two."""
     emu = set(pd.read_csv(EMU_DBS["emu_default"] / "taxonomy.tsv", sep="\t")["species"].dropna())
-    count = lambda names: pd.Series([s.split()[0] for s in names if s.split()]).value_counts().to_dict()
-    return {"gtdb": count(gtdb), "emudb": count(emu)}
+    count = lambda names, gm: pd.Series([genus_of(s, gm) for s in names]).value_counts().to_dict()
+    return {"gtdb": count(gtdb_names, None), "emudb": count(emu, genus_map)}
 
 
 def paper_species(arm, prof, df, xwalk):
@@ -480,6 +504,8 @@ def bv_lactobacillus(s):
     for arm in ARMS + ["published", "wgs"]:
         ctrl = s.loc[s["group"] == "control", f"{arm}_lactobacillus"].dropna()
         bv = s.loc[s["group"] == "BV", f"{arm}_lactobacillus"].dropna()
+        if ctrl.empty or bv.empty:  # the pilot has one swab
+            continue
         u, p = mannwhitneyu(ctrl, bv, alternative="two-sided")
         rows.append({"arm": arm, "control_n": len(ctrl), "control_min": ctrl.min(), "control_max": ctrl.max(),
                      "bv_n": len(bv), "bv_min": bv.min(), "bv_max": bv.max(),
