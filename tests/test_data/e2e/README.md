@@ -82,7 +82,8 @@ it, that every read that passed fastplong is counted in `estimated_counts`, that
 `consolidated_output/` holds the four tables, and that the tools and the Python image
 report their versions. A second e2e test runs with `--keep_counts false --keep_files
 true --credible_intervals true --binomial_names true` on the command line and checks
-that each takes effect.
+that each takes effect. A third runs the fixture's sample beside the two samples in
+`tests/test_data/edge_samples` (no read aligned) through a samplesheet.
 
 Reference output (`-profile test,docker`, which uses the pipeline defaults k = 21 and N = 3; dev at 208349f, 27 October 2026; fastplong 0.7.0, minimap2 2.31):
 
