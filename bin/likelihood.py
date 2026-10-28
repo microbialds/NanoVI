@@ -194,9 +194,14 @@ def score_reads(sam_path):
     """Error profile and read scores from one pass over a SAM or BAM file (F24).
 
     Returns (log_p_rgs, unassigned_count, assigned_count), as log_prob_rgs_dict
-    does after get_cigar_op_log_probabilities, which read the file twice.
+    does after get_cigar_op_log_probabilities, which read the file twice. With no
+    primary mapped alignment (a blank, or a sample whose reads all failed the
+    length filter) no read is scored and every read is unassigned (F45).
     """
     records = read_alignment_records(sam_path)
+    if not any(records.primary):
+        stdout.write(f"Unassigned read count: {len(records.names)}\n")
+        return {}, len(records.names), 0
     log_probs, zero_locs, dict_longest_align = cigar_profile(records)
     return read_scores_from_records(records, log_probs, dict_longest_align, zero_locs)
 

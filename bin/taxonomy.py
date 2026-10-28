@@ -312,7 +312,7 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     # Build a DataFrame from freq plus 'below detection' and 'unassigned' rows
     results_df = pd.DataFrame(
         zip(list(freq.keys()) + [BELOW_DETECTION_ID, UNASSIGNED_ID],
-            list(freq.values()) + [0, 0]),
+            list(freq.values()) + [0.0, 0.0]),
         columns=["tax_id", "abundance"]
     )
     results_df["tax_id"] = results_df["tax_id"].astype(str)

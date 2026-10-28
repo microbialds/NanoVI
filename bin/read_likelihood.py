@@ -10,6 +10,7 @@ of assigned and unassigned reads as a small JSON for write_abundance_table.py.
 """
 import argparse
 import json
+import sys
 
 import numpy as np
 
@@ -25,6 +26,10 @@ def main():
     args = parser.parse_args()
 
     log_p_rgs, unassigned_count, assigned_count = score_reads(args.alignments)
+    if not assigned_count:
+        # The sample still gets a table, with every read unassigned (F45)
+        print(f"WARNING: {args.alignments} has no primary alignment to the database; "
+              f"all {unassigned_count} reads are unassigned", file=sys.stderr)
 
     offsets, tax_ids, scores = read_scores_to_arrays(log_p_rgs)
     with open(args.scores, "wb") as f:

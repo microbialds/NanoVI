@@ -26,7 +26,9 @@ database, 30 that are not 16S). How the numbers are computed is in
 
 Tab-separated, one row per species the sample is estimated to contain, then two fixed
 rows, `Below detection` and `Unassigned`, always last and always present so that tables
-from different samples have the same placeholder rows. Species rows are sorted by name.
+from different samples have the same placeholder rows. Species rows are sorted by name. A sample
+with no read aligned to the database (a blank, or every read shorter than `--min_length`) has
+only the two placeholder rows, with all its reads in `Unassigned`; the run log warns, naming it.
 
 | Column | When | Meaning |
 |---|---|---|

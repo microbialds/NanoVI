@@ -236,3 +236,63 @@ def test_write_abundance_table_interval_columns_only_on_request(tmp_path, estima
     else:
         assert result.returncode == 2
         assert '--credible-intervals needs abundances from estimate_abundance.py --estimator vb' in result.stderr
+
+
+# ─── A sample with no scored read (F45) ─────────────────────────────────────
+
+@pytest.mark.parametrize('estimator', ['vb', 'em'])
+def test_estimate_abundance_with_no_scored_read(tmp_path, estimator):
+    npz = write_npz(tmp_path / 'S1_read_scores.npz', {})
+    out = tmp_path / 'abundance.json'
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'estimate_abundance.py'), '--scores', npz, '--output', str(out),
+         '--estimator', estimator],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert 'S1_read_scores.npz' in result.stderr
+    assert json.loads(out.read_text()) == {'abundance': {}, 'below_detection_count': 0, 'read_summary': {}}
+
+
+@pytest.mark.parametrize('options', [[], ['--counts'], ['--counts', '--credible-intervals', '--binomial-names']])
+def test_write_abundance_table_with_no_scored_read(tmp_path, options):
+    # Only the Below detection (0) and Unassigned rows; every read is unassigned
+    (tmp_path / 'abundance.json').write_text(json.dumps({'abundance': {}, 'below_detection_count': 0, 'read_summary': {}}))
+    (tmp_path / 'counts.json').write_text(json.dumps({'assigned_count': 0, 'unassigned_count': 30}))
+    (tmp_path / 'taxonomy.tsv').write_text('tax_id\tspecies\tgenus\n1\tAlpha one\tAlpha\n')
+    (tmp_path / 'identical_16s.tsv').write_text('tax_id\tspecies\tgenus\tgroup\tgroup_size\tidentical_16s_species\n')
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'write_abundance_table.py'), '--abundance', 'abundance.json',
+         '--read-counts', 'counts.json', '--taxonomy', 'taxonomy.tsv', '--output-prefix', 'S1_rel-abundance',
+         '--identical-16s', 'identical_16s.tsv', *options],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    import pandas as pd
+    table = pd.read_csv(tmp_path / 'S1_rel-abundance.tsv', sep='\t', keep_default_na=False)
+    assert table['species'].tolist() == ['Below detection', 'Unassigned']
+    assert table['abundance'].tolist() == [0, 0]
+    if '--counts' in options:
+        assert table['estimated_counts'].tolist() == [0, 30]
+    if '--credible-intervals' in options:
+        assert table['ci_lower'].tolist() == ['', '']
+
+    # The phyloseq tables keep the sample, with zero counts beside a sample with reads
+    other = tmp_path / 'S2_rel-abundance.tsv'
+    other.write_text('species\tabundance\tgenus\tfamily\torder\tclass\tphylum\tsuperkingdom\testimated_counts\n'
+                     'Alpha one\t1.0\tAlpha\t\t\t\t\t\t10\n'
+                     'Below detection\t0\t\t\t\t\t\t\t0\nUnassigned\t0\t\t\t\t\t\t\t2\n')
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'generate_phyloseq_tables.py'), 'S1_rel-abundance.tsv', 'S2_rel-abundance.tsv',
+         '--output-dir', 'phyloseq'],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    abundance = pd.read_csv(tmp_path / 'phyloseq' / 'otu_table_abundance.tsv', sep='\t', index_col=0)
+    assert abundance['S1'].tolist() == [0, 0, 0]
+    metadata = pd.read_csv(tmp_path / 'phyloseq' / 'sample_metadata.tsv', sep='\t', index_col=0)
+    assert metadata.loc['S1', 'n_taxa_detected'] == 0
+    if '--counts' in options:
+        counts = pd.read_csv(tmp_path / 'phyloseq' / 'otu_table_counts.tsv', sep='\t', index_col=0)
+        assert counts.loc['Unassigned', 'S1'] == 30 and counts.loc['Alpha one', 'S1'] == 0
+        assert metadata.loc['S1', 'assigned_counts'] == 0 and metadata.loc['S1', 'unassigned_counts'] == 30

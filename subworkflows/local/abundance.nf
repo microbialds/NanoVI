@@ -66,6 +66,17 @@ workflow ABUNDANCE {
     // Step 4: Error profile and per-read scores, from one pass over the alignments (F24)
     LIKELIHOOD(bam_file)
 
+    // A sample with no read aligned to the database (a blank, or every read filtered
+    // out) gets a table with only the Below detection and Unassigned rows (F45)
+    if (!workflow.stubRun) {
+        LIKELIHOOD.out.counts.subscribe { sample_id, counts ->
+            def n = new groovy.json.JsonSlurper().parseText(counts.text)
+            if (!n.assigned_count)
+                log.warn "Sample ${sample_id}: no read aligned to the database; " +
+                    "all ${n.unassigned_count} reads are reported as Unassigned"
+        }
+    }
+
     // Step 5: Run variational inference on the per-read scores
     freq_output = RUN_VI(LIKELIHOOD.out.scores).abundance
 

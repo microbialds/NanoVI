@@ -693,4 +693,57 @@ nextflow_pipeline {
             assert new File(taskDir, '.command.sh').text.contains('--binomial-names')
         }
     }
+
+    // A sample with no read aligned to the database does not stop the run (F45): its
+    // table has only the Below detection (0) and Unassigned rows, and the phyloseq
+    // tables keep it with zero counts. non16s holds the fixture's 30 non-16S reads;
+    // too_short holds 20 reads cut to 400 bp, below --min_length 500
+    test("Samples with no aligned read get an all-Unassigned table beside a normal sample") {
+        tag "e2e"
+        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --keep_files true"
+
+        when {
+            def edge = "${projectDir}/tests/test_data/edge_samples"
+            def sheet = new File("${outputDir}/samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,fastq\n" +
+                "e2e_mock,${projectDir}/tests/test_data/e2e/reads/e2e_mock.fastq.gz\n" +
+                "non16s,${edge}/non16s.fastq.gz\n" +
+                "too_short,${edge}/too_short.fastq.gz\n"
+            params {
+                input      = "${outputDir}/samplesheet.csv"
+                output_dir = "${outputDir}"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def readTsv = { f ->
+                def lines = file(f).readLines().findAll { it }
+                def header = lines[0].split('\t', -1) as List
+                lines.drop(1).collect { line -> [header, line.split('\t', -1) as List].transpose().collectEntries { it } }
+            }
+            def normal = readTsv("${outputDir}/sample_outputs/e2e_mock_rel-abundance.tsv")
+            assert normal.count { !(it.species in ['Below detection', 'Unassigned']) } == 6
+            [non16s: 30, too_short: 0].each { sample, unassigned ->
+                def rows = readTsv("${outputDir}/sample_outputs/${sample}_rel-abundance.tsv")
+                assert rows.collect { [it.species, it.abundance as double, it.estimated_counts as int] } ==
+                    [['Below detection', 0.0, 0], ['Unassigned', 0.0, unassigned]]
+                def warning = "Sample ${sample}: no read aligned to the database"
+                assert (workflow.stdout + workflow.stderr).any { it.contains(warning) } ||
+                    file("${metaDir}/nextflow.log").text.contains(warning)
+            }
+            // fastplong leaves an empty file when no read passes; FILTER_READS makes it a gzip stream
+            def filtered = new java.util.zip.GZIPInputStream(new FileInputStream("${outputDir}/filtered/too_short_filtered.fastq.gz"))
+            assert filtered.read() == -1
+
+            def metadata = readTsv("${outputDir}/consolidated_output/sample_metadata.tsv").collectEntries { [(it.sample_id): it] }
+            assert metadata.keySet() == ['e2e_mock', 'non16s', 'too_short'] as Set
+            assert metadata.non16s.n_taxa_detected == '0' && metadata.non16s.assigned_counts == '0'
+            assert metadata.non16s.unassigned_counts == '30' && metadata.too_short.unassigned_counts == '0'
+            def counts = readTsv("${outputDir}/consolidated_output/otu_table_counts.tsv")
+            assert counts.every { it.too_short == '0' }
+            assert counts.find { it.species == 'Unassigned' }.non16s == '30'
+        }
+    }
 }

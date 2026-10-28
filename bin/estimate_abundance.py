@@ -13,6 +13,7 @@ write_abundance_table.py builds the shared_read_fraction column and, with its
 """
 import argparse
 import json
+import sys
 
 import numpy as np
 
@@ -40,6 +41,13 @@ def main():
 
     with np.load(args.scores) as data:
         offsets, tax_ids, scores = data["offsets"], data["tax_ids"], data["scores"]
+
+    if len(offsets) <= 1:
+        # No read was scored (F45): nothing to estimate, and every read is unassigned
+        print(f"WARNING: {args.scores} has no scored read; writing an empty abundance", file=sys.stderr)
+        with open(args.output, "w") as f:
+            json.dump({"abundance": {}, "below_detection_count": 0, "read_summary": {}}, f)
+        return
 
     # Species in order of first appearance through a set, as the JSON hand-off did,
     # so the columns (and the floating-point sums) are in the same order as before

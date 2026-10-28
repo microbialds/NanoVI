@@ -33,6 +33,8 @@ process FILTER_READS {
         --length_required ${params.min_length} \\
         --length_limit ${params.max_length} \\
         ${quality_filter}
+    # With no read left fastplong writes an empty file, not a gzip stream (F45)
+    [ -s ${sample_id}_filtered.fastq.gz ] || gzip -c < /dev/null > ${sample_id}_filtered.fastq.gz
 
     gzip -f fastplong/${sample_id}_report.html
     gzip -f fastplong/${sample_id}_report.json
