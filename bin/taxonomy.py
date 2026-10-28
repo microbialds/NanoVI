@@ -292,18 +292,23 @@ def unify_species_abundance(df, binomial=False):
 def largest_remainder(weights, total):
     """
     Round weights * total to integers that sum exactly to total (F08).
-    Each value is floored, then the reads left over go one each to the
-    largest fractional parts (ties to the earlier row). weights are
-    abundances that sum to about 1; total is a read count.
+    The weights (abundances; total is a read count) are first divided by
+    their sum, so counts add up to total even when the abundances sum to a
+    little more or less than 1 (F48). Each value is floored, then the reads
+    left over go one each to the largest fractional parts (ties to the
+    earlier row). When every weight is 0 no row gets a read.
     """
     total = int(total)
-    raw = np.asarray(weights, dtype=float) * total
-    if raw.size == 0:
-        return np.zeros(0, dtype=int)
+    weights = np.asarray(weights, dtype=float)
+    if weights.size == 0 or not weights.sum() > 0:
+        return np.zeros(weights.size, dtype=int)
+    raw = weights / weights.sum() * total
     floors = np.floor(raw).astype(int)
-    left = min(max(total - int(floors.sum()), 0), raw.size)
+    # Fewer than one read per row is left, up to rounding in the sum
+    left = total - int(floors.sum())
     order = np.argsort(-(raw - floors), kind='stable')
-    floors[order[:left]] += 1
+    floors += left // raw.size
+    floors[order[:left % raw.size]] += 1
     return floors
 
 def label_lineages(results_df, taxonomy_df, warn=True):
