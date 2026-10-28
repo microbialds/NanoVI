@@ -103,6 +103,7 @@ e2e fixture: `sample_metadata.tsv` reads `e2e_mock  1.0  6  600  30`.
 | `bam/<sample>_vi_alignments.bam` | With `--keep_files`: minimap2's alignments, unsorted: per read the primary, up to `--N` secondary and any supplementary alignments, unmapped reads included |
 | `index_cache/<fasta stem>.<md5>.<type>.k<k>.minimap2-<version>.mmi` | The minimap2 index built with `-x <type> -k <kmer_size>`, and its `.versions.yml`. A later run with the same database, settings and minimap2 version reuses it. Not built with `--db_index`. A `-stub-run` adds `.stub` to the name |
 | `index_cache/...identical_16s-<md5>.tsv` | The identical-16S table built for a database without one, and its `.versions.yml` (above) |
+| `index_cache/md5_cache.tsv` | The MD5 of the database FASTA (and of `taxonomy.tsv` when the identical-16S table is built), with each file's path, size and modification time in milliseconds: a later launch reads the MD5 from here instead of the file while those match. Deleting it only makes the next launch read the files again |
 | `pipeline_info/timeline.html`, `report.html`, `trace.txt` | Nextflow's timeline, report and trace; the trace also records each task's requested `cpus`, `memory` and `time` |
 | `pipeline_info/software_versions.yml` | Per process, the tool versions it ran (fastplong; minimap2 and samtools; Python and numpy, pandas, scipy, pysam, biopython), plus NanoVI and Nextflow |
 

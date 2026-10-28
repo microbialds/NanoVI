@@ -24,8 +24,10 @@ workflow ABUNDANCE {
 
     // A stub run's empty outputs get their own names, so a later real run never reuses them
     def stub = workflow.stubRun ? '.stub' : ''
-    // The FASTA's MD5 names the cached index and identical-16S table (read once; skipped when neither is built)
-    def fasta_md5 = (!db_index || !identical_16s) && fasta_file.exists() ? md5Prefix(fasta_file) : null
+    // The FASTA's MD5 names the cached index and identical-16S table (skipped when neither is
+    // built). It is read once and kept in the index cache, keyed by path, size and mtime (F50)
+    def cache_dir = file(params.index_cache_dir ?: "${params.output_dir}/index_cache")
+    def fasta_md5 = (!db_index || !identical_16s) && fasta_file.exists() ? cachedMd5Prefix(fasta_file, cache_dir) : null
 
     // Step 2: minimap2 index: the prebuilt one, or built once per database, preset,
     // k-mer size and minimap2 version and kept in the index cache (F26)
@@ -49,7 +51,7 @@ workflow ABUNDANCE {
         // Named after the FASTA, the taxonomy and the script that groups them, so a
         // changed grouping rule builds a new table instead of reusing a cached one
         def script_md5 = md5Prefix(file("${projectDir}/bin/identical_16s.py"))
-        def table_name = "${fasta_file.baseName}.${fasta_md5}.${md5Prefix(taxonomy_tsv)}.identical_16s-${script_md5}${stub}"
+        def table_name = "${fasta_file.baseName}.${fasta_md5}.${cachedMd5Prefix(taxonomy_tsv, cache_dir)}.identical_16s-${script_md5}${stub}"
         IDENTICAL_16S(fasta_file, taxonomy_tsv, table_name)
         identical_table = IDENTICAL_16S.out.table
         identical_versions = IDENTICAL_16S.out.versions
@@ -106,9 +108,45 @@ workflow ABUNDANCE {
 // First 12 hex digits of the file's MD5, read in 1 MB blocks: identifies the
 // database in the index file name, so two databases never share a cached index
 def md5Prefix(path) {
+    return md5Hex(path).take(12)
+}
+
+def md5Hex(path) {
     def digest = java.security.MessageDigest.getInstance('MD5')
     path.withInputStream { stream ->
         stream.eachByte(1 << 20) { buffer, n -> digest.update(buffer, 0, n) }
     }
-    return digest.digest().encodeHex().toString().take(12)
+    return digest.digest().encodeHex().toString()
+}
+
+// md5Prefix, reading the file only when <cache_dir>/md5_cache.tsv has no line for its
+// path, size and modification time (F50): a GTDB-sized FASTA is read once, not at every
+// launch, and a remote one is downloaded once. The names built from it do not change. The
+// table is rewritten through a temporary file, so a concurrent launch never reads half of
+// it; when it cannot be written, the MD5 is still returned
+def cachedMd5Prefix(path, cache_dir) {
+    def table = cache_dir.resolve('md5_cache.tsv')
+    def key = [path.toUriString(), path.size(), path.lastModified()].join('\t')
+    def entries = [:]
+    if (table.exists()) {
+        table.readLines().drop(1).each { line ->
+            def i = line.lastIndexOf('\t')
+            if (i > 0) entries[line.substring(0, i)] = line.substring(i + 1)
+        }
+    }
+    if (entries[key] ==~ /[0-9a-f]{32}/)
+        return entries[key].take(12)
+    // A line for this path with another size or mtime can never match again
+    entries = entries.findAll { k, v -> !k.startsWith(path.toUriString() + '\t') }
+    entries[key] = md5Hex(path)
+    try {
+        cache_dir.mkdirs()
+        def tmp = cache_dir.resolve("md5_cache.tsv.${UUID.randomUUID()}.tmp")
+        tmp.text = "path\tsize\tmtime_ms\tmd5\n" + entries.collect { k, v -> "${k}\t${v}\n" }.join('')
+        java.nio.file.Files.move(tmp, table, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+    }
+    catch (Exception e) {
+        log.warn "Could not record the MD5 of ${path} in ${table}: ${e.message}"
+    }
+    return entries[key].take(12)
 }

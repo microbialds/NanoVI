@@ -64,6 +64,10 @@ nextflow_pipeline {
             // default cache: <output_dir>/index_cache
             assert file("${outputDir}/index_cache/${mockIndexName(projectDir)}.mmi").exists()
             assert file("${outputDir}/index_cache/${mockIndexName(projectDir)}.versions.yml").exists()
+            // the FASTA's MD5 is recorded for the next launch (F50)
+            // (and the taxonomy's, which names the identical-16S table this database lacks)
+            def recorded = file("${outputDir}/index_cache/md5_cache.tsv").readLines()
+            assert recorded.size() == 3 && recorded.count { it.contains('/mock_db/species_taxid.fasta\t') } == 1
         }
     }
 
@@ -93,6 +97,68 @@ nextflow_pipeline {
             assert file("${outputDir}/shared_cache/${mockIndexName(projectDir)}.mmi").text == 'cached index'
             def versions = new org.yaml.snakeyaml.Yaml().load(file("${outputDir}/pipeline_info/software_versions.yml").text)
             assert versions.INDEX_DB.minimap2 == 'cached'
+        }
+    }
+
+    // The FASTA's MD5 is read once and kept in <index_cache_dir>/md5_cache.tsv, keyed by
+    // the file's path, size and modification time (F50). A seeded line with a made-up MD5
+    // shows whether the pipeline read the table or the FASTA
+    def md5CacheLine = { projectDir, mtimeShift, md5 ->
+        def fasta = new File("${projectDir}/tests/test_data/mock_db/species_taxid.fasta").toPath().toAbsolutePath().normalize()
+        def mtime = java.nio.file.Files.getLastModifiedTime(fasta).toMillis() + mtimeShift
+        "path\tsize\tmtime_ms\tmd5\n${fasta}\t${java.nio.file.Files.size(fasta)}\t${mtime}\t${md5}\n"
+    }
+
+    test("The FASTA's MD5 is taken from md5_cache.tsv when its size and mtime match") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            def cache = new File("${outputDir}/md5_cache_hit")
+            cache.mkdirs()
+            new File(cache, 'md5_cache.tsv').text = md5CacheLine(projectDir, 0, '0123456789abcdef0123456789abcdef')
+            params {
+                input           = "${projectDir}/tests/test_data/stub_reads"
+                output_dir      = "${outputDir}"
+                index_cache_dir = "${outputDir}/md5_cache_hit"
+                db              = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv    = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/md5_cache_hit").listFiles().any { it.name.startsWith('species_taxid.0123456789ab.map-ont.k21.stub.') }
+        }
+    }
+
+    test("A changed modification time makes the FASTA's MD5 be read again and recorded") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            def cache = new File("${outputDir}/md5_cache_stale")
+            cache.mkdirs()
+            new File(cache, 'md5_cache.tsv').text = md5CacheLine(projectDir, -1000, '0123456789abcdef0123456789abcdef')
+            params {
+                input           = "${projectDir}/tests/test_data/stub_reads"
+                output_dir      = "${outputDir}"
+                index_cache_dir = "${outputDir}/md5_cache_stale"
+                db              = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv    = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/md5_cache_stale/${mockIndexName(projectDir)}.mmi").exists()
+            def fasta = new File("${projectDir}/tests/test_data/mock_db/species_taxid.fasta")
+            def md5 = java.security.MessageDigest.getInstance('MD5').digest(fasta.bytes).encodeHex().toString()
+            def lines = file("${outputDir}/md5_cache_stale/md5_cache.tsv").readLines()
+            assert lines[0] == "path\tsize\tmtime_ms\tmd5"
+            // the stale line is replaced; the other line is the taxonomy's
+            assert lines.count { it.endsWith("\t${md5}") } == 1 && lines.size() == 3
+            assert !lines.any { it.endsWith('0123456789abcdef0123456789abcdef') }
         }
     }
 
