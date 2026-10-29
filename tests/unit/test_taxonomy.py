@@ -207,3 +207,17 @@ def test_species_row_keys_one_key_per_tax_id_with_a_repeated_tax_id():
                             columns=['tax_id', 'species', 'genus']).set_index('tax_id')
     keys = species_row_keys([1, 2, 3], taxonomy)
     assert len(keys) == 3 and keys[0] == keys[2] != keys[1]
+
+
+def test_repeated_tax_id_is_one_row_of_the_table(tmp_path, capsys):
+    # A tax_id listed twice took one row per lineage, each with its full abundance (F46)
+    taxonomy = pd.DataFrame([['1', 'Alpha one', 'Alpha'], ['1', 'Alpha two', 'Alpha'], ['2', 'Beta two', 'Beta']],
+                            columns=['tax_id', 'species', 'genus']).set_index('tax_id')
+    table = freq_to_lineage_df({1: 0.6, 2: 0.4}, str(tmp_path / 'out'), taxonomy, 100, 0, counts=True)
+    taxa = table[~table['species'].isin(['Below detection', 'Unassigned'])]
+    assert list(taxa['species']) == ['Alpha one', 'Beta two']
+    assert taxa['abundance'].sum() == pytest.approx(1.0)
+    assert list(taxa['estimated_counts']) == [60, 40]
+    assert "tax_id 1 is listed more than once in taxonomy.tsv; using its first lineage" in capsys.readouterr().err
+    keys = species_row_keys([1, 2], taxonomy)
+    assert keys[0][0] == 'Alpha one'

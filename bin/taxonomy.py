@@ -261,8 +261,6 @@ def species_row_keys(tax_ids, taxonomy_df, binomial=False):
     is a row of its own ('Unknown taxid <id>').
     """
     df = pd.DataFrame(index=pd.Index([str(t) for t in tax_ids], name="tax_id"))
-    # One key per tax ID: a tax_id listed twice in taxonomy_df takes its first lineage
-    taxonomy_df = taxonomy_df[~taxonomy_df.index.astype(str).duplicated()]
     df = label_lineages(df, taxonomy_df, warn=False)
     df, group_columns = species_row_columns(df, binomial)
     keys = list(df[group_columns].itertuples(index=False, name=None))
@@ -324,8 +322,17 @@ def label_lineages(results_df, taxonomy_df, warn=True):
     Returns the rows with tax_id as a column. The Below detection and Unassigned
     rows, and tax IDs without a species name in taxonomy_df ('Unknown taxid
     <id>', with a warning on stderr when warn is True), get their label as
-    species name instead of being dropped by the groupby (F01).
+    species name instead of being dropped by the groupby (F01). A tax_id listed
+    more than once in taxonomy_df takes its first lineage, so it is one row of
+    the table, as in species_row_keys (F46).
     """
+    duplicated = taxonomy_df.index.astype(str).duplicated()
+    if duplicated.any():
+        if warn:
+            for tid in sorted(set(taxonomy_df.index[duplicated].astype(str))):
+                print(f"Warning: tax_id {tid} is listed more than once in taxonomy.tsv; using its first lineage",
+                      file=sys.stderr)
+        taxonomy_df = taxonomy_df[~duplicated]
     # Join with the full taxonomy info
     results_df = results_df.join(taxonomy_df, how='left').reset_index()
     if 'species' not in results_df.columns:
