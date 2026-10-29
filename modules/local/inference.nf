@@ -3,42 +3,36 @@ process RUN_VI {
     label 'vi_inference'
 
     input:
-    tuple val(sample_id), path(logp_json)
-    path bin_dir
+    tuple val(sample_id), path(read_scores)
+    path taxonomy_tsv   // rows of the table, so shared reads are counted between rows (F46)
 
     output:
     tuple val(sample_id), path("${sample_id}_abundance.json"), emit: abundance
+    path "versions.yml", emit: versions
 
     script:
     """
-    pip install --quiet --target="\$PWD/.pylocal" scipy
-    python3 -c '
-import sys, json
-sys.path.insert(0, "${bin_dir}")
-sys.path.insert(0, ".pylocal")
-from variational_inference_bayesian import variational_inference_iterations
-
-with open("${logp_json}") as f:
-    data = json.load(f)
-
-log_p_rgs = data["log_p_rgs"]
-assigned_count = data["assigned_count"]
-unassigned_count = data["unassigned_count"]
-
-db_ids = list({tid for read in log_p_rgs.values() for tid in read[0]})
-
-freq_full, freq_thresh, _ = variational_inference_iterations(
-    log_p_rgs, db_ids, lli_thresh=0.0001, input_threshold=0.001
-)
-
-with open("${sample_id}_abundance.json", "w") as f:
-    json.dump(freq_thresh if freq_thresh else freq_full, f)
-'
+    estimate_abundance.py \\
+        --scores "${read_scores}" \\
+        --output "${sample_id}_abundance.json" \\
+        --estimator ${params.estimator} \\
+        --min-abundance ${params.min_abundance} \\
+        --tolerance ${params.vi_tolerance} \\
+        --max-iterations ${params.vi_max_iterations} \\
+        --alpha-prior ${params.alpha_prior} \\
+        --elbo-threshold ${params.vi_elbo_threshold} \\
+        --taxonomy "${taxonomy_tsv}" \\
+        ${params.binomial_names ? '--binomial-names' : ''}
+    python_versions.py "${task.process}" > versions.yml
     """
 
     stub:
     """
-    echo '{}' > ${sample_id}_abundance.json
+    echo '{"abundance": {}, "below_detection_count": 0, "read_summary": {}}' > ${sample_id}_abundance.json
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        python: stub
+    END_VERSIONS
     """
 }
 

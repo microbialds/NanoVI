@@ -1,0 +1,13 @@
+sample	db	primary_reads	wrong_genus_reads	wrong_genus_cross_genus_seq	right_genus_cross_genus_seq
+even_r1041_10k_s01	exact	10001	59	47	27
+even_r1041_10k_s01	c995	10001	4440	4030	127
+even_r1041_10k_s01	reps	10001	2741	2729	2693
+even_r941_10k_s01	exact	9978	170	111	67
+even_r941_10k_s01	c995	9981	2773	2532	68
+even_r941_10k_s01	reps	9976	2816	2695	2492
+log_r1041_10k_s01	exact	10001	34	17	12
+log_r1041_10k_s01	c995	10001	3271	3014	18
+log_r1041_10k_s01	reps	10001	6830	6822	2134
+log_r941_10k_s01	exact	9970	133	4	5
+log_r941_10k_s01	c995	9980	1737	1561	1
+log_r941_10k_s01	reps	9967	6533	6383	2124

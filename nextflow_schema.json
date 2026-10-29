@@ -1,10 +1,10 @@
 {
-  "$schema": "https://json-schema.org/draft-07/schema",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/microbialds/NanoVI/nextflow_schema.json",
   "title": "NanoVI pipeline parameters",
   "description": "Taxonomic classification of full-length 16S rRNA Nanopore reads using variational inference",
   "type": "object",
-  "definitions": {
+  "$defs": {
     "general_options": {
       "title": "General options",
       "type": "object",
@@ -13,12 +13,18 @@
           "type": "string",
           "default": "abundance",
           "description": "Pipeline subcommand to run",
-          "enum": ["abundance", "build-database", "collapse-taxonomy", "combine-outputs"]
+          "enum": [
+            "abundance",
+            "build-database",
+            "collapse-taxonomy",
+            "combine-outputs"
+          ]
         },
         "output_dir": {
           "type": "string",
           "default": "results/",
-          "description": "Directory for pipeline output files"
+          "description": "Directory for pipeline output files",
+          "format": "directory-path"
         }
       }
     },
@@ -28,15 +34,33 @@
       "properties": {
         "input": {
           "type": "string",
-          "description": "Path to input samplesheet CSV or FASTQ directory"
+          "description": "Samplesheet CSV (columns sample, fastq) or a directory of FASTQ files",
+          "format": "path",
+          "exists": true
         },
         "db": {
           "type": "string",
-          "description": "Path to NanoVI/GTDB reference database directory"
+          "description": "Reference database directory containing species_taxid.fasta (and taxonomy.tsv unless --taxonomy_tsv is given)",
+          "format": "directory-path",
+          "exists": true
+        },
+        "db_index": {
+          "type": "string",
+          "format": "file-path",
+          "exists": true,
+          "pattern": "^\\S+\\.mmi$",
+          "description": "Prebuilt minimap2 index (.mmi) of the database's species_taxid.fasta. It is used as given, without INDEX_DB, so build it with the same minimap2 version, -x <type> and -k <kmer_size> as the run (for example from the index cache of an earlier run)"
+        },
+        "index_cache_dir": {
+          "type": "string",
+          "format": "directory-path",
+          "description": "Directory where INDEX_DB keeps the minimap2 indexes it builds, one per database checksum, --type, --kmer_size and minimap2 version; a later run with the same settings reuses the index. Default: <output_dir>/index_cache"
         },
         "taxonomy_tsv": {
           "type": "string",
-          "description": "Path to taxonomy TSV file matching the reference database"
+          "description": "Path to taxonomy TSV file matching the reference database",
+          "format": "file-path",
+          "exists": true
         },
         "kmer_size": {
           "type": "integer",
@@ -52,15 +76,20 @@
           "description": "Maximum number of secondary alignments reported by minimap2 per read"
         },
         "K": {
-          "type": "integer",
-          "default": 4000000000,
-          "description": "Minibatch size for minimap2 mapping (bytes)"
+          "type": "string",
+          "default": "500M",
+          "pattern": "^[0-9]+[KMGkmg]?$",
+          "description": "Minibatch size for minimap2 mapping (minimap2 -K): the number of read bases loaded and mapped per batch, a number optionally with K, M or G (500M = 500 million bases)"
         },
         "type": {
           "type": "string",
           "default": "map-ont",
           "description": "Minimap2 sequencing type preset",
-          "enum": ["map-ont", "map-pb", "sr"]
+          "enum": [
+            "map-ont",
+            "map-pb",
+            "sr"
+          ]
         },
         "split_prefix": {
           "type": "string",
@@ -71,13 +100,18 @@
           "type": "integer",
           "default": 500,
           "minimum": 0,
-          "description": "Minimum read length for FastpLong quality filter (bp)"
+          "description": "Minimum read length kept by fastplong (bp)"
         },
         "max_length": {
           "type": "integer",
           "default": 2000,
           "minimum": 1,
-          "description": "Maximum read length for FastpLong quality filter (bp)"
+          "description": "Maximum read length kept by fastplong (bp)"
+        },
+        "min_quality": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Minimum mean read quality (Phred) for fastplong's quality filter. Off by default (length filter only)"
         },
         "keep_counts": {
           "type": "boolean",
@@ -87,7 +121,63 @@
         "keep_files": {
           "type": "boolean",
           "default": false,
-          "description": "Retain intermediate files (SAM alignments, filtered FASTQs) in output directory"
+          "description": "Publish the alignments (bam/<sample>_vi_alignments.bam) and the length-filtered reads (filtered/<sample>_filtered.fastq.gz)"
+        },
+        "binomial_names": {
+          "type": "boolean",
+          "default": false,
+          "description": "Cut species names in the output tables to genus and epithet ('Candidatus' names keep three words) and sum the species that then share a name (their shared_read_fraction also counts the reads split among them). Off: names as in the database's taxonomy.tsv"
+        }
+      }
+    },
+    "inference_options": {
+      "title": "Inference options",
+      "type": "object",
+      "properties": {
+        "estimator": {
+          "type": "string",
+          "default": "vb",
+          "enum": [
+            "vb",
+            "em"
+          ],
+          "description": "Estimator: 'vb' (Bayesian variational inference, default) or 'em' (Emu-style expectation-maximization)"
+        },
+        "min_abundance": {
+          "type": "number",
+          "default": 0.001,
+          "minimum": 0,
+          "exclusiveMaximum": 1,
+          "description": "Lowest abundance reported. VB prunes species below max(1/R, min_abundance), or max(10/R, min_abundance) above 1,000 reads with an alignment (R)"
+        },
+        "vi_tolerance": {
+          "type": "number",
+          "default": 1e-07,
+          "exclusiveMinimum": 0,
+          "description": "VB only: CAVI stops when no posterior mean abundance changes by more than this between iterations"
+        },
+        "vi_max_iterations": {
+          "type": "integer",
+          "default": 1000,
+          "minimum": 1,
+          "description": "VB only: most CAVI iterations per pruning round"
+        },
+        "alpha_prior": {
+          "type": "number",
+          "default": 1.0,
+          "exclusiveMinimum": 0,
+          "description": "VB only: total concentration of the symmetric Dirichlet prior (each species gets alpha_prior / S)"
+        },
+        "vi_elbo_threshold": {
+          "type": "number",
+          "default": 0.0001,
+          "exclusiveMinimum": 0,
+          "description": "EM only: the EM loop stops when the log-likelihood rises by less than this"
+        },
+        "credible_intervals": {
+          "type": "boolean",
+          "default": false,
+          "description": "VB only: add ci_lower and ci_upper, 95% sampling intervals of the mean-field posterior. They are not calibrated: they ignore how reads shared by close relatives are split (shared_read_fraction, always written, flags those species)"
         }
       }
     },
@@ -98,23 +188,32 @@
         "db_name": {
           "type": "string",
           "default": "db_custom",
-          "description": "Name for the custom database to build"
+          "description": "Name for the custom database to build",
+          "pattern": "^[A-Za-z0-9._-]+$"
         },
         "sequences": {
           "type": "string",
-          "description": "Path to input FASTA file with reference sequences"
+          "description": "Path to input FASTA file with reference sequences",
+          "format": "file-path",
+          "exists": true
         },
         "seq2tax": {
           "type": "string",
-          "description": "Path to sequence-to-taxonomy mapping TSV file"
+          "description": "Path to sequence-to-taxonomy mapping TSV file",
+          "format": "file-path",
+          "exists": true
         },
         "ncbi_taxonomy": {
           "type": "string",
-          "description": "Path to NCBI taxonomy dump directory (containing names.dmp and nodes.dmp)"
+          "description": "Path to NCBI taxonomy dump directory (containing names.dmp and nodes.dmp). build-database needs exactly one of ncbi_taxonomy or taxonomy_list",
+          "format": "directory-path",
+          "exists": true
         },
         "taxonomy_list": {
           "type": "string",
-          "description": "Path to taxonomy terms list TSV file"
+          "description": "Path to taxonomy terms list TSV file. build-database needs exactly one of taxonomy_list or ncbi_taxonomy",
+          "format": "file-path",
+          "exists": true
         }
       }
     },
@@ -124,24 +223,83 @@
       "properties": {
         "input_tsv": {
           "type": "string",
-          "description": "Path to abundance table TSV for taxonomy collapse"
+          "description": "Path to abundance table TSV for taxonomy collapse",
+          "format": "file-path",
+          "exists": true
         },
         "input_dir": {
           "type": "string",
-          "description": "Path to directory containing per-sample abundance tables for combining"
+          "description": "Path to directory containing per-sample abundance tables for combining",
+          "format": "directory-path",
+          "exists": true
         },
         "rank": {
           "type": "string",
           "description": "Taxonomic rank for collapse or combine operations",
-          "enum": ["species", "genus", "family", "order", "class", "phylum", "superkingdom"]
+          "enum": [
+            "species",
+            "genus",
+            "family",
+            "order",
+            "class",
+            "phylum",
+            "superkingdom"
+          ]
+        }
+      }
+    },
+    "resource_options": {
+      "title": "Resource limits",
+      "type": "object",
+      "description": "Caps on what any task asks for, on every retry (process.resourceLimits)",
+      "properties": {
+        "max_cpus": {
+          "type": "integer",
+          "default": 16,
+          "minimum": 1,
+          "description": "Most CPUs a task may ask for"
+        },
+        "max_memory": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "default": "128.GB",
+          "pattern": "^\\d+(\\.\\d+)?\\.?\\s*(K|M|G|T)?B$",
+          "description": "Most memory a task may ask for, e.g. 64.GB. main.nf reads it as a memory unit, which nf-schema checks as a number of bytes",
+          "minimum": 1
+        },
+        "max_time": {
+          "type": [
+            "integer",
+            "string"
+          ],
+          "default": "240.h",
+          "pattern": "^(\\d+(\\.\\d+)?\\.?\\s*(ms|s|m|h|d|day)\\s*)+$",
+          "description": "Most time a task may ask for, e.g. 24.h. main.nf reads it as a duration, which nf-schema checks as milliseconds",
+          "minimum": 1
         }
       }
     }
   },
   "allOf": [
-    { "$ref": "#/definitions/general_options" },
-    { "$ref": "#/definitions/abundance_options" },
-    { "$ref": "#/definitions/database_options" },
-    { "$ref": "#/definitions/postprocessing_options" }
+    {
+      "$ref": "#/$defs/general_options"
+    },
+    {
+      "$ref": "#/$defs/abundance_options"
+    },
+    {
+      "$ref": "#/$defs/inference_options"
+    },
+    {
+      "$ref": "#/$defs/database_options"
+    },
+    {
+      "$ref": "#/$defs/postprocessing_options"
+    },
+    {
+      "$ref": "#/$defs/resource_options"
+    }
   ]
 }

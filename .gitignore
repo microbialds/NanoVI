@@ -14,6 +14,7 @@ conf/params_private.config
 
 # Test 
 test_results/
+.nf-test/
 
 # large files
 *.mmi
@@ -26,6 +27,8 @@ db_gtdb_r226/
 
 # Local analysis outputs and figures
 figures/
+# except the benchmark figures, kept with their source data (Phase 7a)
+!docs/benchmarks/figures/
 
 # temporals
 *.tmp
@@ -36,3 +39,9 @@ figures/
 
 __pycache__*
 *.pyc
+
+# Local development files
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+internal_docs/

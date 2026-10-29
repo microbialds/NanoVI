@@ -2,7 +2,7 @@
 
 Taxonomic classification of full-length 16S rRNA Oxford Nanopore reads using variational inference.
 
-[![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A524.0.0-brightgreen.svg)](https://www.nextflow.io/)
+[![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A526.04.0-brightgreen.svg)](https://www.nextflow.io/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/microbialds/NanoVI/actions/workflows/ci.yml/badge.svg)](https://github.com/microbialds/NanoVI/actions/workflows/ci.yml)
 
@@ -13,8 +13,15 @@ NanoVI is a Nextflow DSL2 pipeline that performs taxonomic classification of ful
 ### Pipeline Workflow
 
 ```
-Input FASTQs → Quality Filter (FastpLong) → Align (minimap2) → CIGAR Stats → Log-Probabilities → VI → Abundance Tables
+Input FASTQs
+  → Length filter (fastplong, 500-2,000 bp; quality filter off unless --min_quality)
+  → Align (minimap2 -ax map-ont -N 3 -p 0.9, against the cached database index)
+  → Read likelihoods (error profile from primary alignments, Emu's CIGAR read score)
+  → Abundance estimation (Bayesian VI with pruning; --estimator em for Emu's EM)
+  → Per-sample tables → Consolidated tables (phyloseq)
 ```
+
+Reads are filtered by length only: the 2026 benchmark found that a mean-quality filter changed little on real data and distorted the composition where it removed reads ([docs/benchmarks/methods_2026.md](docs/benchmarks/methods_2026.md), section 7). `--min_quality` turns fastplong's quality filter on.
 
 **Subcommands:**
 
@@ -26,6 +33,8 @@ Input FASTQs → Quality Filter (FastpLong) → Align (minimap2) → CIGAR Stats
 | `combine-outputs` | Merge per-sample abundance tables into a single matrix |
 
 ## Quick Start
+
+NanoVI needs Nextflow 26.04.0 or later.
 
 ```bash
 # Install Nextflow
@@ -53,7 +62,7 @@ nextflow run microbialds/NanoVI \
     --db /path/to/database \
     -profile slurm
 ```
-Note for SLURM users: Before running on a cluster, review and adjust the resource allocations (CPUs, memory, and time limits) defined in conf/base.config to match your cluster's available resources and partition settings.
+Note for SLURM users: Before running on a cluster, review and adjust the resource allocations (CPUs, memory, and time limits) defined in conf/base.config to match your cluster's available resources and partition settings. `--max_cpus`, `--max_memory` and `--max_time` cap every request, retries included.
 
 ## Input Format
 
@@ -66,14 +75,19 @@ A CSV file with `sample` and `fastq` columns:
 ```csv
 sample,fastq
 sample1,/path/to/sample1.fastq.gz
-sample2,/path/to/sample2.fastq.gz
+sample2,reads/sample2.fastq.gz
+sample3,s3://my-bucket/run1/sample3.fastq.gz
 ```
+
+It is checked against `assets/schema_input.json` before any step runs: sample IDs must be unique, start with a letter or digit and may use letters, digits, `.`, `_` and `-` (as in directory mode); each `fastq` must exist and end in `.fastq`, `.fq`, `.fastq.gz` or `.fq.gz`, with no spaces in the path. Paths may be absolute, relative to the directory you launch Nextflow from (not to the samplesheet), or remote (`s3://`, `gs://`, `az://`, `https://`). Fields may be quoted. Every line after the header is a sample: lines starting with `#` are not skipped, and a sheet with no rows stops the run.
 
 ### Directory
 
-A path to a directory containing FASTQ files. Sample IDs are inferred from filenames.
+A path to a directory containing FASTQ files (`.fastq`, `.fq`, optionally gzipped), searched recursively. The sample ID is the file name without that extension, so `S1.run1.fastq.gz` becomes `S1.run1`. If two files give the same ID (for example `S1.fastq` and `S1.fq`, or the same name in two subdirectories), the pipeline stops and lists them; rename the files or use a samplesheet. IDs must start with a letter or digit and may use letters, digits, `.`, `_` and `-`.
 
 ## Parameters
+
+Parameters are checked against `nextflow_schema.json` at the start of every run (types, allowed values, ranges, and that input paths exist), and values given on the command line are converted to the declared types, so `--keep_counts false` turns the counts off. A parameter that is not declared stops the run.
 
 ### General
 
@@ -87,16 +101,49 @@ A path to a directory containing FASTQ files. Sample IDs are inferred from filen
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `--input` | required | Path to samplesheet CSV or FASTQ directory |
-| `--db` | required | Path to NanoVI/GTDB reference database |
+| `--db` | required | Database directory containing `species_taxid.fasta` and, unless `--taxonomy_tsv` is given, `taxonomy.tsv` (from `bin/build_gtdb_db.py` or `--cmd build-database`). Never a `.mmi` file: pass a prebuilt index with `--db_index` |
+| `--db_index` | none | Prebuilt minimap2 index (`.mmi`) of the database's `species_taxid.fasta`; INDEX_DB is skipped. Build it with the pipeline's minimap2 (2.31) and the same `-x <type> -k <kmer_size>`, or take it from the index cache of an earlier run |
+| `--index_cache_dir` | `<output_dir>/index_cache` | Where INDEX_DB keeps the indexes it builds. The file name records the database (the first 12 digits of the FASTA's MD5), `--type`, `--kmer_size` and the minimap2 version, e.g. `species_taxid.3f9c0a12b7de.map-ont.k21.minimap2-2.31.mmi`, so a later run with the same settings reuses the index instead of rebuilding it. The MD5 is read once per FASTA and kept in `md5_cache.tsv` in the same directory, keyed by the FASTA's path, size and modification time (and, for a local file, its inode and status-change time, so a replaced file is read again), so later launches do not read the database again (delete the file to make the next run recompute it). Point several runs at one directory to share it, but let the first run that builds an index finish before starting others: a run reuses any file with the right name, and nothing checks that it is complete |
 | `--taxonomy_tsv` | `<db>/taxonomy.tsv` | Path to taxonomy TSV |
-| `--kmer_size` | `21` | K-mer size for minimap2 indexing |
+| `--kmer_size` | `21` | K-mer size for the minimap2 index and mapping (`-k`, 1-28) |
 | `--N` | `3` | Maximum secondary alignments per read |
-| `--K` | `4000000000` | Minibatch size for minimap2 mapping (bytes) |
-| `--type` | `map-ont` | Minimap2 preset (`map-ont`, `map-pb`, `sr`) |
+| `--K` | `500M` | Minibatch size for minimap2 mapping (minimap2 `-K`): the number of read **bases** (not bytes) loaded and mapped per batch, a number optionally with `K`, `M` or `G`. 500M (minimap2's default) is 500 million bases, about 330,000 reads of 1.5 kb; larger batches use more memory |
+| `--type` | `map-ont` | Minimap2 preset (`map-ont`, `map-pb`, `sr`), used for the index and the alignment |
+| `--split_prefix` | `temp` | Prefix of minimap2's temporary files when it splits a large index (`--split-prefix`) |
 | `--min_length` | `500` | Minimum read length filter (bp) |
 | `--max_length` | `2000` | Maximum read length filter (bp) |
-| `--keep_counts` | `false` | Include read count column in output |
-| `--keep_files` | `false` | Retain intermediate SAM and FASTQ files |
+| `--min_quality` | off | Minimum mean read quality (Phred). Off: fastplong filters by length only. Set: fastplong's quality filter drops reads with a lower mean quality (its per-base rule is switched off; its limit of 5 N bases per read still applies) |
+| `--keep_counts` | `true` | Add the `estimated_counts` column to the per-sample tables and write `otu_table_counts.tsv` |
+| `--keep_files` | `false` | Publish the alignments (`bam/<sample>_vi_alignments.bam`) and the filtered reads (`filtered/<sample>_filtered.fastq.gz`) |
+| `--binomial_names` | `false` | Cut species names in the output tables to genus and epithet (`Escherichia coli O157` → `Escherichia coli`; `Candidatus` names keep three words) and sum the species that then share a name (their `shared_read_fraction` counts only the reads split with species of other rows). Off: names are kept as the database's `taxonomy.tsv` gives them |
+
+### Inference
+
+| Parameter | Default | Estimator | Description |
+|-----------|---------|-----------|-------------|
+| `--estimator` | `vb` | | `vb`: Bayesian variational inference (Dirichlet prior, CAVI updates). `em`: the expectation-maximization loop of Emu, kept as a baseline |
+| `--min_abundance` | `0.001` | both | Lowest abundance reported (see the detection floor below) |
+| `--vi_tolerance` | `1e-7` | vb | CAVI stops when no species' posterior mean abundance changes by more than this between iterations |
+| `--vi_max_iterations` | `1000` | vb | Most CAVI iterations in each pruning round |
+| `--alpha_prior` | `1.0` | vb | Total concentration of the symmetric Dirichlet prior; each of the S candidate species gets `alpha_prior / S` |
+| `--vi_elbo_threshold` | `1e-4` | em | The EM loop stops when the log-likelihood rises by less than this. Its inner loop keeps Emu's settings (at most 20 iterations, total change in frequencies below 5e-4) |
+| `--credible_intervals` | `false` | vb | Adds `ci_lower` and `ci_upper`, 95% sampling intervals of each species' abundance (below) |
+
+**Detection floor.** R is the number of reads with at least one scored alignment. With `vb`, species whose posterior mean abundance falls below the pruning threshold are removed and the rest refitted, until none is below it: the threshold is max(1/R, `min_abundance`) up to 1,000 reads and max(10/R, `min_abundance`) above. With the default, the floor is 1/R up to 1,000 reads, 10/R up to 10,000 reads and 0.1% above that: nothing below 0.1% is reported at any depth (Emu's floor of 10/R would be 0.01% at 100,000 reads). With `em`, species are pruned below 1/R (10/R above 1,000 reads), as in Emu, and if `min_abundance` is higher the species at or above it are refitted and reported. With either estimator, reads whose candidate species were all pruned are reported in the `Below detection` row.
+
+**Shared reads and intervals.** Every per-sample table has a `shared_read_fraction` column: the share of the species' expected reads whose responsibility is split with another reported species, that is, where the other species get at least 1% of the read. It is counted per row of the table: in a row that sums several tax IDs (with `--binomial_names`, or a name repeated in a custom taxonomy), reads split only among those tax IDs are not shared. A high value means the species' abundance rests on reads that another species explains as well; in the 2026 benchmark it flagged the estimates that missed the truth (AUC 0.75-0.84; `docs/benchmarks/methods_2026.md`). With `--credible_intervals` (`vb` only) the table also gets `ci_lower` and `ci_upper`, the 2.5% and 97.5% quantiles of the species' mean-field posterior marginal, Beta(α_s, Σα − α_s) over the reported species (tax IDs that share a species name add their α). These are sampling intervals, not calibrated uncertainty: they shrink as 1/√reads while the error from assigning reads between close relatives does not, so they covered the true abundance in 93%, 81% and 38% of cases at 1,000, 10,000 and 50,000 reads (42% for species with a close relative at 10,000), and the exact posterior (collapsed Gibbs) and a read bootstrap gave the same intervals. The columns are left empty on the `Below detection` and `Unassigned` rows, and `collapse-taxonomy`, `combine-outputs` and the consolidated tables leave them out.
+
+### Resources
+
+The Python steps ask for one CPU each and run on one core (`nextflow.config` sets `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and `MKL_NUM_THREADS` to 1). minimap2 asks for 8 CPUs; when a task is killed for memory or time it is retried (twice) with more memory and time but the same CPUs. No request goes above these caps (`process.resourceLimits`):
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--max_cpus` | `16` | Most CPUs any task asks for |
+| `--max_memory` | `128.GB` | Most memory any task asks for |
+| `--max_time` | `240.h` | Most time any task asks for |
+
+Give the caps on the command line or in a `-params-file`. In a custom `-c` config, `params.max_*` comes too late to change them: set `process.resourceLimits = [cpus: 32, memory: 256.GB, time: 48.h]` there instead.
 
 ### Database Build
 
@@ -105,7 +152,10 @@ A path to a directory containing FASTQ files. Sample IDs are inferred from filen
 | `--db_name` | `db_custom` | Name for the custom database |
 | `--sequences` | required | Input FASTA with reference sequences |
 | `--seq2tax` | required | Sequence-to-taxonomy mapping TSV |
-| `--taxonomy_list` | required | Taxonomy terms list TSV |
+| `--taxonomy_list` | one of these two | Taxonomy TSV with a `tax_id` column and one column per rank |
+| `--ncbi_taxonomy` | one of these two | NCBI taxonomy dump directory (`names.dmp`, `nodes.dmp`) |
+
+`--cmd build-database` writes `<output_dir>/<db_name>/` with `species_taxid.fasta`, `taxonomy.tsv`, `identical_16s.tsv` and `cross_genus_identical.tsv` (see [docs/output.md](docs/output.md)); pass that directory as `--db`.
 
 ### Post-Processing
 
@@ -115,18 +165,29 @@ A path to a directory containing FASTQ files. Sample IDs are inferred from filen
 | `--input_dir` | required | Directory with per-sample tables for combining |
 | `--rank` | required | Taxonomic rank: `species`, `genus`, `family`, `order`, `class`, `phylum`, `superkingdom` |
 
+`--cmd collapse-taxonomy` writes `<output_dir>/<input name>-<rank>.tsv` (for `S1_rel-abundance.tsv`, `S1_rel-abundance-genus.tsv`), and `--cmd combine-outputs` writes `<output_dir>/vi-combined-<rank>.tsv`, one column per `*_rel-abundance.tsv` in `--input_dir`; a directory without such tables stops the command with an error.
+
 ## Output
 
-The pipeline produces the following output files in `--output_dir`:
+`--cmd abundance` writes into `--output_dir`:
 
-| File | Description |
+| Path | Description |
 |------|-------------|
-| `<sample>_rel-abundance.tsv` | Per-sample relative abundance table |
-| `<sample>_rel-abundance-counts.tsv` | Per-sample abundance with estimated read counts (if `--keep_counts`) |
-| `qc/<sample>_report.html.gz` | FastpLong quality control report |
-| `pipeline_info/timeline.html` | Nextflow execution timeline |
-| `pipeline_info/report.html` | Nextflow execution report |
-| `pipeline_info/trace.txt` | Nextflow trace file |
+| `sample_outputs/<sample>_rel-abundance.tsv` | One table per sample: a row per species (abundance, lineage, `estimated_counts`, `identical_16s_species`, `shared_read_fraction`, and `ci_lower`/`ci_upper` with `--credible_intervals`), then the `Below detection` and `Unassigned` rows |
+| `consolidated_output/otu_table_abundance.tsv` | Species × samples abundance matrix (phyloseq `otu_table`) |
+| `consolidated_output/otu_table_counts.tsv` | Species × samples `estimated_counts` matrix; not written when no sample has counts (`--keep_counts false`) |
+| `consolidated_output/tax_table.tsv` | Species × ranks (genus to superkingdom; phyloseq `tax_table`) |
+| `consolidated_output/sample_metadata.tsv` | Per sample: total abundance, species detected, assigned and unassigned reads |
+| `qc/fastplong/<sample>_report.html.gz`, `qc/fastplong/<sample>_report.json.gz` | fastplong's report: reads and bases before and after the length filter |
+| `filtered/<sample>_filtered.fastq.gz` | Reads that passed the length filter (only with `--keep_files`) |
+| `bam/<sample>_vi_alignments.bam` | minimap2 alignments, primary and up to `--N` secondary per read (only with `--keep_files`) |
+| `index_cache/` | The minimap2 index and, for a database without `identical_16s.tsv`, the identical-16S table the pipeline builds, each with a `.versions.yml`; reused by later runs (elsewhere with `--index_cache_dir`; no index with `--db_index`) |
+| `pipeline_info/timeline.html`, `report.html`, `trace.txt` | Nextflow's timeline, report and trace (with each task's requested CPUs, memory and time) |
+| `pipeline_info/software_versions.yml` | Versions of fastplong, minimap2, samtools, Python and its packages, NanoVI and Nextflow used in the run |
+
+Every column, the consolidated tables and the database files are described in [docs/output.md](docs/output.md); the model behind the numbers is in [docs/methods.md](docs/methods.md).
+
+**Species with identical 16S.** The per-sample table's `identical_16s_species` column names, for each reported species, the species of the same genus in the database that share an identical 16S sequence with it (`; `-separated, empty for most species). 16S cannot tell such species apart: reads that match both score the same, so the reported split between them is not evidence of either. The list comes from the database's `identical_16s.tsv`, which `bin/build_gtdb_db.py` and `--cmd build-database` write; for a database without it, the pipeline builds it once from `species_taxid.fasta` and `taxonomy.tsv` and keeps it beside the cached indexes in `--index_cache_dir`, under a name made of the MD5s of the FASTA, the taxonomy and `bin/identical_16s.py`. An `identical_16s.tsv` in `--db` is used as it is when the taxonomy is `<db>/taxonomy.tsv` (with another `--taxonomy_tsv` the table is built from the FASTA and that taxonomy); delete it to have the pipeline build the table again. With `--db_index` and no FASTA in `--db` the column is left empty.
 
 ## Profiles
 
@@ -134,30 +195,32 @@ The pipeline produces the following output files in `--output_dir`:
 |---------|-------------|
 | `docker` | Run with Docker containers (default if no profile specified) |
 | `singularity` | Run with Singularity containers |
-| `conda` | Run with Conda environments |
+| `conda` | Run with Conda environments: fastplong 0.7.0 and minimap2 2.31 (with samtools 1.24) from bioconda, and `containers/environment.yml` (the image's Python and package versions) for the Python steps. Creating the environments with conda's classic solver can take a long time; a recent conda (libmamba solver) or `-c` with `conda.useMicromamba = true` is much faster |
 | `slurm` | Submit jobs to SLURM scheduler (uses Singularity) |
 | `sge` | Submit jobs to SGE scheduler (uses Singularity) |
-| `test` | Minimal test dataset with reduced resources |
+| `test` | The bundled e2e fixture (`tests/test_data/e2e`) with reduced resources; it sets no container engine, so combine it with one |
 
 Combine profiles: `nextflow run main.nf -profile test,docker`
 
 ## Building Containers
 
+Every Python step runs in one image, `ghcr.io/microbialds/nanovi-python:<version>` (Python 3.11, with the exact package versions in `containers/requirements.txt`); nothing is installed at run time, so the pipeline runs on compute nodes without internet access. To test a change to the image, build it locally under the tag `conf/base.config` uses, and Docker runs the local copy instead of pulling it:
+
 **Docker:**
 ```bash
-docker build -t nanovi-python:1.0.0 -f containers/Dockerfile containers/
+docker build -t ghcr.io/microbialds/nanovi-python:1.1.0 -f containers/Dockerfile containers/
 ```
 
-**Singularity:**
+**Singularity** (from the `containers/` directory, so the build finds `requirements.txt`):
 ```bash
-singularity build nanovi-python.sif containers/Singularity.def
+cd containers && singularity build nanovi-python.sif Singularity.def
 ```
 
 ## Building a GTDB Reference Database
 
 NanoVI includes a helper script to build a reference database directly from the
 [GTDB](https://gtdb.ecogenomic.org/) SSU FASTA file. The script assigns **one taxid
-per species**, deduplicates identical 16S sequences, and outputs the files required
+per species**, removes identical 16S sequences within each species, and outputs the files required
 by the pipeline.
 
 ### 1. Download the GTDB SSU file
@@ -186,6 +249,7 @@ python3 bin/build_gtdb_db.py \
 | `--db-name` | `db_gtdb` | Label embedded in FASTA headers (e.g. `db_gtdb_r226`) |
 | `--output-dir` | `./db` | Directory where output files are written |
 | `--min-length` | `900` | Minimum 16S sequence length in bp to include |
+| `--merge-gtdb-suffixes` | off | Strip GTDB's clade suffixes (`Listeria monocytogenes_B` → `Listeria monocytogenes`, `Pseudomonas_E` → `Pseudomonas`), merging the species and genera GTDB separates with them into one tax ID, and write `merged_species.tsv`. Off: names are kept as GTDB writes them |
 
 **Output files:**
 
@@ -193,50 +257,79 @@ python3 bin/build_gtdb_db.py \
 |------|-------------|
 | `species_taxid.fasta` | Reference FASTA — one entry per unique 16S sequence, header: `taxid:db_name:n` |
 | `taxonomy.tsv` | Taxonomy table — one row per species with full lineage |
+| `identical_16s.tsv` | Species that share an identical 16S sequence with another species of their genus (genera compared without GTDB's suffixes), one row each: its group (the species of the genus linked through shared sequences) and the species it shares a sequence with. 16S cannot tell these species apart; the pipeline names them in the `identical_16s_species` column. `--cmd build-database` writes it too |
+| `cross_genus_identical.tsv` | Sequences found in species of more than one genus, with their species, genera, families and phyla. In GTDB these are almost always contaminant contigs in an assembly (1,360 sequences in r226). They stay in the database, and `identical_16s.tsv` still groups the species of one genus that carry such a sequence; only the link across genera is left out |
+| `merged_species.tsv` | With `--merge-gtdb-suffixes` only: each name that merges two or more GTDB species with a sequence in the database, with those species and their genera, the ranks at which their lineages differ, and the GTDB species whose lineage `taxonomy.tsv` keeps (the first in the input) |
 
-### 3. Index with minimap2
-
-```bash
-minimap2 -k 21 -d /path/to/db_gtdb_r226/gtdb_index.mmi \
-    /path/to/db_gtdb_r226/species_taxid.fasta
-```
-Note: The minimap2 index (.mmi) is version-specific and may not be compatible across different minimap2 versions. To avoid conflicts, either build the index using the pipeline's container, or pass the FASTA file directly as --db and let the pipeline index it at runtime.
-
-### 4. Run NanoVI with the GTDB database
+### 3. Run NanoVI with the GTDB database
 
 ```bash
 nextflow run microbialds/NanoVI \
     --cmd abundance \
     --input samplesheet.csv \
-    --db /path/to/db_gtdb_r226/gtdb_index.mmi \
-    --taxonomy_tsv /path/to/db_gtdb_r226/taxonomy.tsv \
+    --db /path/to/db_gtdb_r226 \
+    --index_cache_dir /path/to/nanovi_index_cache \
     --output_dir results/
 ```
 
+`--db` is the database directory (with `species_taxid.fasta` and `taxonomy.tsv`), never a `.mmi` file. The first run builds the minimap2 index with the pipeline's minimap2 and the run's `--type` and `--kmer_size` and keeps it in `--index_cache_dir` (by default `<output_dir>/index_cache`); later runs with the same database and settings reuse it. To use an index built elsewhere, pass it with `--db_index`: index-time settings (k-mer size, window, homopolymer compression) are fixed in the index, and an index from another minimap2 version may not load.
+
 ## Testing
 
-NanoVI includes a test suite covering the core algorithmic components and pipeline integration.
+The unit tests cover the Python code the pipeline runs (likelihood, both estimators, output tables, database reports and the `bin/` scripts); the pipeline tests run `main.nf` with nf-test.
 
-**Unit tests** (no database required):
+**Unit tests** (pytest, no database needed; 257 tests):
 ```bash
-pip install pytest
+pip install -r containers/requirements.txt pytest
 pytest tests/unit/ -v
 ```
 
-**Pipeline integration test** (nf-test, stub mode — no database required):
+**Pipeline tests** (nf-test; 30 tests tagged `stub`, 3 tagged `e2e`):
 ```bash
-nf-test test tests/main.nf.test
+nf-test test tests/main.nf.test --tag stub   # stub mode: channel wiring and parameter errors, no tools or database needed
+nf-test test tests/main.nf.test --tag e2e    # real tools with Docker on the fixture in tests/test_data/e2e
+NANOVI_E2E_PROFILE=conda nf-test test tests/main.nf.test --tag e2e    # the same test with -profile conda
 ```
 
-Continuous integration runs both test suites automatically on every pull request via GitHub Actions. The Docker image is built and published to `ghcr.io/microbialds/nanovi-python` on every merge to `main`.
+The `e2e` tests run fastplong, minimap2 and the Python steps on a small real 16S database (11 sequences, including the near neighbours *E. coli* / *S. flexneri* and *S. pneumoniae* / *S. mitis*) with 600 simulated reads in known proportions plus 30 non-16S reads, and check the result against `tests/test_data/e2e/expected.tsv` (every present species reported, those at 10% or more within 5 percentage points, absent species below 1%), the `Below detection` and `Unassigned` rows, the four consolidated tables and the tool versions, and that samples with no aligned read (only non-16S reads, or every read below `--min_length`) get an all-Unassigned table beside a normal sample; see [tests/test_data/e2e/README.md](tests/test_data/e2e/README.md). `-profile test,docker` runs the pipeline on the same fixture (`-profile test` on its own sets no container engine).
+
+Continuous integration (GitHub Actions) runs on every push to `main`, `dev`, `feat/**`, `fix/**` and `roadmap/**`, on `v*` tags and on every pull request into `main` or `dev`: the unit tests on Python 3.11 and 3.13, a check that the version strings agree, the `stub` tests, and the `e2e` tests with Docker (on the Python image built from the commit) and with conda. The Docker image is built on every run; it is published to `ghcr.io/microbialds/nanovi-python` only from `main` (as `:main` and `:sha-<commit>`) and from release tags (see Releasing).
+
+## Releasing
+
+Image tags of the form `X.Y.Z` come only from `vX.Y.Z` git tags and are never overwritten: to change a released image, release a new version.
+
+1. On `dev`, rename `## [Unreleased]` in `CHANGELOG.md` to `## [X.Y.Z] - YYYY-MM-DD` (and start a new empty `[Unreleased]` section), and set the same version in `nextflow.config` (`manifest.version`), `containers/Dockerfile` (`LABEL version`), `containers/Singularity.def` (`Version`), `bin/_version.py` and the `nanovi-python` image tags in `conf/base.config`. The `Version strings agree` CI job fails if any of them differ.
+2. Merge `dev` into `main` through a pull request. CI publishes `:main` and `:sha-<commit>`.
+3. Tag the merge commit on `main` and push the tag:
+   ```bash
+   git tag -a vX.Y.Z -m "NanoVI X.Y.Z"
+   git push origin vX.Y.Z
+   ```
+   CI runs the tests and publishes `:X.Y.Z` and `:latest`. It stops without publishing if the tag does not match the top release in `CHANGELOG.md` or if `:X.Y.Z` already exists.
+4. Create the GitHub release from the tag, with that version's CHANGELOG section as its notes.
+
+Until step 3 has published `:X.Y.Z`, `-profile docker` and `-profile singularity` cannot pull the image that `conf/base.config` names, so tag soon after merging.
+
+## Credits
+
+NanoVI builds on Emu (Curry KD, Wang Q, Nute MG, et al. Emu: species-level microbial community profiling of full-length 16S rRNA Oxford Nanopore sequencing data. *Nature Methods* 19, 845–853 (2022). [doi:10.1038/s41592-022-01520-4](https://doi.org/10.1038/s41592-022-01520-4); [github.com/treangenlab/emu](https://github.com/treangenlab/emu)). Parts of NanoVI's Python code are adapted from Emu's source:
+
+- **The CIGAR-based read score.** The log-likelihood of a read under each candidate species is Emu's: insertion, deletion, soft-clip and mismatch rates are estimated from the sample's own alignments, and each alignment is scored from its CIGAR counts, scaled by the length of the read's longest alignment (`bin/likelihood.py`).
+- **The EM loop.** The expectation-maximization loop with pruning of low-abundance species in `bin/em_estimator.py` (`--estimator em`) follows Emu's. The default estimator, the Bayesian variational inference in `bin/variational_inference_bayesian.py`, is NanoVI's own: it places a Dirichlet prior on the species frequencies and estimates their posterior instead of a point estimate.
+- **The database layout.** A `species_taxid.fasta` with `taxid:db_name:n` headers plus a `taxonomy.tsv` lineage table, the build-database helpers, the per-sample output table and the collapse-taxonomy and combine-outputs commands follow Emu (`bin/taxonomy.py`, `bin/main.py`).
+
+Emu is distributed under the MIT License, Copyright (c) 2021 Kristen Curry, Qi Wang, Michael G. Nute, Alona Tyshaieva, Qinglong Wu, Tor Savidge, Alexander Dilthey, Todd J. Treangen. Its full license text is in [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES), and each file with adapted code names its origin in its header. If you use NanoVI, please cite Emu as well.
 
 ## Citation
 
-If you use NanoVI in your research, please cite:
+If you use NanoVI in your research, please cite the preprint:
 
-> Curiqueo C, Fuentes-Santander F, Ugalde JA. NanoVI: taxonomic classification of full-length 16S rRNA Nanopore reads using variational inference. [Journal]. [Year].
+> Curiqueo C, Fuentes-Santander F, Ugalde JA. NanoVI: a Bayesian variational inference Nextflow pipeline for species-level taxonomic classification from full-length 16S rRNA Nanopore reads. *bioRxiv* 2026. [doi:10.64898/2026.03.07.710315](https://doi.org/10.64898/2026.03.07.710315)
+
+and Emu, whose read likelihood NanoVI uses (see Credits). The citation metadata are also in [CITATION.cff](CITATION.cff), which GitHub shows as "Cite this repository". This section will give the journal article once it is published.
 
 ## License
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details. Code adapted from Emu remains under Emu's MIT License; see [THIRD_PARTY_LICENSES](THIRD_PARTY_LICENSES).
 

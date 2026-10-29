@@ -1,22 +1,36 @@
 {
-  "$schema": "https://json-schema.org/draft-07/schema",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/microbialds/NanoVI/assets/schema_input.json",
   "title": "NanoVI samplesheet schema",
   "description": "Schema for the input samplesheet CSV",
   "type": "array",
   "items": {
     "type": "object",
-    "required": ["sample", "fastq"],
     "properties": {
       "sample": {
         "type": "string",
-        "pattern": "^[a-zA-Z0-9_\\-]+$",
-        "description": "Sample identifier (alphanumeric, underscores, hyphens only)"
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._\\-]*$",
+        "errorMessage": "Sample IDs must start with a letter or digit and may only use letters, digits, '.', '_' and '-'",
+        "meta": [
+          "id"
+        ],
+        "description": "Sample identifier (letters, digits, '.', '_' and '-', starting with a letter or digit; the same rule as directory mode)"
       },
       "fastq": {
         "type": "string",
-        "pattern": "^/.*\\.(fastq|fq)(\\.gz)?$",
-        "description": "Absolute path to FASTQ file (.fastq, .fq, .fastq.gz, .fq.gz)"
+        "format": "file-path",
+        "exists": true,
+        "pattern": "^\\S+\\.(fastq|fq)(\\.gz)?$",
+        "errorMessage": "The fastq column needs an existing FASTQ file whose path ends in .fastq, .fq, .fastq.gz or .fq.gz and has no spaces",
+        "description": "FASTQ file (.fastq, .fq, .fastq.gz, .fq.gz): local absolute or relative to the launch directory, or a remote URL (s3://, gs://, az://, https://)"
       }
-    }
-  }
+    },
+    "required": [
+      "sample",
+      "fastq"
+    ]
+  },
+  "uniqueEntries": [
+    "sample"
+  ]
 }

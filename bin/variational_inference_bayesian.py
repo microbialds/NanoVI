@@ -1,58 +1,139 @@
+import itertools
 import math
+import sys
 import numpy as np
 from scipy.special import digamma, gammaln
-from scipy.stats import beta as beta_dist
 from sys import stdout
 from typing import Dict, Tuple, Optional, List
+
+from read_scores import read_scores_to_arrays
+
+# Largest ELBO fall between CAVI iterations, relative to |ELBO|, taken as rounding
+ELBO_DECREASE_TOLERANCE = 1e-9
+
+# The inner loop computes the ELBO (a pass over every entry of the likelihood) only on
+# its first iteration, every ELBO_EVERY iterations and when it stops (F51): convergence
+# is judged on the posterior mean, and the ELBO only feeds the progress log and the warning
+ELBO_EVERY = 100
+
+# A read's responsibility for a species counts as shared with another species when
+# the other reported species together get at least this share of it (shared_read_fraction)
+SHARED_READ_MIN_SPLIT = 0.01
 
 
 # ============================================================================
 #  DATA STRUCTURES
 # ============================================================================
+#
+# Each read aligns to a handful of species (at most N + 1 with minimap2 -N), so
+# the likelihood is kept as two padded R × K arrays, where K is the largest
+# number of candidate species of any read (F23):
+#
+#   idx[r, k]   column (species index) of the read's k-th candidate
+#   logL[r, k]  ln p(x_r | z_r = idx[r, k]); -inf for padding and for
+#               candidates that have been pruned
+#
+# Padding entries point at column 0 with logL = -inf, so their responsibility is
+# exactly 0 and they drop out of every sum. A dense R × S matrix would need
+# 3.2 GB per copy at 200,000 reads and 2,000 species; the padded arrays need
+# R × K × 12 bytes. Padded rows are used rather than scipy.sparse CSR because
+# every CAVI step is a row-wise reduction (max, log-sum-exp, normalisation):
+# with fixed-width rows those are plain axis=1 reductions, while CSR needs
+# np.*.reduceat, which mishandles empty rows (reads with no scored candidate).
+# K is small and nearly the same for every read, so the padding costs little.
 
-def build_likelihood_matrix(
+
+def build_sparse_likelihood(
     log_p_rgs: Dict[str, Tuple[List[int], List[float]]],
     species_ids: List[int],
-) -> Tuple[np.ndarray, List[str], Dict[int, int]]:
+) -> Tuple[np.ndarray, np.ndarray, List[str]]:
     """
-    Convert the sparse dict-of-lists log-likelihood representation into a dense
-    (R × S) matrix for efficient vectorized CAVI updates.
+    Convert the dict-of-lists log-likelihoods into the padded idx/logL arrays.
 
     Parameters
     ----------
     log_p_rgs : dict
-        Keys are read names. Values are (list_of_species_ids, list_of_log_scores).
-        This is the same format produced by log_prob_rgs_dict().
+        Keys are read names. Values are (list_of_species_ids, list_of_log_scores),
+        as likelihood.log_prob_rgs_dict returns them.
     species_ids : list of int
-        Full list of species taxonomy IDs in the reference database.
+        Species taxonomy IDs; column j of the model is species_ids[j]. Candidates
+        that are not in the list are ignored, and a species listed twice for a
+        read keeps its best score.
 
     Returns
     -------
-    L : np.ndarray, shape (R, S)
-        Log-likelihood matrix. L[r, s] = ln p(x_r | z_r = s).
-        Entries with no alignment are set to -inf (zero probability).
+    idx : np.ndarray of int32, shape (R, K)
+    logL : np.ndarray of float64, shape (R, K)
     read_names : list of str
-        Ordered read names corresponding to rows of L.
-    sid_to_col : dict
-        Mapping from species taxonomy ID to column index in L.
+        Read names in row order.
     """
-    sid_to_col = {sid: j for j, sid in enumerate(species_ids)}
-    read_names = list(log_p_rgs.keys())
-    R = len(read_names)
-    S = len(species_ids)
+    # Flattened as in the read-scores npz, then the same CSR path (F52)
+    offsets, tax_ids, scores = read_scores_to_arrays(log_p_rgs)
+    idx, logL = sparse_likelihood_from_csr(offsets, tax_ids, scores, np.asarray(species_ids))
+    return idx, logL, list(log_p_rgs.keys())
 
-    # Initialize with -inf (log(0) = impossible alignment)
-    L = np.full((R, S), -np.inf, dtype=np.float64)
 
-    for r, rname in enumerate(read_names):
-        sids, scores = log_p_rgs[rname]
-        for sid, score in zip(sids, scores):
-            if sid in sid_to_col:
-                col = sid_to_col[sid]
-                # Keep the best score if multiple alignments to same species
-                L[r, col] = max(L[r, col], score)
+def sparse_likelihood_from_csr(
+    offsets: np.ndarray,
+    tax_ids: np.ndarray,
+    scores: np.ndarray,
+    species_ids: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Padded idx/logL arrays from the per-read lists in a read-scores npz (F24).
 
-    return L, read_names, sid_to_col
+    Read r's candidates are tax_ids[offsets[r]:offsets[r + 1]] with their scores.
+    Column j is species_ids[j]; candidates not in species_ids are ignored, and a
+    species listed twice for a read keeps its best score.
+    """
+    offsets = np.asarray(offsets, dtype=np.int64)
+    tax_ids = np.asarray(tax_ids)
+    scores = np.asarray(scores, dtype=np.float64)
+    species_ids = np.asarray(species_ids)
+    R = len(offsets) - 1
+    rows = np.repeat(np.arange(R), np.diff(offsets))
+    order = np.argsort(species_ids, kind="stable")
+    pos = np.searchsorted(species_ids[order], tax_ids)
+    found = pos < len(species_ids)
+    found[found] = species_ids[order[pos[found]]] == tax_ids[found]
+    rows, cols, scores = rows[found], order[pos[found]], scores[found]
+
+    # A species listed twice for one read keeps its best score
+    order = np.lexsort((-scores, cols, rows))
+    first = np.ones(len(order), dtype=bool)
+    first[1:] = (rows[order][1:] != rows[order][:-1]) | (cols[order][1:] != cols[order][:-1])
+    if not np.all(first):
+        keep = np.sort(order[first])
+        rows, cols, scores = rows[keep], cols[keep], scores[keep]
+
+    counts = np.bincount(rows, minlength=R)
+    K = max(int(counts.max()) if R else 0, 1)
+    starts = np.concatenate(([0], np.cumsum(counts)[:-1]))
+    pos = np.arange(len(rows)) - starts[rows]
+    idx = np.zeros((R, K), dtype=np.int32)
+    logL = np.full((R, K), -np.inf, dtype=np.float64)
+    idx[rows, pos] = cols
+    logL[rows, pos] = scores
+    return idx, logL
+
+
+def remap_columns(
+    idx: np.ndarray,
+    logL: np.ndarray,
+    keep_indices: np.ndarray,
+    n_species: int,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Keep only the columns in keep_indices (in that order) and renumber them.
+
+    Candidates of the other columns become padding (column 0, -inf).
+    """
+    new_col = np.full(n_species, -1, dtype=np.int32)
+    new_col[keep_indices] = np.arange(len(keep_indices), dtype=np.int32)
+    mapped = new_col[idx]
+    dropped = (mapped < 0) | ~np.isfinite(logL)
+    return (np.where(dropped, 0, mapped).astype(np.int32),
+            np.where(dropped, -np.inf, logL))
 
 
 # ============================================================================
@@ -85,7 +166,8 @@ def compute_dirichlet_expectation(alpha: np.ndarray) -> np.ndarray:
 
 
 def update_responsibilities(
-    L: np.ndarray,
+    idx: np.ndarray,
+    logL: np.ndarray,
     E_ln_pi: np.ndarray,
 ) -> np.ndarray:
     """
@@ -94,23 +176,23 @@ def update_responsibilities(
     φ_{r,s} ∝ exp( ln p(x_r | s) + E_q[ln π_s] )
 
     Normalization is performed in log-space for numerical stability using
-    the log-sum-exp trick.
+    the log-sum-exp trick, row by row over each read's candidates.
 
     Parameters
     ----------
-    L : np.ndarray, shape (R, S)
-        Log-likelihood matrix.
+    idx, logL : np.ndarray, shape (R, K)
+        Padded likelihood (see DATA STRUCTURES).
     E_ln_pi : np.ndarray, shape (S,)
         Expected log-frequencies from compute_dirichlet_expectation().
 
     Returns
     -------
-    phi : np.ndarray, shape (R, S)
-        Responsibility matrix. phi[r, s] = q(z_r = s).
-        Each row sums to 1.
+    phi : np.ndarray, shape (R, K)
+        phi[r, k] = q(z_r = idx[r, k]). Each row sums to 1, or to 0 for a
+        read with no scored candidate; padding entries are 0.
     """
     # Unnormalized log-responsibilities
-    log_phi = L + E_ln_pi[np.newaxis, :]  # broadcasting: (R, S)
+    log_phi = logL + E_ln_pi[idx]
 
     # Log-sum-exp normalization per read (row-wise)
     log_phi_max = np.max(log_phi, axis=1, keepdims=True)
@@ -120,17 +202,15 @@ def update_responsibilities(
     phi = np.zeros_like(log_phi)
 
     if np.any(finite_mask):
-        safe_rows = finite_mask
-        log_phi_safe = log_phi[safe_rows]
-        max_safe = log_phi_max[safe_rows]
-        phi_unnorm = np.exp(log_phi_safe - max_safe)
-        phi[safe_rows] = phi_unnorm / phi_unnorm.sum(axis=1, keepdims=True)
+        phi_unnorm = np.exp(log_phi[finite_mask] - log_phi_max[finite_mask])
+        phi[finite_mask] = phi_unnorm / phi_unnorm.sum(axis=1, keepdims=True)
 
     return phi
 
 
 def update_dirichlet_parameters(
     alpha_0: np.ndarray,
+    idx: np.ndarray,
     phi: np.ndarray,
 ) -> np.ndarray:
     """
@@ -139,25 +219,29 @@ def update_dirichlet_parameters(
     α_s = α₀_s + Σ_r φ_{r,s}
 
     The sufficient statistic Σ_r φ_{r,s} is the expected number of reads
-    assigned to species s under the current variational distribution.
+    assigned to species s under the current variational distribution,
+    summed over the padded entries with np.bincount.
 
     Parameters
     ----------
     alpha_0 : np.ndarray, shape (S,)
         Prior Dirichlet parameters.
-    phi : np.ndarray, shape (R, S)
-        Current responsibility matrix.
+    idx : np.ndarray, shape (R, K)
+        Candidate columns.
+    phi : np.ndarray, shape (R, K)
+        Current responsibilities.
 
     Returns
     -------
     alpha : np.ndarray, shape (S,)
         Updated variational Dirichlet parameters.
     """
-    return alpha_0 + phi.sum(axis=0)
+    return alpha_0 + np.bincount(idx.ravel(), weights=phi.ravel(), minlength=len(alpha_0))
 
 
 def compute_elbo(
-    L: np.ndarray,
+    idx: np.ndarray,
+    logL: np.ndarray,
     phi: np.ndarray,
     alpha: np.ndarray,
     alpha_0: np.ndarray,
@@ -178,15 +262,16 @@ def compute_elbo(
 
         where ln B(α) = Σ_s ln Γ(α_s) − ln Γ(Σ_s α_s)
 
-    The ELBO is guaranteed to be non-decreasing across CAVI iterations
+    Term (1) runs over the padded entries with φ > 0 only, so no R × S array is
+    built. The ELBO is guaranteed to be non-decreasing across CAVI iterations
     (up to numerical precision), providing a convergence diagnostic.
 
     Parameters
     ----------
-    L : np.ndarray, shape (R, S)
-        Log-likelihood matrix.
-    phi : np.ndarray, shape (R, S)
-        Responsibility matrix.
+    idx, logL : np.ndarray, shape (R, K)
+        Padded likelihood.
+    phi : np.ndarray, shape (R, K)
+        Responsibilities.
     alpha : np.ndarray, shape (S,)
         Current variational Dirichlet parameters.
     alpha_0 : np.ndarray, shape (S,)
@@ -199,16 +284,10 @@ def compute_elbo(
     elbo : float
         The evidence lower bound.
     """
-    # Avoid log(0) in entropy term
-    log_phi_safe = np.where(phi > 0, np.log(phi), 0.0)
-
-    # Term 1: E_q[ln p(x, z)] + H[q(z)]
-    # Only sum over entries where phi > 0 (finite contributions)
+    # Term 1: E_q[ln p(x, z)] + H[q(z)], over the entries with phi > 0
     mask = phi > 0
-    term1 = np.sum(
-        phi[mask] * (L[mask] + E_ln_pi[np.newaxis, :].repeat(L.shape[0], axis=0)[mask]
-                     - log_phi_safe[mask])
-    )
+    phi_pos = phi[mask]
+    term1 = np.sum(phi_pos * (logL[mask] + E_ln_pi[idx[mask]] - np.log(phi_pos)))
 
     # Term 2: KL(q(π) || p(π))  [note: ELBO subtracts KL, so this is negative KL]
     # ln B(α) − ln B(α₀) + Σ_s (α₀_s − α_s) E[ln π_s]
@@ -220,11 +299,12 @@ def compute_elbo(
 
 
 def cavi_inner_loop(
-    L: np.ndarray,
+    idx: np.ndarray,
+    logL: np.ndarray,
     alpha_0: np.ndarray,
     alpha_init: np.ndarray,
-    max_iterations: int = 100,
-    tolerance: float = 1e-4,
+    max_iterations: int = 1000,
+    tolerance: float = 1e-7,
     verbose: bool = True,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, float, int]:
     """
@@ -234,12 +314,20 @@ def cavi_inner_loop(
       1. Update E[ln π] from current α  (Dirichlet expectation)
       2. Update φ (responsibilities)      (E-step analogue)
       3. Update α from φ                  (M-step analogue)
-      4. Compute ELBO for convergence check
+      4. Compute ELBO for monitoring, on the first iteration, every
+         ELBO_EVERY iterations and on the last (F51)
+
+    The loop stops when the largest change in posterior mean abundance,
+    max_s |Δ(α_s / Σ_j α_j)|, falls below `tolerance` (F05). A relative ELBO
+    change is not used: the ELBO grows with the number of reads, so a relative
+    rule stops large samples early. CAVI never lowers the ELBO; a fall of more
+    than ELBO_DECREASE_TOLERANCE × |ELBO| between two computed values is
+    reported on stderr as a sign of numerical trouble.
 
     Parameters
     ----------
-    L : np.ndarray, shape (R, S)
-        Log-likelihood matrix.
+    idx, logL : np.ndarray, shape (R, K)
+        Padded likelihood.
     alpha_0 : np.ndarray, shape (S,)
         Prior Dirichlet parameters.
     alpha_init : np.ndarray, shape (S,)
@@ -247,7 +335,7 @@ def cavi_inner_loop(
     max_iterations : int
         Maximum number of CAVI iterations.
     tolerance : float
-        Convergence threshold on relative ELBO change.
+        Convergence threshold on the largest change in posterior mean abundance.
     verbose : bool
         If True, print progress.
 
@@ -255,59 +343,66 @@ def cavi_inner_loop(
     -------
     alpha : np.ndarray, shape (S,)
         Converged variational Dirichlet parameters.
-    phi : np.ndarray, shape (R, S)
-        Final responsibility matrix.
+    phi : np.ndarray, shape (R, K)
+        Final responsibilities.
     E_ln_pi : np.ndarray, shape (S,)
         Final expected log-frequencies.
     elbo : float
-        Final ELBO value.
+        ELBO at the last iteration.
     n_iters : int
         Number of iterations until convergence.
     """
     alpha = alpha_init.copy()
-    prev_elbo = -np.inf
+    mean = alpha / np.sum(alpha)
+    prev_elbo, prev_iteration = None, None
+    E_ln_pi = compute_dirichlet_expectation(alpha)
 
     for iteration in range(1, max_iterations + 1):
-        # Step 1: Compute Dirichlet expectations
-        E_ln_pi = compute_dirichlet_expectation(alpha)
+        # Step 1: Dirichlet expectations of the current α (E_ln_pi, computed
+        # before the loop or at the end of the previous iteration)
 
         # Step 2: Update responsibilities (E-step)
-        phi = update_responsibilities(L, E_ln_pi)
+        phi = update_responsibilities(idx, logL, E_ln_pi)
 
         # Step 3: Update Dirichlet parameters (M-step)
-        alpha = update_dirichlet_parameters(alpha_0, phi)
+        alpha = update_dirichlet_parameters(alpha_0, idx, phi)
 
-        # Step 4: Compute ELBO
         E_ln_pi = compute_dirichlet_expectation(alpha)  # Recompute with updated α
-        elbo = compute_elbo(L, phi, alpha, alpha_0, E_ln_pi)
 
-        # Convergence check
-        if iteration > 1:
-            # Use relative change for scale-invariant convergence
-            rel_change = abs(elbo - prev_elbo) / (abs(prev_elbo) + 1e-10)
+        new_mean = alpha / np.sum(alpha)
+        max_change = float(np.max(np.abs(new_mean - mean)))
+        mean = new_mean
+
+        # Step 4: Compute ELBO, on the logged iterations and the last one
+        logged = iteration == 1 or iteration % ELBO_EVERY == 0
+        if not (logged or max_change < tolerance or iteration == max_iterations):
+            continue
+        elbo = compute_elbo(idx, logL, phi, alpha, alpha_0, E_ln_pi)
+        if prev_elbo is not None and elbo < prev_elbo - ELBO_DECREASE_TOLERANCE * abs(prev_elbo):
+            sys.stderr.write(
+                f"  WARNING: ELBO fell from {prev_elbo:.6f} at CAVI iteration {prev_iteration} "
+                f"to {elbo:.6f} at CAVI iteration {iteration}; this may indicate numerical instability.\n"
+            )
+        prev_elbo, prev_iteration = elbo, iteration
+
+        if verbose and logged:
+            stdout.write(
+                f"  CAVI iteration {iteration}: "
+                f"ELBO = {elbo:.4f}, "
+                f"max Δ(mean) = {max_change:.2e}\n"
+            )
+        if max_change < tolerance:
             if verbose:
                 stdout.write(
-                    f"  CAVI iteration {iteration}: "
-                    f"ELBO = {elbo:.4f}, "
-                    f"Δ(rel) = {rel_change:.2e}\n"
+                    f"  Converged at iteration {iteration} "
+                    f"(ELBO = {elbo:.4f}, max Δ(mean) = {max_change:.2e})\n"
                 )
-            if rel_change < tolerance:
-                if verbose:
-                    stdout.write(
-                        f"  Converged at iteration {iteration} "
-                        f"(ELBO = {elbo:.4f})\n"
-                    )
-                return alpha, phi, E_ln_pi, elbo, iteration
-        else:
-            if verbose:
-                stdout.write(f"  CAVI iteration {iteration}: ELBO = {elbo:.4f}\n")
-
-        prev_elbo = elbo
+            return alpha, phi, E_ln_pi, elbo, iteration
 
     if verbose:
         stdout.write(
             f"  Reached max iterations ({max_iterations}). "
-            f"ELBO = {elbo:.4f}\n"
+            f"ELBO = {elbo:.4f}, max Δ(mean) = {max_change:.2e}\n"
         )
     return alpha, phi, E_ln_pi, elbo, max_iterations
 
@@ -323,19 +418,17 @@ def bayesian_vi_iterations(
     abundance_threshold: float = 1e-3,
     alpha_prior: float = 1.0,
     max_outer_iterations: int = 10,
-    max_inner_iterations: int = 100,
-    inner_tolerance: float = 5e-4,
-) -> Tuple[Dict[int, float], Optional[Dict[int, float]], Dict[int, Tuple[float, float]]]:
+    max_inner_iterations: int = 1000,
+    inner_tolerance: float = 1e-7,
+    posterior_summary: bool = False,
+    species_rows: Optional[Dict[int, object]] = None,
+    credible_intervals: bool = False,
+):
     """
     Outer optimization loop with iterative species pruning.
 
-    This function:
-    1. Runs CAVI to convergence on the full species set.
-    2. Prunes species with posterior mean abundance below a threshold.
-    3. Re-runs CAVI on the reduced set.
-    4. Repeats until the ELBO stabilizes.
-    5. Returns both full and thresholded abundance estimates,
-       plus posterior credible intervals.
+    Builds the padded likelihood from log_p_rgs and runs bayesian_vi on it;
+    see bayesian_vi for the steps, the other parameters and the return values.
 
     Parameters
     ----------
@@ -344,7 +437,56 @@ def bayesian_vi_iterations(
     db_species_ids : list of int
         All species taxonomy IDs in the reference database.
     elbo_threshold : float
-        Convergence threshold for outer loop ELBO change.
+        Ignored. The outer loop no longer compares ELBOs across species sets
+        (F07); kept so existing callers keep working.
+    """
+    idx, logL, _ = build_sparse_likelihood(log_p_rgs, list(db_species_ids))
+    return bayesian_vi(
+        idx, logL, list(db_species_ids),
+        abundance_threshold=abundance_threshold,
+        alpha_prior=alpha_prior,
+        max_outer_iterations=max_outer_iterations,
+        max_inner_iterations=max_inner_iterations,
+        inner_tolerance=inner_tolerance,
+        posterior_summary=posterior_summary,
+        species_rows=species_rows,
+        credible_intervals=credible_intervals,
+    )
+
+
+def bayesian_vi(
+    idx: np.ndarray,
+    logL: np.ndarray,
+    db_species_ids: List[int],
+    abundance_threshold: float = 1e-3,
+    alpha_prior: float = 1.0,
+    max_outer_iterations: int = 10,
+    max_inner_iterations: int = 1000,
+    inner_tolerance: float = 1e-7,
+    posterior_summary: bool = False,
+    species_rows: Optional[Dict[int, object]] = None,
+    credible_intervals: bool = False,
+):
+    """
+    Outer optimization loop with iterative species pruning, on the padded likelihood.
+
+    This function:
+    1. Runs CAVI to convergence on the full species set.
+    2. Prunes species with posterior mean abundance below a threshold.
+    3. Re-runs CAVI on the reduced set, warm-started from the previous α.
+    4. Repeats until no species is below the threshold (F07). After
+       max_outer_iterations prunings it fits the pruned set once more and
+       stops, with a warning if species are still below the threshold.
+    5. Returns both full and thresholded abundance estimates, and on request
+       the Beta marginals' 95% intervals.
+
+    Parameters
+    ----------
+    idx, logL : np.ndarray, shape (R, K)
+        Padded likelihood (see DATA STRUCTURES); one row per read with a score
+        or an alignment, columns indexing db_species_ids.
+    db_species_ids : list of int
+        Species taxonomy IDs of the columns.
     abundance_threshold : float
         Minimum posterior mean abundance to retain a species.
     alpha_prior : float
@@ -355,11 +497,23 @@ def bayesian_vi_iterations(
         - alpha_prior < 1.0: sparser prior (encourages fewer species).
         - alpha_prior > 1.0: smoothing prior (shrinks toward uniform).
     max_outer_iterations : int
-        Maximum number of pruning iterations.
+        Maximum number of pruning iterations; one more fit follows the last.
     max_inner_iterations : int
         Maximum CAVI iterations per inner loop.
     inner_tolerance : float
-        Convergence tolerance for inner CAVI loop.
+        Convergence tolerance for the inner CAVI loop: the largest change in
+        posterior mean abundance between iterations (F05).
+    posterior_summary : bool
+        If True, also return a fifth value, the per-species summary that the
+        experimental interval columns are built from (see posterior_read_summary).
+    species_rows : dict, optional
+        Species ID → the table row it is reported in (taxonomy.species_row_keys):
+        shared_reads then counts only reads split between rows (F46). By default
+        every species is its own row.
+    credible_intervals : bool
+        If True, the third value holds each species' 95% interval; by default it
+        is None (F51: the pipeline builds its interval columns from the summary's
+        alpha in taxonomy.py, so these quantiles were computed and discarded).
 
     Returns
     -------
@@ -368,15 +522,24 @@ def bayesian_vi_iterations(
     freq_thresholded : dict or None
         Species ID → posterior mean abundance after applying abundance_threshold.
         None if no thresholding needed.
-    credible_intervals : dict
-        Species ID → (lower_95, upper_95) credible intervals on abundance.
+    credible_intervals : dict or None
+        Species ID → (lower_95, upper_95) of its Beta marginal, with
+        credible_intervals=True; else None.
+    below_detection_count : int
+        Number of reads with a score whose responsibilities are all zero on the
+        reported species: every species they align to was pruned (F06). They
+        are not part of the abundances and should not be counted as assigned to
+        the reported species.
+    summary : dict, only with posterior_summary=True
+        Species ID → {"alpha", "expected_reads", "shared_reads"} for the
+        reported species (posterior_read_summary).
 
     Raises
     ------
     ValueError
-        If no reads are assigned or ELBO decreases (numerical instability).
+        If no reads are assigned.
     """
-    n_reads = len(log_p_rgs)
+    n_reads = idx.shape[0]
     stdout.write(f"Assigned read count: {n_reads}\n")
 
     if n_reads == 0:
@@ -387,11 +550,7 @@ def bayesian_vi_iterations(
             "are appropriate."
         )
 
-    # --- Build dense log-likelihood matrix ---
     active_species = list(db_species_ids)
-    L_full, read_names, sid_to_col_full = build_likelihood_matrix(
-        log_p_rgs, active_species
-    )
 
     # --- Determine adaptive pruning threshold ---
     freq_thresh = max(1.0 / n_reads, abundance_threshold)
@@ -406,108 +565,102 @@ def bayesian_vi_iterations(
     )
 
     # --- Pre-filter species with zero evidence ---
-    L = L_full.copy()
     current_species = list(active_species)
-    col_has_data = np.any(np.isfinite(L), axis=0)
+    finite = np.isfinite(logL)
+    col_has_data = np.bincount(idx[finite], minlength=len(current_species)) > 0
     if not np.all(col_has_data):
         n_empty = int(np.sum(~col_has_data))
-        L = L[:, col_has_data]
-        current_species = [
-            current_species[i]
-            for i in range(len(current_species))
-            if col_has_data[i]
-        ]
+        keep_indices = np.where(col_has_data)[0]
+        idx, logL = remap_columns(idx, logL, keep_indices, len(current_species))
+        current_species = [current_species[i] for i in keep_indices]
         stdout.write(
             f"Removed {n_empty} species with zero aligned reads "
             f"(remaining: {len(current_species)})\n"
         )
 
-    # --- Outer loop: CAVI + prune ---
-    prev_outer_elbo = -np.inf
+    # Reads with at least one finite score; only these start the uniform α (F06)
+    scored = np.any(finite, axis=1)
+    n_scored = int(np.sum(scored))
 
-    for outer_iter in range(1, max_outer_iterations + 1):
+    # --- Outer loop: CAVI + prune ---
+    # The loop stops only when no species is below the pruning threshold. ELBOs
+    # of successive iterations are not compared: each belongs to a different
+    # species set and prior (F07). α is warm-started from the previous solution.
+    expected_counts = None
+    inner_iterations = []
+    final_fit = False
+
+    for outer_iter in itertools.count(1):
         S = len(current_species)
         stdout.write(f"\n=== Outer iteration {outer_iter} (S = {S}) ===\n")
 
         # Symmetric Dirichlet prior scaled so total pseudo-count = alpha_prior
         alpha_0 = np.full(S, alpha_prior / S)
 
-        # Initialize α uniformly (prior + uniform pseudo-counts)
-        alpha_init = alpha_0 + (n_reads / S)
+        if expected_counts is None:
+            # Initialize α uniformly (prior + uniform pseudo-counts)
+            alpha_init = alpha_0 + (n_scored / S)
+        else:
+            # Warm start: the surviving species keep their expected read counts
+            alpha_init = alpha_0 + expected_counts
 
         # Run inner CAVI
         alpha, phi, E_ln_pi, elbo, n_iters = cavi_inner_loop(
-            L, alpha_0, alpha_init,
+            idx, logL, alpha_0, alpha_init,
             max_iterations=max_inner_iterations,
             tolerance=inner_tolerance,
         )
-
-        # Check outer convergence
-        outer_elbo_change = elbo - prev_outer_elbo
-        stdout.write(
-            f"  Outer ELBO = {elbo:.4f}, "
-            f"Δ = {outer_elbo_change:.4f}\n"
-        )
-
-        if outer_iter > 1 and outer_elbo_change < 0:
-            # ELBO should not decrease between outer iterations with pruning
-            # Small decreases can occur due to removing species; allow a margin
-            if abs(outer_elbo_change) > 1.0:
-                stdout.write(
-                    f"  WARNING: Outer ELBO decreased by {outer_elbo_change:.4f}. "
-                    f"This may indicate numerical instability.\n"
-                )
+        inner_iterations.append(n_iters)
+        stdout.write(f"  ELBO = {elbo:.4f} after {n_iters} CAVI iterations\n")
 
         # Compute posterior mean abundances: E[π_s] = α_s / Σ_j α_j
         posterior_mean = alpha / np.sum(alpha)
-
-        # Prune low-abundance species
         keep_mask = posterior_mean >= freq_thresh
-        n_pruned = S - np.sum(keep_mask)
 
-        if n_pruned == 0 or outer_elbo_change < elbo_threshold:
-            stdout.write(
-                f"  Converged: pruned {n_pruned} species, "
-                f"ELBO change = {outer_elbo_change:.2e}\n"
-            )
+        if final_fit:
+            n_below = int(S - np.sum(keep_mask))
+            if n_below:
+                sys.stderr.write(
+                    f"WARNING: reached {max_outer_iterations} pruning iterations; "
+                    f"{n_below} species remain below the pruning threshold "
+                    f"({freq_thresh:.2e}).\n"
+                )
+            break
+
+        if not np.any(keep_mask):
+            # Every species is below the threshold (more species than reads can
+            # support); keep the most abundant one rather than none
+            keep_mask[np.argmax(posterior_mean)] = True
+        n_pruned = int(S - np.sum(keep_mask))
+
+        if n_pruned == 0:
+            stdout.write("  Converged: no species below the pruning threshold.\n")
             break
 
         stdout.write(f"  Pruning {n_pruned} species below threshold.\n")
 
-        # Update active species and likelihood matrix
+        # Update active species, likelihood and warm-start counts. Every kept
+        # column already has a finite entry (empty ones were removed above).
         keep_indices = np.where(keep_mask)[0]
         current_species = [current_species[i] for i in keep_indices]
-        L = L[:, keep_indices].copy()
+        idx, logL = remap_columns(idx, logL, keep_indices, S)
+        expected_counts = (alpha - alpha_0)[keep_indices]
 
-        # Remove columns that are all -inf (no reads map to them)
-        col_has_data = np.any(np.isfinite(L), axis=0)
-        if not np.all(col_has_data):
-            L = L[:, col_has_data]
-            current_species = [
-                current_species[i]
-                for i in range(len(current_species))
-                if col_has_data[i]
-            ]
-
-        prev_outer_elbo = elbo
+        # The last allowed pruning is followed by one fit on the pruned set
+        final_fit = outer_iter >= max_outer_iterations
 
     # --- Final results ---
-    # Posterior mean and credible intervals from the Dirichlet
+    # Posterior mean from the Dirichlet
     alpha_sum = np.sum(alpha)
     posterior_mean = alpha / alpha_sum
+    freq_full = {sid: float(posterior_mean[i]) for i, sid in enumerate(current_species)}
 
-    # 95% credible intervals from exact Beta marginals:
-    # π_s | α ~ Beta(α_s, α_sum - α_s)
-    credible_intervals = {}
-    freq_full = {}
-
-    for i, sid in enumerate(current_species):
-        mean_s = posterior_mean[i]
-        a_s = alpha[i]
-        b_s = alpha_sum - a_s
-        lower, upper = beta_dist.ppf([0.025, 0.975], a_s, b_s)
-        freq_full[sid] = float(mean_s)
-        credible_intervals[sid] = (float(lower), float(upper))
+    intervals = None
+    if credible_intervals:
+        # 95% intervals from the exact Beta marginals: π_s | α ~ Beta(α_s, α_sum - α_s)
+        from scipy.stats import beta as beta_dist
+        lower, upper = beta_dist.ppf([[0.025], [0.975]], alpha, alpha_sum - alpha)
+        intervals = {sid: (float(lower[i]), float(upper[i])) for i, sid in enumerate(current_species)}
 
     # Renormalize (should already sum to 1, but ensures consistency)
     total = sum(freq_full.values())
@@ -527,12 +680,118 @@ def bayesian_vi_iterations(
                     k: v / total_t for k, v in freq_thresh_dict.items()
                 }
 
+    # Reads with a score whose responsibility is all on species that are not
+    # reported: every species they align to was pruned, or dropped by the
+    # abundance threshold (F06). Reads that never had a score are not counted.
+    reported = freq_thresholded if freq_thresholded is not None else freq_full
+    reported_cols = np.array([i for i, sid in enumerate(current_species) if sid in reported], dtype=np.int32)
+    is_reported = np.zeros(len(current_species), dtype=bool)
+    is_reported[reported_cols] = True
+    reported_resp = np.where(is_reported[idx] & np.isfinite(logL), phi, 0.0).sum(axis=1)
+    below_detection_count = int(np.sum(scored & (reported_resp == 0)))
+
     stdout.write(
         f"\nFinal species count: {len(freq_full)}\n"
-        f"Number of VI outer iterations: {outer_iter}\n"
+        f"Reads below detection (all their species pruned): {below_detection_count}\n"
+        f"Number of VI outer iterations: {outer_iter} "
+        f"(CAVI iterations: {', '.join(map(str, inner_iterations))})\n"
     )
 
-    return freq_full, freq_thresholded, credible_intervals
+    if posterior_summary:
+        idx_reported, _ = remap_columns(idx, logL, reported_cols, len(current_species))
+        idx_reported = np.where(is_reported[idx] & np.isfinite(logL), idx_reported, -1)
+        reported_ids = [current_species[i] for i in reported_cols]
+        summary = posterior_read_summary(
+            alpha[reported_cols], idx_reported, phi, reported_ids,
+            groups=row_groups(reported_ids, species_rows),
+        )
+        return freq_full, freq_thresholded, intervals, below_detection_count, summary
+    return freq_full, freq_thresholded, intervals, below_detection_count
+
+
+def row_groups(species_ids: List[int], species_rows: Optional[Dict[int, object]]) -> Optional[List[int]]:
+    """An integer per species, equal for species reported in one table row (F46).
+
+    None without rows, or when every species has a row of its own: the split
+    between rows is then the split between species.
+    """
+    if species_rows is None:
+        return None
+    numbers = {}
+    groups = [numbers.setdefault(species_rows.get(sid, ("tax_id", sid)), len(numbers)) for sid in species_ids]
+    return groups if len(numbers) < len(groups) else None
+
+
+def posterior_read_summary(
+    alpha: Optional[np.ndarray],
+    idx: np.ndarray,
+    phi: np.ndarray,
+    species_ids: List[int],
+    groups: Optional[List[int]] = None,
+) -> Dict[int, Dict[str, float]]:
+    """
+    Per-species quantities for shared_read_fraction (D27) and the interval columns (D7).
+
+    For each reported species s:
+      - alpha: its variational Dirichlet parameter α_s (left out when alpha is
+        None, as for EM's responsibilities). Over the reported set,
+        q(π_s) is Beta(α_s, Σ_j α_j − α_s), and the q-marginal of a group of
+        species is Beta(Σ_group α, Σ_j α_j − Σ_group α).
+      - expected_reads: Σ_r φ_{r,s}.
+      - shared_reads: Σ_r φ_{r,s} over the reads whose responsibility is split
+        with another reported species, that is, where the other species get at
+        least SHARED_READ_MIN_SPLIT of it (φ_{r,s} ≤ 1 − SHARED_READ_MIN_SPLIT).
+        With groups, the split is judged between table rows (F46): the species
+        of s's row share φ_{r,s}'s side of it, so a read split only among tax IDs
+        reported in one row is not shared, and the row's shared_read_fraction is
+        Σ shared_reads / Σ expected_reads over its tax IDs.
+
+    The mean-field intervals ignore the uncertainty in how shared reads are
+    split between species, so they are too narrow when shared_reads /
+    expected_reads is large (M2).
+
+    Parameters
+    ----------
+    alpha : np.ndarray, shape (S,), or None
+        Variational Dirichlet parameters of the reported species.
+    idx : np.ndarray, shape (R, K)
+        Column of each entry among the reported species, -1 for entries
+        (padding, or species not reported) that are left out.
+    phi : np.ndarray, shape (R, K)
+        Responsibilities of the entries.
+    species_ids : list of int
+        Species taxonomy IDs of the columns.
+    groups : list of int, optional
+        The table row of each column (columns with the same value are reported
+        as one row); by default every column is its own row.
+    """
+    S = len(species_ids)
+    on = idx >= 0
+    phi_on = np.where(on, phi, 0.0)
+    expected = np.bincount(idx[on], weights=phi[on], minlength=S)
+    # The split is judged among the reported species: a read's responsibility on
+    # species dropped by the abundance threshold does not make it shared
+    row_total = phi_on.sum(axis=1, keepdims=True)
+    phi_reported = np.divide(phi_on, row_total, out=np.zeros_like(phi_on), where=row_total > 0)
+    if groups is not None:
+        # The read's share on the entry's row: the sum over the entries of the same row
+        # (an entry alone in its row keeps its own value exactly; adding 0.0 is exact)
+        row = np.where(on, np.asarray(groups, dtype=np.int64)[np.where(on, idx, 0)], -1)
+        row_share = np.zeros_like(phi_reported)
+        for k in range(idx.shape[1]):
+            row_share += np.where(row == row[:, k:k + 1], phi_reported[:, k:k + 1], 0.0)
+    else:
+        row_share = phi_reported
+    split = on & (phi_reported > 0) & (row_share <= 1.0 - SHARED_READ_MIN_SPLIT)
+    shared = np.bincount(idx[split], weights=phi[split], minlength=S)
+    return {
+        sid: {
+            **({"alpha": float(alpha[i])} if alpha is not None else {}),
+            "expected_reads": float(expected[i]),
+            "shared_reads": float(shared[i]),
+        }
+        for i, sid in enumerate(species_ids)
+    }
 
 
 # ============================================================================
@@ -634,13 +893,13 @@ def variational_inference_iterations(
     db_ids: List[int],
     lli_thresh: float = 1e-4,
     input_threshold: float = 1e-3,
-) -> Tuple[Dict[int, float], Optional[Dict[int, float]], None]:
+) -> Tuple[Dict[int, float], Optional[Dict[int, float]], int]:
     """
     Drop-in replacement for the original variational_inference_iterations().
 
-    This function maintains the same signature and return type as the original
-    EM-based implementation, ensuring backward compatibility with the
-    Nextflow pipeline while using true Bayesian variational inference.
+    This function keeps the signature of the original EM-based implementation
+    and returns a 3-tuple like it, but the third value is the number of reads
+    below detection (F06) instead of the EM version's unused None.
 
     Parameters
     ----------
@@ -649,7 +908,8 @@ def variational_inference_iterations(
     db_ids : list of int
         Species taxonomy IDs in the reference database.
     lli_thresh : float
-        ELBO convergence threshold (maps to elbo_threshold).
+        Ignored by the Bayesian VI (maps to elbo_threshold, which the outer
+        loop no longer uses; F07).
     input_threshold : float
         Minimum abundance for output (maps to abundance_threshold).
 
@@ -659,17 +919,18 @@ def variational_inference_iterations(
         Species ID → posterior mean abundance.
     freq_thresholded : dict or None
         Abundance estimates after thresholding, or None.
-    read_dist : None
-        Placeholder for backward compatibility.
+    below_detection_count : int
+        Reads whose species were all pruned (F06). This position held an
+        unused read_dist placeholder (None).
     """
-    freq_full, freq_thresholded, _ = bayesian_vi_iterations(
+    freq_full, freq_thresholded, _, below_detection_count = bayesian_vi_iterations(
         log_p_rgs=log_p_rgs,
         db_species_ids=db_ids,
         elbo_threshold=lli_thresh,
         abundance_threshold=input_threshold,
         alpha_prior=1.0,  # Uniform Dirichlet prior
         max_outer_iterations=10,
-        max_inner_iterations=100,
-        inner_tolerance=5e-4,
+        max_inner_iterations=1000,
+        inner_tolerance=1e-7,
     )
-    return freq_full, freq_thresholded, None
+    return freq_full, freq_thresholded, below_detection_count

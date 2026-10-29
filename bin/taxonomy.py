@@ -1,3 +1,11 @@
+# Portions of this file are adapted from Emu (https://github.com/treangenlab/emu),
+# Copyright (c) 2021 Kristen Curry, Qi Wang, Michael G. Nute, Alona Tyshaieva,
+# Qinglong Wu, Tor Savidge, Alexander Dilthey, Todd J. Treangen. MIT License;
+# see THIRD_PARTY_LICENSES for the full text.
+# Adapted here: lineage_dict_from_tid, the database builders
+# (create_nodes_dict to build_direct_taxonomy), freq_to_lineage_df, collapse_rank
+# and combine_outputs.
+
 """
 Taxonomy utilities for NanoVI output generation.
 
@@ -9,17 +17,34 @@ taxonomic ranks, and combining per-sample results into matrices.
 # taxonomy.py
 
 import os
+import sys
 import math
+import numpy as np
 import pandas as pd
 import pathlib 
-from Bio import SeqIO
-from Bio.SeqRecord import SeqRecord
 
 # Define rank lists consistently
 TAXONOMY_RANKS = ["species", "genus", "family", "order", "class", "phylum", "superkingdom"]
 RANKS_PRINTOUT = ["tax_id"] + TAXONOMY_RANKS
 # In some places we also need the same ranks in order:
 RANKS_ORDER = RANKS_PRINTOUT[:]  # copy
+
+# Species labels for rows without a taxonomy entry (F01)
+UNASSIGNED_ID = "unassigned"
+UNASSIGNED_LABEL = "Unassigned"
+UNKNOWN_TAXID_LABEL = "Unknown taxid"
+# Species label for reads whose species were all pruned by the VI (F06)
+BELOW_DETECTION_ID = "below_detection"
+BELOW_DETECTION_LABEL = "Below detection"
+
+# Per-tax_id read summary from estimate_abundance.py ("alpha" from VB only),
+# summed over the tax_ids that share a species name, and the columns built from
+# it: shared_read_fraction always (D27), the interval columns on request
+POSTERIOR_COLUMNS = ["alpha", "expected_reads", "shared_reads"]
+SHARED_COLUMN = "shared_read_fraction"
+INTERVAL_COLUMNS = ["ci_lower", "ci_upper"]
+# Species of the same genus that share an identical 16S with the row's species (D24)
+IDENTICAL_COLUMN = "identical_16s_species"
 
 def lineage_dict_from_tid(taxid, nodes_dict, names_dict):
     """
@@ -107,6 +132,9 @@ def create_unique_seq_dict(db_fasta_path, seq2tax_dict):
     store the taxids and descriptions in a dictionary to remove redundancy.
     Returns: { Seq: { taxid: [list_of_descriptions] } }
     """
+    # Biopython is imported here, not for every step that uses this module (F51)
+    from Bio import SeqIO
+
     fasta_dict = {}
     for record in SeqIO.parse(db_fasta_path, "fasta"):
         tid = seq2tax_dict.get(record.id)
@@ -133,6 +161,8 @@ def create_reduced_fasta(fasta_dict, db_name):
     Flatten fasta_dict into a list of SeqRecords, giving each unique (seq, tid) pair
     a new ID: e.g. taxid:db_name:count
     """
+    from Bio.SeqRecord import SeqRecord
+
     records = []
     count = 1
     for seq, tid_dict in fasta_dict.items():
@@ -143,17 +173,23 @@ def create_reduced_fasta(fasta_dict, db_name):
             count += 1
     return records
 
+def tax_id_sort_key(tid):
+    """Numeric tax IDs in numeric order, then any others as text."""
+    tid = str(tid)
+    return (0, int(tid), "") if tid.isdigit() else (1, 0, tid)
+
 def build_ncbi_taxonomy(unique_tids, nodes_dict, names_dict, filepath):
     """
     Write a 'taxonomy.tsv' with columns: tax_id, species, genus, ..., superkingdom
-    for each tid in unique_tids, using NCBI nodes + names dicts.
+    for each tid in unique_tids, using NCBI nodes + names dicts. Rows are sorted by
+    tax_id (numerically), so the same database always gives the same file (F41).
     """
     with open(filepath, "w", encoding="utf8") as file:
         # Write header
         header_str = "\t".join(RANKS_PRINTOUT) + "\n"
         file.write(header_str)
 
-        for tid in unique_tids:
+        for tid in sorted(unique_tids, key=tax_id_sort_key):
             lineage_tuple = lineage_dict_from_tid(tid, nodes_dict, names_dict)
             line_str = "\t".join(lineage_tuple) + "\n"
             file.write(line_str)
@@ -177,16 +213,25 @@ def build_direct_taxonomy(tid_set, lineage_path, taxonomy_file):
                 if tax_id in tid_set:
                     tax_output_file.write(line)
 
-def unify_species_abundance(df):
+def binomial_name(name):
+    """Genus and epithet of a species name; 'Candidatus' names keep three words (F17).
+
+    'Escherichia coli O157' -> 'Escherichia coli';
+    'Candidatus Pelagibacter ubique HTCC1062' -> 'Candidatus Pelagibacter ubique'.
     """
-    Merges strain-level or subspecies-level entries so that 'species' is only 2 words.
-    E.g., 'Escherichia coli O157' -> 'Escherichia coli'.
-    Summarizes total 'abundance' by species, then retains genus, family, order, etc.
+    words = name.split(' ')
+    return ' '.join(words[:3] if words[0] == 'Candidatus' else words[:2])
+
+
+def species_row_columns(df, binomial=False):
+    """The columns that name a table row, filled in: (df, group_columns).
+
+    Rows with the same species name and lineage are one row of the table
+    (unify_species_abundance); with binomial=True the names are first cut to
+    genus and epithet, so 'Escherichia coli O157' joins 'Escherichia coli'.
     """
     if 'species' not in df.columns:
         raise ValueError("Column 'species' not found in DataFrame. Check input format.")
-
-    df['species'] = df['species'].str.split(' ').str[:2].str.join(' ')
 
     taxonomic_levels = ["genus", "family", "order", "class", "phylum", "superkingdom"]
     for level in taxonomic_levels:
@@ -194,10 +239,132 @@ def unify_species_abundance(df):
             df[level] = "Unknown"
 
     group_columns = ['species'] + taxonomic_levels
-    df_grouped = df.groupby(group_columns, as_index=False).agg({'abundance': 'sum'})
+    df[group_columns] = df[group_columns].fillna('')
+
+    if binomial:
+        is_placeholder = (df['species'].isin([UNASSIGNED_LABEL, BELOW_DETECTION_LABEL])
+                          | df['species'].str.startswith(UNKNOWN_TAXID_LABEL + " "))
+        df['species'] = df['species'].where(is_placeholder, df['species'].map(binomial_name))
+        if IDENTICAL_COLUMN in df.columns:
+            # The sharing species are named the same way, so a row's own strains drop out below
+            df[IDENTICAL_COLUMN] = ["; ".join(binomial_name(n) for n in v.split("; ") if n)
+                                    for v in df[IDENTICAL_COLUMN]]
+    return df, group_columns
+
+
+def species_row_keys(tax_ids, taxonomy_df, binomial=False):
+    """The table row each tax ID is reported in, as a hashable key (F46).
+
+    Two tax IDs get the same key exactly when freq_to_lineage_df sums them into
+    one row: the same species name (cut by binomial_name with binomial=True) and
+    lineage. A tax ID missing from taxonomy_df, or with no species name there,
+    is a row of its own ('Unknown taxid <id>').
+    """
+    df = pd.DataFrame(index=pd.Index([str(t) for t in tax_ids], name="tax_id"))
+    df = label_lineages(df, taxonomy_df, warn=False)
+    df, group_columns = species_row_columns(df, binomial)
+    keys = list(df[group_columns].itertuples(index=False, name=None))
+    assert len(keys) == len(tax_ids)
+    return keys
+
+
+def unify_species_abundance(df, binomial=False):
+    """
+    Sums the rows that share a species name and lineage. Names are kept whole
+    (F17); with binomial=True they are first cut to genus and epithet
+    (binomial_name), so 'Escherichia coli O157' joins 'Escherichia coli'.
+    Retains genus, family, order, etc. The placeholder labels 'Unassigned',
+    'Below detection' and 'Unknown taxid <id>' are kept as they are. Empty
+    ranks are kept as '' (F01).
+    """
+    df, group_columns = species_row_columns(df, binomial)
+
+    # Summed with abundance: the posterior quantities behind the interval columns
+    summed = ['abundance'] + [c for c in POSTERIOR_COLUMNS if c in df.columns]
+    agg = {c: 'sum' for c in summed}
+    if IDENTICAL_COLUMN in df.columns:
+        # The union over the row's tax IDs
+        agg[IDENTICAL_COLUMN] = lambda names: "; ".join(sorted({n for v in names for n in v.split("; ") if n}))
+    df_grouped = df.groupby(group_columns, as_index=False, sort=True).agg(agg)
+    if IDENTICAL_COLUMN in df_grouped.columns:
+        # A species never lists itself (names cut by binomial can meet, as can strains of one species)
+        df_grouped[IDENTICAL_COLUMN] = [
+            "; ".join(n for n in names.split("; ") if n and n != sp)
+            for sp, names in zip(df_grouped['species'], df_grouped[IDENTICAL_COLUMN])
+        ]
     return df_grouped
 
-def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unassigned_count, counts=False):
+def largest_remainder(weights, total):
+    """
+    Round weights * total to integers that sum exactly to total (F08).
+    The weights (abundances; total is a read count) are first divided by
+    their sum, so counts add up to total even when the abundances sum to a
+    little more or less than 1 (F48). Each value is floored, then the reads
+    left over go one each to the largest fractional parts (ties to the
+    earlier row). When every weight is 0 no row gets a read.
+    """
+    total = int(total)
+    weights = np.asarray(weights, dtype=float)
+    if weights.size == 0 or not weights.sum() > 0:
+        return np.zeros(weights.size, dtype=int)
+    raw = weights / weights.sum() * total
+    floors = np.floor(raw).astype(int)
+    # Fewer than one read per row is left, up to rounding in the sum
+    left = total - int(floors.sum())
+    order = np.argsort(-(raw - floors), kind='stable')
+    floors += left // raw.size
+    floors[order[:left % raw.size]] += 1
+    return floors
+
+def label_lineages(results_df, taxonomy_df, warn=True):
+    """Join rows indexed by tax_id with their lineage and label the rows without one.
+
+    Returns the rows with tax_id as a column. The Below detection and Unassigned
+    rows, and tax IDs without a species name in taxonomy_df ('Unknown taxid
+    <id>', with a warning on stderr when warn is True), get their label as
+    species name instead of being dropped by the groupby (F01). A tax_id listed
+    more than once in taxonomy_df takes its first lineage, so it is one row of
+    the table, as in species_row_keys (F46).
+    """
+    duplicated = taxonomy_df.index.astype(str).duplicated()
+    if duplicated.any():
+        if warn:
+            for tid in sorted(set(taxonomy_df.index[duplicated].astype(str))):
+                print(f"Warning: tax_id {tid} is listed more than once in taxonomy.tsv; using its first lineage",
+                      file=sys.stderr)
+        taxonomy_df = taxonomy_df[~duplicated]
+    # Join with the full taxonomy info
+    results_df = results_df.join(taxonomy_df, how='left').reset_index()
+    if 'species' not in results_df.columns:
+        results_df['species'] = pd.Series(pd.NA, index=results_df.index, dtype=object)
+
+    # Label rows that have no species name instead of letting groupby drop them (F01)
+    is_unassigned = results_df["tax_id"] == UNASSIGNED_ID
+    is_below = results_df["tax_id"] == BELOW_DETECTION_ID
+    is_unknown = (results_df["species"].isna() | (results_df["species"].astype(str).str.strip() == "")) \
+        & ~is_unassigned & ~is_below
+    known_ids = set(taxonomy_df.index.astype(str))
+    if warn:
+        for tid in results_df.loc[is_unknown, "tax_id"]:
+            reason = "is missing from taxonomy.tsv" if tid not in known_ids else "has no species name in taxonomy.tsv"
+            print(f"Warning: tax_id {tid} {reason}; reported as '{UNKNOWN_TAXID_LABEL} {tid}'", file=sys.stderr)
+    results_df.loc[is_unknown, "species"] = UNKNOWN_TAXID_LABEL + " " + results_df.loc[is_unknown, "tax_id"]
+    results_df.loc[is_below, "species"] = BELOW_DETECTION_LABEL
+    results_df.loc[is_unassigned, "species"] = UNASSIGNED_LABEL
+
+    # Blank ranks of these rows take the row's label, so that collapsing or combining
+    # at a higher rank keeps them apart from each other and from real taxa
+    placeholder = is_unassigned | is_below | is_unknown
+    for rank in TAXONOMY_RANKS[1:]:
+        if rank in results_df.columns:
+            blank = results_df[rank].isna() | (results_df[rank].astype(str).str.strip() == "")
+            results_df.loc[placeholder & blank, rank] = results_df.loc[placeholder & blank, "species"]
+    return results_df
+
+
+def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unassigned_count, counts=False,
+                       below_detection_count=0, posterior=None, identical=None, binomial=False,
+                       intervals=False):
     """
     Convert frequency dict (taxid -> freq) to a DataFrame, unify taxonomy, and write to .tsv.
     freq: dict { tax_id: freq_val }
@@ -205,28 +372,73 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     taxonomy_df: DataFrame with columns matching RANKS_PRINTOUT (index=tax_id).
     assigned_count / unassigned_count: number of reads assigned/unassigned
     counts: if True, add 'estimated counts' column
+    below_detection_count: assigned reads whose species were all pruned (F06);
+        they get their own 'Below detection' row and are not spread over the
+        reported species
+    posterior: optional { tax_id: {"expected_reads", "shared_reads"[, "alpha"]} },
+        the read summary of estimate_abundance.py; adds shared_read_fraction
+        (D27), left empty on the Below detection and Unassigned rows
+    intervals: also add ci_lower and ci_upper (95% interval of the mean-field
+        Beta marginal; needs "alpha", from the Bayesian VI), sampling intervals
+        that ignore how shared reads are split (D7, D27)
+    identical: optional { tax_id: "name; name" }, the species of the same genus
+        that share an identical 16S with each tax ID (identical_16s.tsv, D24);
+        adds the identical_16s_species column (empty for tax IDs not listed)
+    binomial: cut species names to genus and epithet, keeping 'Candidatus'
+        names whole, and sum the rows that then share a name (F17); off, names
+        are kept as taxonomy.tsv gives them
+    The 'Below detection' and 'Unassigned' rows (abundance 0) are always written,
+    in that order, as the last two rows.
     """
-    # Build a DataFrame from freq plus an 'unassigned' row
+    # Build a DataFrame from freq plus 'below detection' and 'unassigned' rows
     results_df = pd.DataFrame(
-        zip(list(freq.keys()) + ['unassigned'],
-            list(freq.values()) + [0]),
+        zip(list(freq.keys()) + [BELOW_DETECTION_ID, UNASSIGNED_ID],
+            list(freq.values()) + [0.0, 0.0]),
         columns=["tax_id", "abundance"]
-    ).set_index('tax_id')
+    )
+    results_df["tax_id"] = results_df["tax_id"].astype(str)
+    results_df = results_df.set_index('tax_id')
 
-    # Join with the full taxonomy info
-    results_df = results_df.join(taxonomy_df, how='left').reset_index()
+    if posterior is not None:
+        posterior = {str(k): v for k, v in posterior.items()}
+        if intervals and not all("alpha" in v for v in posterior.values()):
+            raise ValueError("The interval columns need the Bayesian VI's alpha (--estimator vb)")
+        for col in POSTERIOR_COLUMNS:
+            if col == "alpha" and not intervals:
+                continue
+            results_df[col] = [float(posterior[tid][col]) if tid in posterior else 0.0
+                               for tid in results_df.index]
 
-    # Unify species-level names if 'species' col is present
-    if 'species' in results_df.columns:
-        results_df = unify_species_abundance(results_df)
+    if identical is not None:
+        identical = {str(k): v for k, v in identical.items()}
+        results_df[IDENTICAL_COLUMN] = [identical.get(tid, "") for tid in results_df.index]
+
+    results_df = label_lineages(results_df, taxonomy_df)
+    results_df = unify_species_abundance(results_df, binomial)
+    # Below detection, then Unassigned, go last
+    is_below = results_df["species"] == BELOW_DETECTION_LABEL
+    is_unassigned = results_df["species"] == UNASSIGNED_LABEL
+    is_taxon = ~is_below & ~is_unassigned
+    results_df = pd.concat([results_df[is_taxon], results_df[is_below], results_df[is_unassigned]],
+                           ignore_index=True)
 
     # Optionally add estimated counts
     if counts:
-        # Identify the unassigned row by label, not by position, since groupby in
-        # unify_species_abundance may reorder rows and break positional [:-1] slicing.
-        is_unassigned = results_df["species"].str.lower().str.strip() == "unassigned"
-        results_df["estimated_counts"] = (results_df["abundance"] * assigned_count).astype(int)
+        # Identify the placeholder rows by label, not by position, since groupby in
+        # unify_species_abundance may reorder rows and break positional slicing.
+        is_below = results_df["species"] == BELOW_DETECTION_LABEL
+        is_unassigned = results_df["species"] == UNASSIGNED_LABEL
+        is_taxon = ~is_below & ~is_unassigned
+        results_df["estimated_counts"] = 0
+        results_df.loc[is_taxon, "estimated_counts"] = largest_remainder(
+            results_df.loc[is_taxon, "abundance"].to_numpy(), assigned_count - below_detection_count)
+        results_df.loc[is_below, "estimated_counts"] = below_detection_count
         results_df.loc[is_unassigned, "estimated_counts"] = unassigned_count
+
+    if posterior is not None:
+        add_shared_read_fraction(results_df)
+        if intervals:
+            add_interval_columns(results_df)
 
     # Reorder columns
     column_order = [
@@ -235,6 +447,12 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
     ]
     if counts:
         column_order.append("estimated_counts")
+    if identical is not None:
+        column_order.append(IDENTICAL_COLUMN)
+    if posterior is not None:
+        column_order.append(SHARED_COLUMN)
+        if intervals:
+            column_order += INTERVAL_COLUMNS
     for col in column_order:
         if col not in results_df.columns:
             results_df[col] = ""
@@ -248,12 +466,54 @@ def freq_to_lineage_df(freq, tsv_output_path, taxonomy_df, assigned_count, unass
 
     return results_df
 
+def add_shared_read_fraction(results_df):
+    """Add shared_read_fraction = shared_reads / expected_reads (D27).
+
+    The share of a species' expected reads whose responsibility it splits with
+    another reported species: a per-species flag of ambiguity. In the Phase 7a
+    benchmark it flagged the species whose interval missed the truth (AUC
+    0.75-0.84). The Below detection and Unassigned rows are left empty.
+    """
+    is_taxon = ~results_df["species"].isin([BELOW_DETECTION_LABEL, UNASSIGNED_LABEL])
+    expected = results_df.loc[is_taxon, "expected_reads"].to_numpy(dtype=float)
+    shared = results_df.loc[is_taxon, "shared_reads"].to_numpy(dtype=float)
+    results_df[SHARED_COLUMN] = np.nan
+    results_df.loc[is_taxon, SHARED_COLUMN] = np.divide(
+        shared, expected, out=np.zeros_like(shared), where=expected > 0)
+
+
+def add_interval_columns(results_df):
+    """Add ci_lower and ci_upper from the summed α of the Bayesian VI.
+
+    A species row whose tax_ids sum to α_g gets the 2.5% and 97.5% quantiles of
+    Beta(α_g, A − α_g), A being the sum over the reported species: the
+    mean-field marginal of their total abundance, whose mean is the reported
+    abundance. These are sampling intervals: they ignore the uncertainty in how
+    reads shared by several species are split, and the read-assignment error
+    that does not shrink with depth (95% coverage 93% / 81% / 38% at 1k / 10k /
+    50k reads in the Phase 7a benchmark; M2, D27). The Below detection and
+    Unassigned rows are left empty.
+    """
+    from scipy.stats import beta as beta_dist
+
+    is_taxon = ~results_df["species"].isin([BELOW_DETECTION_LABEL, UNASSIGNED_LABEL])
+    alpha = results_df.loc[is_taxon, "alpha"].to_numpy(dtype=float)
+    rest = alpha.sum() - alpha
+    lower, upper = beta_dist.ppf([[0.025], [0.975]], alpha, np.where(rest > 0, rest, 1.0))
+    # A single reported species has all the mass: Beta(α, 0) is a point at 1
+    lower, upper = np.where(rest > 0, lower, 1.0), np.where(rest > 0, upper, 1.0)
+    for col in INTERVAL_COLUMNS:
+        results_df[col] = np.nan
+    results_df.loc[is_taxon, "ci_lower"] = lower
+    results_df.loc[is_taxon, "ci_upper"] = upper
+
+
 def collapse_rank(path, rank):
     """
     Collapses an existing .tsv output to a given taxonomic rank by grouping abundance or counts.
     e.g.: python main.py collapse-taxonomy output_rel-abundance.tsv species
     """
-    df_emu = pd.read_csv(path, sep='\t')
+    df_in = pd.read_csv(path, sep='\t')
     if rank not in TAXONOMY_RANKS:
         raise ValueError(f"Specified rank '{rank}' must be in: {TAXONOMY_RANKS}")
 
@@ -261,26 +521,26 @@ def collapse_rank(path, rank):
     keep_ranks = TAXONOMY_RANKS[TAXONOMY_RANKS.index(rank):]
 
     # We handle "estimated counts" if present
-    has_counts = "estimated_counts" in df_emu.columns
+    has_counts = "estimated_counts" in df_in.columns
 
     if has_counts:
         # e.g., keep abundance + estimated_counts
         df_cols = ["abundance", "estimated_counts"] + keep_ranks
-        df_emu_copy = df_emu[df_cols].replace({'-': 0})
-        df_emu_copy = df_emu_copy.astype({'abundance': float, 'estimated_counts': float})
+        df_rank = df_in[df_cols].replace({'-': 0})
+        df_rank = df_rank.astype({'abundance': float, 'estimated_counts': float})
     else:
         # just keep abundance
         df_cols = ["abundance"] + keep_ranks
-        df_emu_copy = df_emu[df_cols].replace({'-': 0})
-        df_emu_copy = df_emu_copy.astype({'abundance': float})
+        df_rank = df_in[df_cols].replace({'-': 0})
+        df_rank = df_rank.astype({'abundance': float})
 
     # Group by the kept ranks
-    df_emu_copy = df_emu_copy.groupby(keep_ranks, dropna=False).sum()
+    df_rank = df_rank.groupby(keep_ranks, dropna=False).sum()
 
     # Write new file
     base, ext = os.path.splitext(path)
     output_path = f"{base}-{rank}.tsv"
-    df_emu_copy.to_csv(output_path, sep='\t')
+    df_rank.to_csv(output_path, sep='\t')
     print(f"File generated: {output_path}")
 
 def combine_outputs(dir_path, rank, split_files=False, count_table=False):
@@ -289,6 +549,9 @@ def combine_outputs(dir_path, rank, split_files=False, count_table=False):
     Optionally splits the final output into separate "taxonomy" and "abundance" files,
     or includes 'estimated counts' instead of 'abundance'.
     """
+    if rank not in TAXONOMY_RANKS:
+        raise ValueError(f"Specified rank '{rank}' must be in: {TAXONOMY_RANKS}")
+
     # We'll keep columns from 'rank' onward
     keep_ranks = RANKS_ORDER[RANKS_ORDER.index(rank):]
     df_combined_full = pd.DataFrame(columns=keep_ranks, dtype=str)
@@ -297,28 +560,37 @@ def combine_outputs(dir_path, rank, split_files=False, count_table=False):
     if count_table:
         metric = 'estimated_counts'
 
-    for file in os.listdir(dir_path):
+    sample_names = []
+    for file in sorted(os.listdir(dir_path)):
         file_path = os.path.join(dir_path, file)
-        file_extension = pathlib.Path(file).suffix
-        if file_extension == '.tsv' and 'rel-abundance' in file:
-            name = pathlib.Path(file).stem  # e.g. "sample_rel-abundance"
-            name = name.replace('_rel-abundance', '')
+        # Per-sample tables only, not the <sample>_rel-abundance-<rank>.tsv files collapse-taxonomy writes
+        if file.endswith('_rel-abundance.tsv'):
+            name = file[:-len('_rel-abundance.tsv')]
             df_sample = pd.read_csv(file_path, sep='\t', dtype=str)
+
+            for col in (rank, metric):
+                if col not in df_sample.columns:
+                    hint = " (was it written with --keep_counts?)" if col == 'estimated_counts' else ""
+                    raise ValueError(f"Column '{col}' not found in {file_path}{hint}")
 
             # Convert metric to numeric
             df_sample[metric] = pd.to_numeric(df_sample[metric], errors='coerce').fillna(0)
 
-            if rank in df_sample.columns and metric in df_sample.columns:
-                keep_ranks_sample = [r for r in keep_ranks if r in df_sample.columns]
+            keep_ranks_sample = [r for r in keep_ranks if r in df_sample.columns]
+            df_sample[keep_ranks_sample] = df_sample[keep_ranks_sample].fillna('')
 
-                # If last row is 'unassigned' in 'tax_id', you might handle that,
-                # but it doesn't look like you're merging 'tax_id' here, so skip?
+            df_sample_reduced = df_sample[keep_ranks_sample + [metric]].rename(columns={metric: name})
+            df_sample_reduced = df_sample_reduced.groupby(keep_ranks_sample, dropna=False).sum().reset_index()
+            df_combined_full = pd.merge(df_combined_full, df_sample_reduced, how='outer')
+            sample_names.append(name)
 
-                df_sample_reduced = df_sample[keep_ranks_sample + [metric]].rename(columns={metric: name})
-                df_sample_reduced = df_sample_reduced.groupby(keep_ranks_sample, dropna=False).sum().reset_index()
-                # Convert new column to numeric
-                df_sample_reduced[name] = pd.to_numeric(df_sample_reduced[name], errors='coerce').fillna(0)
-                df_combined_full = pd.merge(df_combined_full, df_sample_reduced, how='outer')
+    if not sample_names:
+        raise ValueError(f"No per-sample tables (*_rel-abundance.tsv) in {dir_path}")
+
+    # Taxa absent from a sample are 0, not blank
+    df_combined_full[sample_names] = df_combined_full[sample_names].fillna(0)
+    if count_table:
+        df_combined_full[sample_names] = df_combined_full[sample_names].round().astype(int)
 
     # Sort the combined table by the rank col
     if rank in df_combined_full.columns:
