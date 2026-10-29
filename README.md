@@ -278,7 +278,7 @@ nextflow run microbialds/NanoVI \
 
 The unit tests cover the Python code the pipeline runs (likelihood, both estimators, output tables, database reports and the `bin/` scripts); the pipeline tests run `main.nf` with nf-test.
 
-**Unit tests** (pytest, no database needed; 255 tests):
+**Unit tests** (pytest, no database needed; 257 tests):
 ```bash
 pip install -r containers/requirements.txt pytest
 pytest tests/unit/ -v
