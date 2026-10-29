@@ -7,7 +7,7 @@ From: python:3.11.17-slim-trixie
 %labels
     Author NanoVI developers
     Description Python environment for NanoVI variational inference pipeline
-    Version 1.0.0
+    Version 1.1.0
 
 %files
     requirements.txt /opt/requirements.txt
