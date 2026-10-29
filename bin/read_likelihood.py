@@ -14,7 +14,8 @@ import sys
 
 import numpy as np
 
-from likelihood import read_scores_to_arrays, score_reads
+from likelihood import score_reads
+from read_scores import read_scores_to_arrays
 
 
 def main():

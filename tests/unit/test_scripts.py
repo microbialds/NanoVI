@@ -60,7 +60,7 @@ def test_python_versions_prints_a_versions_block(tmp_path):
 def run_estimate(tmp_path, *options):
     lp = synthetic_reads({1: 700, 2: 250, 3: 45, 4: 5}, seed=3)
     sys.path.insert(0, BIN)
-    from likelihood import read_scores_to_arrays
+    from read_scores import read_scores_to_arrays
     offsets, tax_ids, scores = read_scores_to_arrays(lp)
     npz = tmp_path / 'read_scores.npz'
     np.savez_compressed(npz, offsets=offsets, tax_ids=tax_ids, scores=scores)
@@ -116,7 +116,7 @@ def test_estimate_abundance_no_longer_takes_credible_intervals(tmp_path):
 
 def write_npz(path, per_read):
     sys.path.insert(0, BIN)
-    from likelihood import read_scores_to_arrays
+    from read_scores import read_scores_to_arrays
     offsets, tax_ids, scores = read_scores_to_arrays(per_read)
     np.savez_compressed(path, offsets=offsets, tax_ids=tax_ids, scores=scores)
     return str(path)
