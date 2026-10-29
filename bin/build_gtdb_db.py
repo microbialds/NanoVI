@@ -122,7 +122,7 @@ def parse_ssu_header(header: str, merge_suffixes: bool = False):
 
 # ─── File helpers ─────────────────────────────────────────────────────────────
 
-# One FASTA reader for the builder and identical_16s.py (benchmarks/ import it from here)
+# One FASTA reader for the builder and identical_16s.py (the NanoVI-paper benchmark scripts import it from here)
 open_fasta = identical_16s.open_fasta
 fasta_records = identical_16s.fasta_records
 

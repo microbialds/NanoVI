@@ -4,6 +4,10 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- The benchmark and manuscript material (`benchmarks/`, `docs/benchmarks/`, `docs/paper/`, `docs/design/unknown_component.md`, `docs/reviewer_response_point9.md`) moved, with its history, to its own repository, https://github.com/microbialds/NanoVI-paper, which runs it against NanoVI 1.1.0. `docs/methods.md` and the README link there (F54).
+
 ## [1.1.0] - 2026-10-29
 
 ### Added

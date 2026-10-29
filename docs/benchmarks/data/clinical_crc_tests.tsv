@@ -1,5 +1,0 @@
-arm	tested	q_below_0.05	q_below_0.10	species_q_below_0.10
-nanovi_gtdb	198	0	3	Acutalibacter ornithocaccae; Adlercreutzia equolifaciens; Gallintestinimicrobium propionicum
-nanovi_emudb	167	0	1	Gemmiger variabilis
-emu	168	4	6	Gemmiger variabilis; Eubacterium xylanophilum; Raoultibacter timonensis; Raoultibacter massiliensis; Adlercreutzia equolifaciens; Enterocloster bolteae
-emu_same_sam	167	0	1	Gemmiger variabilis
