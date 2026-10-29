@@ -1,8 +1,0 @@
-tool	database	database_sequences	k	N	user_cpu_s	wall_s	peak_rss_kb	cpu_s_per_read	note
-minimap2 2.24	exact	232447	21	3	168.81	261.78	819948	0.83	NanoVI default; mid_occ 13444
-minimap2 2.24	exact	232447	21	10	158.95	223.04	820096	0.78	
-minimap2 2.24	exact	232447	21	50	185.86	307.30	820764	0.92	
-minimap2 2.24	c995	98444	21	3	64.14	98.49	354980	0.31	
-minimap2 2.24	reps	56861	21	3	32.70	36.89	232944	0.16	
-emu 3.6.2 (minimap2 2.30)	emu_default	49243	15	50	388.64	515.24	459512	1.94	Emu defaults; whole run (alignment and EM)
-emu 3.6.2 (minimap2 2.30)	nanovi_exact	232447	15	50	401.04	522.17	1919228	2.01	Emu defaults on NanoVI's GTDB database

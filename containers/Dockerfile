@@ -6,7 +6,7 @@ FROM python:3.11.17-slim-trixie
 
 LABEL maintainer="NanoVI developers"
 LABEL description="Python environment for NanoVI variational inference pipeline"
-LABEL version="1.1.0"
+LABEL version="1.1.1"
 
 # procps provides the ps that Nextflow uses to collect task metrics
 RUN apt-get update && \
