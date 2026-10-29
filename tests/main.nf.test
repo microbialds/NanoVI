@@ -101,12 +101,14 @@ nextflow_pipeline {
     }
 
     // The FASTA's MD5 is read once and kept in <index_cache_dir>/md5_cache.tsv, keyed by
-    // the file's path, size and modification time (F50). A seeded line with a made-up MD5
-    // shows whether the pipeline read the table or the FASTA
+    // the file's path, size, modification time, inode and status-change time (F50). A seeded
+    // line with a made-up MD5 shows whether the pipeline read the table or the FASTA
     def md5CacheLine = { projectDir, mtimeShift, md5 ->
         def fasta = new File("${projectDir}/tests/test_data/mock_db/species_taxid.fasta").toPath().toAbsolutePath().normalize()
         def mtime = java.nio.file.Files.getLastModifiedTime(fasta).toMillis() + mtimeShift
-        "path\tsize\tmtime_ms\tmd5\n${fasta}\t${java.nio.file.Files.size(fasta)}\t${mtime}\t${md5}\n"
+        def ctime = java.nio.file.Files.getAttribute(fasta, 'unix:ctime').to(java.util.concurrent.TimeUnit.NANOSECONDS)
+        def fileId = "${java.nio.file.Files.getAttribute(fasta, 'unix:ino')}:${ctime}"
+        "path\tsize\tmtime_ms\tfile_id\tmd5\n${fasta}\t${java.nio.file.Files.size(fasta)}\t${mtime}\t${fileId}\t${md5}\n"
     }
 
     test("The FASTA's MD5 is taken from md5_cache.tsv when its size and mtime match") {
@@ -155,10 +157,50 @@ nextflow_pipeline {
             def fasta = new File("${projectDir}/tests/test_data/mock_db/species_taxid.fasta")
             def md5 = java.security.MessageDigest.getInstance('MD5').digest(fasta.bytes).encodeHex().toString()
             def lines = file("${outputDir}/md5_cache_stale/md5_cache.tsv").readLines()
-            assert lines[0] == "path\tsize\tmtime_ms\tmd5"
+            assert lines[0] == "path\tsize\tmtime_ms\tfile_id\tmd5"
             // the stale line is replaced; the other line is the taxonomy's
             assert lines.count { it.endsWith("\t${md5}") } == 1 && lines.size() == 3
             assert !lines.any { it.endsWith('0123456789abcdef0123456789abcdef') }
+        }
+    }
+
+    test("A FASTA replaced with the same size and mtime has its MD5 read again") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            // The database's FASTA is recorded with a made-up MD5, then replaced as cp -p or
+            // rsync -a would: same bytes, size and mtime, new inode and status-change time
+            def dbDir = new File("${outputDir}/replaced_db")
+            dbDir.mkdirs()
+            def mock = new File("${projectDir}/tests/test_data/mock_db/species_taxid.fasta").toPath()
+            def fasta = new File(dbDir, 'species_taxid.fasta').toPath()
+            java.nio.file.Files.copy(mock, fasta, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES)
+            new File(dbDir, 'taxonomy.tsv').text = new File("${projectDir}/tests/test_data/mock_db/taxonomy.tsv").text
+            def ctime = java.nio.file.Files.getAttribute(fasta, 'unix:ctime').to(java.util.concurrent.TimeUnit.NANOSECONDS)
+            def cache = new File("${outputDir}/replaced_cache")
+            cache.mkdirs()
+            new File(cache, 'md5_cache.tsv').text = "path\tsize\tmtime_ms\tfile_id\tmd5\n" +
+                "${fasta.toAbsolutePath().normalize()}\t${java.nio.file.Files.size(fasta)}\t" +
+                "${java.nio.file.Files.getLastModifiedTime(fasta).toMillis()}\t" +
+                "${java.nio.file.Files.getAttribute(fasta, 'unix:ino')}:${ctime}\t0123456789abcdef0123456789abcdef\n"
+            sleep(20)
+            def replacement = new File(dbDir, 'new.fasta').toPath()
+            java.nio.file.Files.copy(mock, replacement, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES)
+            java.nio.file.Files.move(replacement, fasta, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            params {
+                input           = "${projectDir}/tests/test_data/stub_reads"
+                output_dir      = "${outputDir}"
+                index_cache_dir = "${outputDir}/replaced_cache"
+                db              = "${outputDir}/replaced_db"
+                taxonomy_tsv    = "${outputDir}/replaced_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/replaced_cache/${mockIndexName(projectDir)}.mmi").exists()
+            assert !file("${outputDir}/replaced_cache").listFiles().any { it.name.contains('0123456789ab') }
         }
     }
 

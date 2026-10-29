@@ -28,7 +28,8 @@ Tab-separated, one row per species the sample is estimated to contain, then two 
 rows, `Below detection` and `Unassigned`, always last and always present so that tables
 from different samples have the same placeholder rows. Species rows are sorted by name. A sample
 with no read aligned to the database (a blank, or every read shorter than `--min_length`) has
-only the two placeholder rows, with all its reads in `Unassigned`; the run log warns, naming it.
+only the two placeholder rows: `Unassigned` holds the reads that passed the length filter (0 when
+none did); the run log warns, naming it.
 
 | Column | When | Meaning |
 |---|---|---|
@@ -103,7 +104,7 @@ e2e fixture: `sample_metadata.tsv` reads `e2e_mock  1.0  6  600  30`.
 | `bam/<sample>_vi_alignments.bam` | With `--keep_files`: minimap2's alignments, unsorted: per read the primary, up to `--N` secondary and any supplementary alignments, unmapped reads included |
 | `index_cache/<fasta stem>.<md5>.<type>.k<k>.minimap2-<version>.mmi` | The minimap2 index built with `-x <type> -k <kmer_size>`, and its `.versions.yml`. A later run with the same database, settings and minimap2 version reuses it. Not built with `--db_index`. A `-stub-run` adds `.stub` to the name |
 | `index_cache/...identical_16s-<md5>.tsv` | The identical-16S table built for a database without one, and its `.versions.yml` (above) |
-| `index_cache/md5_cache.tsv` | The MD5 of the database FASTA (and of `taxonomy.tsv` when the identical-16S table is built), with each file's path, size and modification time in milliseconds: a later launch reads the MD5 from here instead of the file while those match. Deleting it only makes the next launch read the files again |
+| `index_cache/md5_cache.tsv` | The MD5 of the database FASTA (and of `taxonomy.tsv` when the identical-16S table is built), with each file's path, size, modification time in milliseconds and, for a local file, inode and status-change time: a later launch reads the MD5 from here instead of the file while those match (a file replaced in place, even with its size and date kept, gets a new inode or status-change time). Deleting it only makes the next launch read the files again |
 | `pipeline_info/timeline.html`, `report.html`, `trace.txt` | Nextflow's timeline, report and trace; the trace also records each task's requested `cpus`, `memory` and `time` |
 | `pipeline_info/software_versions.yml` | Per process, the tool versions it ran (fastplong; minimap2 and samtools; Python and numpy, pandas, scipy, pysam, biopython), plus NanoVI and Nextflow |
 

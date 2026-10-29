@@ -74,8 +74,8 @@ workflow ABUNDANCE {
         LIKELIHOOD.out.counts.subscribe { sample_id, counts ->
             def n = new groovy.json.JsonSlurper().parseText(counts.text)
             if (!n.assigned_count)
-                log.warn "Sample ${sample_id}: no read aligned to the database; " +
-                    "all ${n.unassigned_count} reads are reported as Unassigned"
+                log.warn "Sample ${sample_id}: no read aligned to the database; the " +
+                    "${n.unassigned_count} reads that passed the length filter are reported as Unassigned"
         }
     }
 
@@ -120,19 +120,25 @@ def md5Hex(path) {
 }
 
 // md5Prefix, reading the file only when <cache_dir>/md5_cache.tsv has no line for its
-// path, size and modification time (F50): a GTDB-sized FASTA is read once, not at every
-// launch, and a remote one is downloaded once. The names built from it do not change. The
-// table is rewritten through a temporary file, so a concurrent launch never reads half of
-// it; when it cannot be written, the MD5 is still returned
+// path, size, modification time and, for a local file, inode and status-change time (F50):
+// a GTDB-sized FASTA is read once, not at every launch, and a remote one is downloaded once.
+// The names built from it do not change. The table is rewritten through a temporary file,
+// so a concurrent launch never reads half of it; when it cannot be read or written, the
+// MD5 is still returned
 def cachedMd5Prefix(path, cache_dir) {
     def table = cache_dir.resolve('md5_cache.tsv')
-    def key = [path.toUriString(), path.size(), path.lastModified()].join('\t')
+    def key = [path.toUriString(), path.size(), path.lastModified(), localFileId(path)].join('\t')
     def entries = [:]
-    if (table.exists()) {
-        table.readLines().drop(1).each { line ->
-            def i = line.lastIndexOf('\t')
-            if (i > 0) entries[line.substring(0, i)] = line.substring(i + 1)
+    try {
+        if (table.exists()) {
+            table.readLines().drop(1).each { line ->
+                def i = line.lastIndexOf('\t')
+                if (i > 0) entries[line.substring(0, i)] = line.substring(i + 1)
+            }
         }
+    }
+    catch (Exception e) {
+        log.warn "Could not read ${table}: ${e.message}; reading ${path} for its MD5"
     }
     if (entries[key] ==~ /[0-9a-f]{32}/)
         return entries[key].take(12)
@@ -142,11 +148,25 @@ def cachedMd5Prefix(path, cache_dir) {
     try {
         cache_dir.mkdirs()
         def tmp = cache_dir.resolve("md5_cache.tsv.${UUID.randomUUID()}.tmp")
-        tmp.text = "path\tsize\tmtime_ms\tmd5\n" + entries.collect { k, v -> "${k}\t${v}\n" }.join('')
+        tmp.text = "path\tsize\tmtime_ms\tfile_id\tmd5\n" + entries.collect { k, v -> "${k}\t${v}\n" }.join('')
         java.nio.file.Files.move(tmp, table, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
     }
     catch (Exception e) {
         log.warn "Could not record the MD5 of ${path} in ${table}: ${e.message}"
     }
     return entries[key].take(12)
+}
+
+// Inode and status-change time (ns) of a local file, '-' for a remote one. Users cannot set
+// the status-change time, so a FASTA replaced with the same size and mtime (rsync -a,
+// cp -p, tar x) still gets a new key
+def localFileId(path) {
+    try {
+        def ino = java.nio.file.Files.getAttribute(path, 'unix:ino')
+        def ctime = java.nio.file.Files.getAttribute(path, 'unix:ctime')
+        return "${ino}:${ctime.to(java.util.concurrent.TimeUnit.NANOSECONDS)}"
+    }
+    catch (Exception e) {
+        return '-'
+    }
 }
