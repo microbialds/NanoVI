@@ -710,11 +710,16 @@ def bayesian_vi(
 
 
 def row_groups(species_ids: List[int], species_rows: Optional[Dict[int, object]]) -> Optional[List[int]]:
-    """An integer per species, equal for species reported in one table row (F46); None without rows."""
+    """An integer per species, equal for species reported in one table row (F46).
+
+    None without rows, or when every species has a row of its own: the split
+    between rows is then the split between species.
+    """
     if species_rows is None:
         return None
     numbers = {}
-    return [numbers.setdefault(species_rows.get(sid, ("tax_id", sid)), len(numbers)) for sid in species_ids]
+    groups = [numbers.setdefault(species_rows.get(sid, ("tax_id", sid)), len(numbers)) for sid in species_ids]
+    return groups if len(numbers) < len(groups) else None
 
 
 def posterior_read_summary(

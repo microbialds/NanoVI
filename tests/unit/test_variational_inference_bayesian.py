@@ -639,6 +639,12 @@ class TestSharedReadsByRow:
         assert vb.posterior_read_summary(None, self.idx, self.phi, [10, 11, 20], groups=[5, 3, 4]) == \
             vb.posterior_read_summary(None, self.idx, self.phi, [10, 11, 20])
 
+    def test_row_groups_skip_rows_of_one_tax_id(self):
+        # Every species in a row of its own needs no grouping: the row split is the species split
+        assert vb.row_groups([10, 11, 20], {10: 'A', 11: 'B', 20: 'C'}) is None
+        assert vb.row_groups([10, 11, 20], {10: 'A', 11: 'A', 20: 'C'}) == [0, 0, 1]
+        assert vb.row_groups([10, 11], None) is None
+
     def test_bayesian_vi_takes_the_rows_by_tax_id(self):
         lp = {f'a{i}': ([1, 2], [-1.0, -1.0]) for i in range(500)}
         lp.update({f'b{i}': ([3], [-1.0]) for i in range(500)})
