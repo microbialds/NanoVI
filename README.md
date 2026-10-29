@@ -278,13 +278,13 @@ nextflow run microbialds/NanoVI \
 
 The unit tests cover the Python code the pipeline runs (likelihood, both estimators, output tables, database reports and the `bin/` scripts); the pipeline tests run `main.nf` with nf-test.
 
-**Unit tests** (pytest, no database needed; 254 tests):
+**Unit tests** (pytest, no database needed; 255 tests):
 ```bash
 pip install -r containers/requirements.txt pytest
 pytest tests/unit/ -v
 ```
 
-**Pipeline tests** (nf-test; 29 tests tagged `stub`, 3 tagged `e2e`):
+**Pipeline tests** (nf-test; 30 tests tagged `stub`, 3 tagged `e2e`):
 ```bash
 nf-test test tests/main.nf.test --tag stub   # stub mode: channel wiring and parameter errors, no tools or database needed
 nf-test test tests/main.nf.test --tag e2e    # real tools with Docker on the fixture in tests/test_data/e2e
