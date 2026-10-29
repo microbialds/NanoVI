@@ -122,12 +122,35 @@ def md5Hex(path) {
 // md5Prefix, reading the file only when <cache_dir>/md5_cache.tsv has no line for its
 // path, size, modification time and, for a local file, inode and status-change time (F50):
 // a GTDB-sized FASTA is read once, not at every launch, and a remote one is downloaded once.
-// The names built from it do not change. The table is rewritten through a temporary file,
-// so a concurrent launch never reads half of it; when it cannot be read or written, the
-// MD5 is still returned
+// The names built from it do not change. The table is read again just before it is
+// rewritten, so lines another launch added while this one read the file are kept, and it is
+// rewritten through a temporary file, so a concurrent launch never reads half of it; when it
+// cannot be read or written, the MD5 is still returned
 def cachedMd5Prefix(path, cache_dir) {
     def table = cache_dir.resolve('md5_cache.tsv')
     def key = [path.toUriString(), path.size(), path.lastModified(), localFileId(path)].join('\t')
+    def cached = readMd5Cache(table, "reading ${path} for its MD5")[key]
+    if (cached ==~ /[0-9a-f]{32}/)
+        return cached.take(12)
+    def md5 = md5Hex(path)
+    try {
+        // A line for this path with another size or mtime can never match again
+        def entries = readMd5Cache(table, "rewriting it").findAll { k, v -> !k.startsWith(path.toUriString() + '\t') }
+        entries[key] = md5
+        cache_dir.mkdirs()
+        def tmp = cache_dir.resolve("md5_cache.tsv.${UUID.randomUUID()}.tmp")
+        tmp.text = "path\tsize\tmtime_ms\tfile_id\tmd5\n" + entries.collect { k, v -> "${k}\t${v}\n" }.join('')
+        java.nio.file.Files.move(tmp, table, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+    }
+    catch (Exception e) {
+        log.warn "Could not record the MD5 of ${path} in ${table}: ${e.message}"
+    }
+    return md5.take(12)
+}
+
+// The lines of md5_cache.tsv as key (path, size, mtime, file id) -> MD5; empty when the
+// table is missing or cannot be read
+def readMd5Cache(table, fallback) {
     def entries = [:]
     try {
         if (table.exists()) {
@@ -138,23 +161,9 @@ def cachedMd5Prefix(path, cache_dir) {
         }
     }
     catch (Exception e) {
-        log.warn "Could not read ${table}: ${e.message}; reading ${path} for its MD5"
+        log.warn "Could not read ${table}: ${e.message}; ${fallback}"
     }
-    if (entries[key] ==~ /[0-9a-f]{32}/)
-        return entries[key].take(12)
-    // A line for this path with another size or mtime can never match again
-    entries = entries.findAll { k, v -> !k.startsWith(path.toUriString() + '\t') }
-    entries[key] = md5Hex(path)
-    try {
-        cache_dir.mkdirs()
-        def tmp = cache_dir.resolve("md5_cache.tsv.${UUID.randomUUID()}.tmp")
-        tmp.text = "path\tsize\tmtime_ms\tfile_id\tmd5\n" + entries.collect { k, v -> "${k}\t${v}\n" }.join('')
-        java.nio.file.Files.move(tmp, table, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
-    }
-    catch (Exception e) {
-        log.warn "Could not record the MD5 of ${path} in ${table}: ${e.message}"
-    }
-    return entries[key].take(12)
+    return entries
 }
 
 // Inode and status-change time (ns) of a local file, '-' for a remote one. Users cannot set
