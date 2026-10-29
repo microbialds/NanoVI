@@ -14,7 +14,8 @@ process COMBINE {
     script:
     """
     mkdir -p input_data
-    cp -v ${input_dir}/*_rel-abundance.tsv input_data/ || cp -v ${input_dir}/*_abundance.tsv input_data/
+    # main.nf has checked that the directory holds per-sample tables (F49)
+    cp -v ${input_dir}/*_rel-abundance.tsv input_data/
     main.py combine-outputs \\
         input_data \\
         ${rank}

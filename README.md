@@ -79,11 +79,11 @@ sample2,reads/sample2.fastq.gz
 sample3,s3://my-bucket/run1/sample3.fastq.gz
 ```
 
-It is checked against `assets/schema_input.json` before any step runs: sample IDs must be unique and may use letters, digits, `_` and `-`; each `fastq` must exist and end in `.fastq`, `.fq`, `.fastq.gz` or `.fq.gz`, with no spaces in the path. Paths may be absolute, relative to the directory you launch Nextflow from (not to the samplesheet), or remote (`s3://`, `gs://`, `az://`, `https://`). Fields may be quoted. Every line after the header is a sample: lines starting with `#` are not skipped, and a sheet with no rows stops the run.
+It is checked against `assets/schema_input.json` before any step runs: sample IDs must be unique, start with a letter or digit and may use letters, digits, `.`, `_` and `-` (as in directory mode); each `fastq` must exist and end in `.fastq`, `.fq`, `.fastq.gz` or `.fq.gz`, with no spaces in the path. Paths may be absolute, relative to the directory you launch Nextflow from (not to the samplesheet), or remote (`s3://`, `gs://`, `az://`, `https://`). Fields may be quoted. Every line after the header is a sample: lines starting with `#` are not skipped, and a sheet with no rows stops the run.
 
 ### Directory
 
-A path to a directory containing FASTQ files (`.fastq`, `.fq`, optionally gzipped), searched recursively. The sample ID is the file name without that extension, so `S1.run1.fastq.gz` becomes `S1.run1`. If two files give the same ID (for example `S1.fastq` and `S1.fq`, or the same name in two subdirectories), the pipeline stops and lists them; rename the files or use a samplesheet. IDs may use letters, digits, `.`, `_` and `-`.
+A path to a directory containing FASTQ files (`.fastq`, `.fq`, optionally gzipped), searched recursively. The sample ID is the file name without that extension, so `S1.run1.fastq.gz` becomes `S1.run1`. If two files give the same ID (for example `S1.fastq` and `S1.fq`, or the same name in two subdirectories), the pipeline stops and lists them; rename the files or use a samplesheet. IDs must start with a letter or digit and may use letters, digits, `.`, `_` and `-`.
 
 ## Parameters
 
@@ -103,7 +103,7 @@ Parameters are checked against `nextflow_schema.json` at the start of every run 
 | `--input` | required | Path to samplesheet CSV or FASTQ directory |
 | `--db` | required | Database directory containing `species_taxid.fasta` and, unless `--taxonomy_tsv` is given, `taxonomy.tsv` (from `bin/build_gtdb_db.py` or `--cmd build-database`). Never a `.mmi` file: pass a prebuilt index with `--db_index` |
 | `--db_index` | none | Prebuilt minimap2 index (`.mmi`) of the database's `species_taxid.fasta`; INDEX_DB is skipped. Build it with the pipeline's minimap2 (2.31) and the same `-x <type> -k <kmer_size>`, or take it from the index cache of an earlier run |
-| `--index_cache_dir` | `<output_dir>/index_cache` | Where INDEX_DB keeps the indexes it builds. The file name records the database (the first 12 digits of the FASTA's MD5), `--type`, `--kmer_size` and the minimap2 version, e.g. `species_taxid.3f9c0a12b7de.map-ont.k21.minimap2-2.31.mmi`, so a later run with the same settings reuses the index instead of rebuilding it. Point several runs at one directory to share it, but let the first run that builds an index finish before starting others: a run reuses any file with the right name, and nothing checks that it is complete |
+| `--index_cache_dir` | `<output_dir>/index_cache` | Where INDEX_DB keeps the indexes it builds. The file name records the database (the first 12 digits of the FASTA's MD5), `--type`, `--kmer_size` and the minimap2 version, e.g. `species_taxid.3f9c0a12b7de.map-ont.k21.minimap2-2.31.mmi`, so a later run with the same settings reuses the index instead of rebuilding it. The MD5 is read once per FASTA and kept in `md5_cache.tsv` in the same directory, keyed by the FASTA's path, size and modification time (and, for a local file, its inode and status-change time, so a replaced file is read again), so later launches do not read the database again (delete the file to make the next run recompute it). Point several runs at one directory to share it, but let the first run that builds an index finish before starting others: a run reuses any file with the right name, and nothing checks that it is complete |
 | `--taxonomy_tsv` | `<db>/taxonomy.tsv` | Path to taxonomy TSV |
 | `--kmer_size` | `21` | K-mer size for the minimap2 index and mapping (`-k`, 1-28) |
 | `--N` | `3` | Maximum secondary alignments per read |
@@ -115,7 +115,7 @@ Parameters are checked against `nextflow_schema.json` at the start of every run 
 | `--min_quality` | off | Minimum mean read quality (Phred). Off: fastplong filters by length only. Set: fastplong's quality filter drops reads with a lower mean quality (its per-base rule is switched off; its limit of 5 N bases per read still applies) |
 | `--keep_counts` | `true` | Add the `estimated_counts` column to the per-sample tables and write `otu_table_counts.tsv` |
 | `--keep_files` | `false` | Publish the alignments (`bam/<sample>_vi_alignments.bam`) and the filtered reads (`filtered/<sample>_filtered.fastq.gz`) |
-| `--binomial_names` | `false` | Cut species names in the output tables to genus and epithet (`Escherichia coli O157` → `Escherichia coli`; `Candidatus` names keep three words) and sum the species that then share a name (their `shared_read_fraction` then also counts the reads split among the summed species). Off: names are kept as the database's `taxonomy.tsv` gives them |
+| `--binomial_names` | `false` | Cut species names in the output tables to genus and epithet (`Escherichia coli O157` → `Escherichia coli`; `Candidatus` names keep three words) and sum the species that then share a name (their `shared_read_fraction` counts only the reads split with species of other rows). Off: names are kept as the database's `taxonomy.tsv` gives them |
 
 ### Inference
 
@@ -131,7 +131,7 @@ Parameters are checked against `nextflow_schema.json` at the start of every run 
 
 **Detection floor.** R is the number of reads with at least one scored alignment. With `vb`, species whose posterior mean abundance falls below the pruning threshold are removed and the rest refitted, until none is below it: the threshold is max(1/R, `min_abundance`) up to 1,000 reads and max(10/R, `min_abundance`) above. With the default, the floor is 1/R up to 1,000 reads, 10/R up to 10,000 reads and 0.1% above that: nothing below 0.1% is reported at any depth (Emu's floor of 10/R would be 0.01% at 100,000 reads). With `em`, species are pruned below 1/R (10/R above 1,000 reads), as in Emu, and if `min_abundance` is higher the species at or above it are refitted and reported. With either estimator, reads whose candidate species were all pruned are reported in the `Below detection` row.
 
-**Shared reads and intervals.** Every per-sample table has a `shared_read_fraction` column: the share of the species' expected reads whose responsibility is split with another reported species, that is, where the other species get at least 1% of the read. It is counted per tax ID, so a row that sums several tax IDs (with `--binomial_names`, or a name repeated in a custom taxonomy) also counts the reads split among them. A high value means the species' abundance rests on reads that another species explains as well; in the 2026 benchmark it flagged the estimates that missed the truth (AUC 0.75-0.84; `docs/benchmarks/methods_2026.md`). With `--credible_intervals` (`vb` only) the table also gets `ci_lower` and `ci_upper`, the 2.5% and 97.5% quantiles of the species' mean-field posterior marginal, Beta(α_s, Σα − α_s) over the reported species (tax IDs that share a species name add their α). These are sampling intervals, not calibrated uncertainty: they shrink as 1/√reads while the error from assigning reads between close relatives does not, so they covered the true abundance in 93%, 81% and 38% of cases at 1,000, 10,000 and 50,000 reads (42% for species with a close relative at 10,000), and the exact posterior (collapsed Gibbs) and a read bootstrap gave the same intervals. The columns are left empty on the `Below detection` and `Unassigned` rows, and `collapse-taxonomy`, `combine-outputs` and the consolidated tables leave them out.
+**Shared reads and intervals.** Every per-sample table has a `shared_read_fraction` column: the share of the species' expected reads whose responsibility is split with another reported species, that is, where the other species get at least 1% of the read. It is counted per row of the table: in a row that sums several tax IDs (with `--binomial_names`, or a name repeated in a custom taxonomy), reads split only among those tax IDs are not shared. A high value means the species' abundance rests on reads that another species explains as well; in the 2026 benchmark it flagged the estimates that missed the truth (AUC 0.75-0.84; `docs/benchmarks/methods_2026.md`). With `--credible_intervals` (`vb` only) the table also gets `ci_lower` and `ci_upper`, the 2.5% and 97.5% quantiles of the species' mean-field posterior marginal, Beta(α_s, Σα − α_s) over the reported species (tax IDs that share a species name add their α). These are sampling intervals, not calibrated uncertainty: they shrink as 1/√reads while the error from assigning reads between close relatives does not, so they covered the true abundance in 93%, 81% and 38% of cases at 1,000, 10,000 and 50,000 reads (42% for species with a close relative at 10,000), and the exact posterior (collapsed Gibbs) and a read bootstrap gave the same intervals. The columns are left empty on the `Below detection` and `Unassigned` rows, and `collapse-taxonomy`, `combine-outputs` and the consolidated tables leave them out.
 
 ### Resources
 
@@ -165,7 +165,7 @@ Give the caps on the command line or in a `-params-file`. In a custom `-c` confi
 | `--input_dir` | required | Directory with per-sample tables for combining |
 | `--rank` | required | Taxonomic rank: `species`, `genus`, `family`, `order`, `class`, `phylum`, `superkingdom` |
 
-`--cmd collapse-taxonomy` writes `<output_dir>/<input name>-<rank>.tsv` (for `S1_rel-abundance.tsv`, `S1_rel-abundance-genus.tsv`), and `--cmd combine-outputs` writes `<output_dir>/vi-combined-<rank>.tsv`, one column per `*_rel-abundance.tsv` in `--input_dir`.
+`--cmd collapse-taxonomy` writes `<output_dir>/<input name>-<rank>.tsv` (for `S1_rel-abundance.tsv`, `S1_rel-abundance-genus.tsv`), and `--cmd combine-outputs` writes `<output_dir>/vi-combined-<rank>.tsv`, one column per `*_rel-abundance.tsv` in `--input_dir`; a directory without such tables stops the command with an error.
 
 ## Output
 
@@ -278,20 +278,20 @@ nextflow run microbialds/NanoVI \
 
 The unit tests cover the Python code the pipeline runs (likelihood, both estimators, output tables, database reports and the `bin/` scripts); the pipeline tests run `main.nf` with nf-test.
 
-**Unit tests** (pytest, no database needed; 227 tests):
+**Unit tests** (pytest, no database needed; 257 tests):
 ```bash
 pip install -r containers/requirements.txt pytest
 pytest tests/unit/ -v
 ```
 
-**Pipeline tests** (nf-test; 24 tests tagged `stub`, 2 tagged `e2e`):
+**Pipeline tests** (nf-test; 30 tests tagged `stub`, 3 tagged `e2e`):
 ```bash
 nf-test test tests/main.nf.test --tag stub   # stub mode: channel wiring and parameter errors, no tools or database needed
 nf-test test tests/main.nf.test --tag e2e    # real tools with Docker on the fixture in tests/test_data/e2e
 NANOVI_E2E_PROFILE=conda nf-test test tests/main.nf.test --tag e2e    # the same test with -profile conda
 ```
 
-The `e2e` tests run fastplong, minimap2 and the Python steps on a small real 16S database (11 sequences, including the near neighbours *E. coli* / *S. flexneri* and *S. pneumoniae* / *S. mitis*) with 600 simulated reads in known proportions plus 30 non-16S reads, and check the result against `tests/test_data/e2e/expected.tsv` (every present species reported, those at 10% or more within 5 percentage points, absent species below 1%), the `Below detection` and `Unassigned` rows, the four consolidated tables and the tool versions; see [tests/test_data/e2e/README.md](tests/test_data/e2e/README.md). `-profile test,docker` runs the pipeline on the same fixture (`-profile test` on its own sets no container engine).
+The `e2e` tests run fastplong, minimap2 and the Python steps on a small real 16S database (11 sequences, including the near neighbours *E. coli* / *S. flexneri* and *S. pneumoniae* / *S. mitis*) with 600 simulated reads in known proportions plus 30 non-16S reads, and check the result against `tests/test_data/e2e/expected.tsv` (every present species reported, those at 10% or more within 5 percentage points, absent species below 1%), the `Below detection` and `Unassigned` rows, the four consolidated tables and the tool versions, and that samples with no aligned read (only non-16S reads, or every read below `--min_length`) get an all-Unassigned table beside a normal sample; see [tests/test_data/e2e/README.md](tests/test_data/e2e/README.md). `-profile test,docker` runs the pipeline on the same fixture (`-profile test` on its own sets no container engine).
 
 Continuous integration (GitHub Actions) runs on every push to `main`, `dev`, `feat/**`, `fix/**` and `roadmap/**`, on `v*` tags and on every pull request into `main` or `dev`: the unit tests on Python 3.11 and 3.13, a check that the version strings agree, the `stub` tests, and the `e2e` tests with Docker (on the Python image built from the commit) and with conda. The Docker image is built on every run; it is published to `ghcr.io/microbialds/nanovi-python` only from `main` (as `:main` and `:sha-<commit>`) and from release tags (see Releasing).
 

@@ -9,14 +9,20 @@ number of reads whose species were all pruned ("below_detection_count") and a
 per-species read summary ("read_summary": {tax_id: {"expected_reads",
 "shared_reads"}}, plus "alpha" with --estimator vb), from which
 write_abundance_table.py builds the shared_read_fraction column and, with its
---credible-intervals, the ci_lower and ci_upper columns (D27).
+--credible-intervals, the ci_lower and ci_upper columns (D27). With --taxonomy
+(and --binomial-names, as given to write_abundance_table.py) a read counts as
+shared only when its responsibility is split between rows of the table, not
+among tax IDs reported in one row (F46).
 """
 import argparse
 import json
+import sys
 
 import numpy as np
+import pandas as pd
 
 import em_estimator
+from taxonomy import species_row_keys
 from variational_inference_bayesian import bayesian_vi, sparse_likelihood_from_csr
 
 
@@ -36,14 +42,31 @@ def main():
                         help="VB: total concentration of the symmetric Dirichlet prior (default 1.0)")
     parser.add_argument("--elbo-threshold", type=float, default=1e-4,
                         help="EM: stop when the log-likelihood rises by less (default 1e-4)")
+    parser.add_argument("--taxonomy", help="taxonomy.tsv of the database: shared reads are counted between the "
+                                           "table's rows (default: between tax IDs)")
+    parser.add_argument("--binomial-names", action="store_true",
+                        help="with --taxonomy: rows as write_abundance_table.py --binomial-names makes them")
     args = parser.parse_args()
 
     with np.load(args.scores) as data:
         offsets, tax_ids, scores = data["offsets"], data["tax_ids"], data["scores"]
 
+    if len(offsets) <= 1:
+        # No read was scored (F45): nothing to estimate, and every read is unassigned
+        print(f"WARNING: {args.scores} has no scored read; writing an empty abundance", file=sys.stderr)
+        with open(args.output, "w") as f:
+            json.dump({"abundance": {}, "below_detection_count": 0, "read_summary": {}}, f)
+        return
+
     # Species in order of first appearance through a set, as the JSON hand-off did,
     # so the columns (and the floating-point sums) are in the same order as before
     db_ids = list({int(tid) for tid in tax_ids})
+
+    # The table row of each species, so that reads split among the tax IDs of one row are not shared (F46)
+    species_rows = None
+    if args.taxonomy:
+        taxonomy_df = pd.read_csv(args.taxonomy, sep="\t", dtype=str).set_index("tax_id")
+        species_rows = dict(zip(db_ids, species_row_keys(db_ids, taxonomy_df, args.binomial_names)))
 
     if args.estimator == "em":
         tax_id_lists, score_lists = tax_ids.tolist(), scores.tolist()
@@ -64,6 +87,7 @@ def main():
             max_inner_iterations=args.max_iterations,
             inner_tolerance=args.tolerance,
             posterior_summary=True,
+            species_rows=species_rows,
         )
         freq_full, freq_thresh, _, below_detection_count, read_summary = result
 
@@ -72,7 +96,7 @@ def main():
         surviving = list(freq_full)
         idx, logL = sparse_likelihood_from_csr(offsets, tax_ids, scores, np.array(surviving, dtype=np.int64))
         read_summary = em_estimator.read_summary(idx, logL, [freq_full[t] for t in surviving], surviving,
-                                                 list(reported))
+                                                 list(reported), species_rows)
 
     output = {
         "abundance": reported,

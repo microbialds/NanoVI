@@ -64,6 +64,10 @@ nextflow_pipeline {
             // default cache: <output_dir>/index_cache
             assert file("${outputDir}/index_cache/${mockIndexName(projectDir)}.mmi").exists()
             assert file("${outputDir}/index_cache/${mockIndexName(projectDir)}.versions.yml").exists()
+            // the FASTA's MD5 is recorded for the next launch (F50)
+            // (and the taxonomy's, which names the identical-16S table this database lacks)
+            def recorded = file("${outputDir}/index_cache/md5_cache.tsv").readLines()
+            assert recorded.size() == 3 && recorded.count { it.contains('/mock_db/species_taxid.fasta\t') } == 1
         }
     }
 
@@ -93,6 +97,110 @@ nextflow_pipeline {
             assert file("${outputDir}/shared_cache/${mockIndexName(projectDir)}.mmi").text == 'cached index'
             def versions = new org.yaml.snakeyaml.Yaml().load(file("${outputDir}/pipeline_info/software_versions.yml").text)
             assert versions.INDEX_DB.minimap2 == 'cached'
+        }
+    }
+
+    // The FASTA's MD5 is read once and kept in <index_cache_dir>/md5_cache.tsv, keyed by
+    // the file's path, size, modification time, inode and status-change time (F50). A seeded
+    // line with a made-up MD5 shows whether the pipeline read the table or the FASTA
+    def md5CacheLine = { projectDir, mtimeShift, md5 ->
+        def fasta = new File("${projectDir}/tests/test_data/mock_db/species_taxid.fasta").toPath().toAbsolutePath().normalize()
+        def mtime = java.nio.file.Files.getLastModifiedTime(fasta).toMillis() + mtimeShift
+        def ctime = java.nio.file.Files.getAttribute(fasta, 'unix:ctime').to(java.util.concurrent.TimeUnit.NANOSECONDS)
+        def fileId = "${java.nio.file.Files.getAttribute(fasta, 'unix:ino')}:${ctime}"
+        "path\tsize\tmtime_ms\tfile_id\tmd5\n${fasta}\t${java.nio.file.Files.size(fasta)}\t${mtime}\t${fileId}\t${md5}\n"
+    }
+
+    test("The FASTA's MD5 is taken from md5_cache.tsv when its size and mtime match") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            def cache = new File("${outputDir}/md5_cache_hit")
+            cache.mkdirs()
+            new File(cache, 'md5_cache.tsv').text = md5CacheLine(projectDir, 0, '0123456789abcdef0123456789abcdef')
+            params {
+                input           = "${projectDir}/tests/test_data/stub_reads"
+                output_dir      = "${outputDir}"
+                index_cache_dir = "${outputDir}/md5_cache_hit"
+                db              = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv    = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/md5_cache_hit").listFiles().any { it.name.startsWith('species_taxid.0123456789ab.map-ont.k21.stub.') }
+        }
+    }
+
+    test("A changed modification time makes the FASTA's MD5 be read again and recorded") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            def cache = new File("${outputDir}/md5_cache_stale")
+            cache.mkdirs()
+            new File(cache, 'md5_cache.tsv').text = md5CacheLine(projectDir, -1000, '0123456789abcdef0123456789abcdef')
+            params {
+                input           = "${projectDir}/tests/test_data/stub_reads"
+                output_dir      = "${outputDir}"
+                index_cache_dir = "${outputDir}/md5_cache_stale"
+                db              = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv    = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/md5_cache_stale/${mockIndexName(projectDir)}.mmi").exists()
+            def fasta = new File("${projectDir}/tests/test_data/mock_db/species_taxid.fasta")
+            def md5 = java.security.MessageDigest.getInstance('MD5').digest(fasta.bytes).encodeHex().toString()
+            def lines = file("${outputDir}/md5_cache_stale/md5_cache.tsv").readLines()
+            assert lines[0] == "path\tsize\tmtime_ms\tfile_id\tmd5"
+            // the stale line is replaced; the other line is the taxonomy's
+            assert lines.count { it.endsWith("\t${md5}") } == 1 && lines.size() == 3
+            assert !lines.any { it.endsWith('0123456789abcdef0123456789abcdef') }
+        }
+    }
+
+    test("A FASTA replaced with the same size and mtime has its MD5 read again") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            // The database's FASTA is recorded with a made-up MD5, then replaced as cp -p or
+            // rsync -a would: same bytes, size and mtime, new inode and status-change time
+            def dbDir = new File("${outputDir}/replaced_db")
+            dbDir.mkdirs()
+            def mock = new File("${projectDir}/tests/test_data/mock_db/species_taxid.fasta").toPath()
+            def fasta = new File(dbDir, 'species_taxid.fasta').toPath()
+            java.nio.file.Files.copy(mock, fasta, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES)
+            new File(dbDir, 'taxonomy.tsv').text = new File("${projectDir}/tests/test_data/mock_db/taxonomy.tsv").text
+            def ctime = java.nio.file.Files.getAttribute(fasta, 'unix:ctime').to(java.util.concurrent.TimeUnit.NANOSECONDS)
+            def cache = new File("${outputDir}/replaced_cache")
+            cache.mkdirs()
+            new File(cache, 'md5_cache.tsv').text = "path\tsize\tmtime_ms\tfile_id\tmd5\n" +
+                "${fasta.toAbsolutePath().normalize()}\t${java.nio.file.Files.size(fasta)}\t" +
+                "${java.nio.file.Files.getLastModifiedTime(fasta).toMillis()}\t" +
+                "${java.nio.file.Files.getAttribute(fasta, 'unix:ino')}:${ctime}\t0123456789abcdef0123456789abcdef\n"
+            sleep(20)
+            def replacement = new File(dbDir, 'new.fasta').toPath()
+            java.nio.file.Files.copy(mock, replacement, java.nio.file.StandardCopyOption.COPY_ATTRIBUTES)
+            java.nio.file.Files.move(replacement, fasta, java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            params {
+                input           = "${projectDir}/tests/test_data/stub_reads"
+                output_dir      = "${outputDir}"
+                index_cache_dir = "${outputDir}/replaced_cache"
+                db              = "${outputDir}/replaced_db"
+                taxonomy_tsv    = "${outputDir}/replaced_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/replaced_cache/${mockIndexName(projectDir)}.mmi").exists()
+            assert !file("${outputDir}/replaced_cache").listFiles().any { it.name.contains('0123456789ab') }
         }
     }
 
@@ -330,6 +438,52 @@ nextflow_pipeline {
         }
     }
 
+    test("combine-outputs fails when --input_dir has no per-sample table") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            // The combined table came out empty for tables not named <sample>_rel-abundance.tsv (F49)
+            def dir = new File("${outputDir}/tables")
+            dir.mkdirs()
+            new File(dir, 'S1_abundance.tsv').text = 'species\tabundance\nEscherichia coli\t1.0\n'
+            params {
+                cmd           = "combine-outputs"
+                output_dir    = "${outputDir}"
+                input_dir     = "${outputDir}/tables"
+                rank          = "species"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.trace.tasks().size() == 0
+            assert (workflow.stdout + workflow.stderr).any { it.contains("No per-sample tables (*_rel-abundance.tsv) in ${outputDir}/tables") }
+        }
+    }
+
+    test("combine-outputs runs on per-sample tables") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            def dir = new File("${outputDir}/tables")
+            dir.mkdirs()
+            new File(dir, 'S1_rel-abundance.tsv').text = 'species\tabundance\nEscherichia coli\t1.0\n'
+            params {
+                cmd           = "combine-outputs"
+                output_dir    = "${outputDir}"
+                input_dir     = "${outputDir}/tables"
+                rank          = "species"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().count { it.name.contains('COMBINE') } == 1
+        }
+    }
+
     test("combine-outputs fails with an invalid --rank") {
         tag "stub"
         options "-profile test -stub-run"
@@ -406,7 +560,7 @@ nextflow_pipeline {
 
         then {
             assert workflow.failed
-            assert (workflow.stdout + workflow.stderr).any { it.contains("Sample IDs from FASTQ file names may only use letters, digits, '.', '_' and '-'; rename these files or use a samplesheet:") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Sample IDs from FASTQ file names must start with a letter or digit and may only use letters, digits, '.', '_' and '-'; rename these files or use a samplesheet:") }
             assert (workflow.stdout + workflow.stderr).any { it.contains("${projectDir}/tests/test_data/bad_id_reads/S1+run.fastq") }
         }
     }
@@ -496,6 +650,30 @@ nextflow_pipeline {
         }
     }
 
+    // Directory mode and the samplesheet accept the same sample IDs (F53, D35): '.' is
+    // allowed in both; "Directory mode keeps dots in sample IDs" runs S1.run1 from a directory
+    test("Samplesheet accepts a sample ID with '.', as directory mode does") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            def sheet = new File("${outputDir}/samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,fastq\nS1.run1,${projectDir}/tests/test_data/multi_dot_reads/S1.run1.fastq\n"
+            params {
+                input        = "${outputDir}/samplesheet.csv"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/sample_outputs/S1.run1_rel-abundance.tsv").exists()
+        }
+    }
+
     test("Samplesheet with a duplicate sample ID is rejected") {
         tag "stub"
         options "-profile test -stub-run"
@@ -527,7 +705,8 @@ nextflow_pipeline {
         when {
             def sheet = new File("${outputDir}/samplesheet.csv")
             sheet.parentFile.mkdirs()
-            sheet.text = "sample,fastq\nS1.run1,${projectDir}/tests/test_data/stub_reads/mock_run.fastq\nS2,${projectDir}/tests/test_data/stub_reads/missing.fastq\n"
+            sheet.text = "sample,fastq\nS1+run,${projectDir}/tests/test_data/stub_reads/mock_run.fastq\nS2,${projectDir}/tests/test_data/stub_reads/missing.fastq\n" +
+                "-x,${projectDir}/tests/test_data/stub_reads/mock_run.fastq\n.x,${projectDir}/tests/test_data/stub_reads/mock_run.fastq\n"
             params {
                 input        = "${outputDir}/samplesheet.csv"
                 output_dir   = "${outputDir}"
@@ -538,8 +717,11 @@ nextflow_pipeline {
 
         then {
             assert workflow.failed
-            assert (workflow.stdout + workflow.stderr).any { it.contains("-> Entry 1: Error for field 'sample' (S1.run1)") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("-> Entry 1: Error for field 'sample' (S1+run)") }
             assert (workflow.stdout + workflow.stderr).any { it.contains("-> Entry 2: Error for field 'fastq'") && it.contains("missing.fastq' does not exist") }
+            // An ID starting with '-' failed later, in LIKELIHOOD; one starting with '.' made hidden files
+            assert (workflow.stdout + workflow.stderr).any { it.contains("-> Entry 3: Error for field 'sample' (-x)") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("-> Entry 4: Error for field 'sample' (.x)") }
         }
     }
 
@@ -691,6 +873,59 @@ nextflow_pipeline {
             def (prefix, rest) = task.hash.split('/')
             def taskDir = new File("${metaDir}/../work/${prefix}").listFiles().find { it.name.startsWith(rest) }
             assert new File(taskDir, '.command.sh').text.contains('--binomial-names')
+        }
+    }
+
+    // A sample with no read aligned to the database does not stop the run (F45): its
+    // table has only the Below detection (0) and Unassigned rows, and the phyloseq
+    // tables keep it with zero counts. non16s holds the fixture's 30 non-16S reads;
+    // too_short holds 20 reads cut to 400 bp, below --min_length 500
+    test("Samples with no aligned read get an all-Unassigned table beside a normal sample") {
+        tag "e2e"
+        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --keep_files true"
+
+        when {
+            def edge = "${projectDir}/tests/test_data/edge_samples"
+            def sheet = new File("${outputDir}/samplesheet.csv")
+            sheet.parentFile.mkdirs()
+            sheet.text = "sample,fastq\n" +
+                "e2e_mock,${projectDir}/tests/test_data/e2e/reads/e2e_mock.fastq.gz\n" +
+                "non16s,${edge}/non16s.fastq.gz\n" +
+                "too_short,${edge}/too_short.fastq.gz\n"
+            params {
+                input      = "${outputDir}/samplesheet.csv"
+                output_dir = "${outputDir}"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def readTsv = { f ->
+                def lines = file(f).readLines().findAll { it }
+                def header = lines[0].split('\t', -1) as List
+                lines.drop(1).collect { line -> [header, line.split('\t', -1) as List].transpose().collectEntries { it } }
+            }
+            def normal = readTsv("${outputDir}/sample_outputs/e2e_mock_rel-abundance.tsv")
+            assert normal.count { !(it.species in ['Below detection', 'Unassigned']) } == 6
+            [non16s: 30, too_short: 0].each { sample, unassigned ->
+                def rows = readTsv("${outputDir}/sample_outputs/${sample}_rel-abundance.tsv")
+                assert rows.collect { [it.species, it.abundance as double, it.estimated_counts as int] } ==
+                    [['Below detection', 0.0, 0], ['Unassigned', 0.0, unassigned]]
+                def warning = "Sample ${sample}: no read aligned to the database"
+                assert (workflow.stdout + workflow.stderr).any { it.contains(warning) } ||
+                    file("${metaDir}/nextflow.log").text.contains(warning)
+            }
+            // fastplong leaves an empty file when no read passes; FILTER_READS makes it a gzip stream
+            def filtered = new java.util.zip.GZIPInputStream(new FileInputStream("${outputDir}/filtered/too_short_filtered.fastq.gz"))
+            assert filtered.read() == -1
+
+            def metadata = readTsv("${outputDir}/consolidated_output/sample_metadata.tsv").collectEntries { [(it.sample_id): it] }
+            assert metadata.keySet() == ['e2e_mock', 'non16s', 'too_short'] as Set
+            assert metadata.non16s.n_taxa_detected == '0' && metadata.non16s.assigned_counts == '0'
+            assert metadata.non16s.unassigned_counts == '30' && metadata.too_short.unassigned_counts == '0'
+            def counts = readTsv("${outputDir}/consolidated_output/otu_table_counts.tsv")
+            assert counts.every { it.too_short == '0' }
+            assert counts.find { it.species == 'Unassigned' }.non16s == '30'
         }
     }
 }

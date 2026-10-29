@@ -25,6 +25,9 @@ import pysam
 from operator import mul
 from sys import stdout
 
+# The read-scores layout, in a module without pysam that the estimators share (F52)
+from read_scores import read_scores_to_arrays
+
 CIGAR_OPS = [1, 2, 4, 10]
 CIGAR_OPS_ALL = [0, 1, 2, 4]
 
@@ -114,12 +117,12 @@ def cigar_profile(records):
             del cigar_stats_primary[i]
 
     n_char = sum(cigar_stats_primary)
-    if n_char == 0:
-        raise ValueError(
-            f"No insertions, deletions, soft clips or mismatches in the primary alignments of {records.sam_path}; "
-            "the error profile cannot be estimated."
-        )
     dict_longest_align = dict(zip(records.names, longest.tolist()))
+    if n_char == 0:
+        # Error-free primary alignments (simulated or spike-in reads): every operation has
+        # zero count, so a perfect alignment scores 0 and any other is skipped, instead of
+        # the step failing (F45)
+        return [], zero_locs, dict_longest_align
     return [math.log(x) for x in np.array(cigar_stats_primary) / n_char], zero_locs, dict_longest_align
 
 
@@ -133,8 +136,9 @@ def get_cigar_op_log_probabilities(sam_path):
     those operations in CIGAR_OPS; and each read's longest alignment over all of
     its alignments, secondary and supplementary included (F04).
 
-    Raises ValueError when the SAM holds no primary mapped alignment or when those
-    alignments have no error operation.
+    Raises ValueError when the SAM holds no primary mapped alignment. When those
+    alignments have no error operation, every operation is a zero loc and
+    log_probs is empty: perfect alignments score 0 (F45).
     """
     return cigar_profile(read_alignment_records(sam_path))
 
@@ -194,23 +198,14 @@ def score_reads(sam_path):
     """Error profile and read scores from one pass over a SAM or BAM file (F24).
 
     Returns (log_p_rgs, unassigned_count, assigned_count), as log_prob_rgs_dict
-    does after get_cigar_op_log_probabilities, which read the file twice.
+    does after get_cigar_op_log_probabilities, which read the file twice. With no
+    primary mapped alignment (a blank, or a sample whose reads all failed the
+    length filter) no read is scored and every read is unassigned (F45).
     """
     records = read_alignment_records(sam_path)
+    if not any(records.primary):
+        stdout.write(f"Unassigned read count: {len(records.names)}\n")
+        return {}, len(records.names), 0
     log_probs, zero_locs, dict_longest_align = cigar_profile(records)
     return read_scores_from_records(records, log_probs, dict_longest_align, zero_locs)
 
-def read_scores_to_arrays(log_p_rgs):
-    """Per-read lists as flat arrays, in read order (the read-scores npz, F24).
-
-    Returns (offsets, tax_ids, scores): read r's candidates are
-    tax_ids[offsets[r]:offsets[r + 1]], with their scores.
-    """
-    lengths = [len(sids) for sids, _ in log_p_rgs.values()]
-    offsets = np.zeros(len(lengths) + 1, dtype=np.int64)
-    np.cumsum(lengths, out=offsets[1:])
-    tax_ids = np.fromiter((sid for sids, _ in log_p_rgs.values() for sid in sids),
-                          dtype=np.int64, count=int(offsets[-1]))
-    scores = np.fromiter((score for _, scores in log_p_rgs.values() for score in scores),
-                         dtype=np.float64, count=int(offsets[-1]))
-    return offsets, tax_ids, scores

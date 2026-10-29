@@ -18,11 +18,16 @@ import math
 import numpy as np
 from sys import stdout
 
-from variational_inference_bayesian import posterior_read_summary
+from variational_inference_bayesian import posterior_read_summary, row_groups
 
 
 def variational_inference(log_p_rgs, freq, max_iterations=20, tolerance=5e-4):
-    """Run inner VI/EM loop: update q(s|r) and frequencies until convergence."""
+    """Run inner VI/EM loop: update q(s|r) and frequencies until convergence.
+
+    Returns the frequencies of the last update, which sum to 1 (F47; the input,
+    for example a pruned set, need not), and the log-likelihood of the
+    frequencies that update started from.
+    """
     for iteration in range(max_iterations):
         q_dist, elbo = update_q_distribution(log_p_rgs, freq)
         new_freq = maximize_elbo(q_dist)
@@ -30,10 +35,10 @@ def variational_inference(log_p_rgs, freq, max_iterations=20, tolerance=5e-4):
             if key not in new_freq:
                 new_freq[key] = 0.0
         diff = sum(abs(new_freq[key] - freq.get(key, 0.0)) for key in new_freq)
+        freq = new_freq
         if diff < tolerance:
             print(f"Converged at iteration {iteration + 1} with ELBO = {elbo}")
             break
-        freq = new_freq
         print(f"Iteration {iteration + 1}: ELBO = {elbo}")
     return freq, elbo
 
@@ -77,7 +82,7 @@ def count_below_detection(log_p_rgs, reported):
         if not any(reported.get(sid, 0) > 0 for sid in sids)
     )
 
-def read_summary(idx, logL, freq, species_ids, reported_ids):
+def read_summary(idx, logL, freq, species_ids, reported_ids, species_rows=None):
     """Expected and shared reads of each reported species under EM's responsibilities (D27).
 
     idx/logL are the padded likelihood over the species that survived pruning
@@ -85,7 +90,8 @@ def read_summary(idx, logL, freq, species_ids, reported_ids):
     and freq their frequencies (freq_full). A read's responsibility is
     ∝ freq_s × p(read | s) over those species, as the Bayesian VI's φ comes from its
     final fit; expected and shared reads are then counted over the reported species
-    (reported_ids) as in posterior_read_summary, without alpha.
+    (reported_ids) as in posterior_read_summary, without alpha; species_rows
+    (species ID → table row) counts as shared only the reads split between rows (F46).
     """
     finite = np.isfinite(logL)
     with np.errstate(divide="ignore"):
@@ -98,7 +104,8 @@ def read_summary(idx, logL, freq, species_ids, reported_ids):
     column = {sid: i for i, sid in enumerate(reported_ids)}
     reported_col = np.array([column.get(sid, -1) for sid in species_ids], dtype=np.int64)
     idx_reported = np.where(np.isfinite(score), reported_col[idx], -1)
-    return posterior_read_summary(None, idx_reported, np.where(idx_reported >= 0, phi, 0.0), list(reported_ids))
+    return posterior_read_summary(None, idx_reported, np.where(idx_reported >= 0, phi, 0.0), list(reported_ids),
+                                  groups=row_groups(list(reported_ids), species_rows))
 
 
 def variational_inference_iterations(log_p_rgs, db_ids, lli_thresh, input_threshold):

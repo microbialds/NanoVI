@@ -112,10 +112,15 @@ class TestGetCigarOpLogProbabilities:
         with pytest.raises(ValueError, match='No primary mapped alignments'):
             get_cigar_op_log_probabilities(sam)
 
-    def test_no_error_operations_raises(self, tmp_path):
-        sam = write_sam(tmp_path / 'p.sam', [('r1', PRIMARY, REFS[0], '100M', 0)])
-        with pytest.raises(ValueError, match='error profile'):
-            get_cigar_op_log_probabilities(sam)
+    def test_no_error_operations_gives_an_empty_profile(self, tmp_path):
+        # Error-free primary alignments no longer stop LIKELIHOOD (F45): every operation is
+        # a zero loc, a perfect alignment scores 0 and one with any operation is skipped
+        sam = write_sam(tmp_path / 'p.sam', [('r1', PRIMARY, REFS[0], '100M', 0),
+                                            ('r1', SECONDARY, REFS[1], '95M5S', 0),
+                                            ('r2', PRIMARY, REFS[1], '100M', 0)])
+        log_probs, zero_locs, _ = get_cigar_op_log_probabilities(sam)
+        assert log_probs == [] and zero_locs == [0, 1, 2, 3]
+        assert score_reads(sam) == ({'r1': ([1], [0.0]), 'r2': ([2], [0.0])}, 0, 2)
 
 
 class TestLogProbRgsDict:
@@ -184,10 +189,14 @@ def test_score_reads_equals_the_two_passes(tmp_path, mode, suffix):
     assert score_reads(path) == log_prob_rgs_dict(path, log_probs, longest, zero_locs)
 
 
-def test_score_reads_raises_without_primary_alignments(tmp_path):
-    path = write_sam(tmp_path / 'a.sam', [('r1', UNMAPPED, None, None, 0)])
-    with pytest.raises(ValueError, match='No primary mapped alignments'):
-        score_reads(path)
+@pytest.mark.parametrize('records,unassigned', [
+    ([], 0),                                                              # header only: no read passed the filter
+    ([('r1', UNMAPPED, None, None, 0), ('r2', UNMAPPED, None, None, 0)], 2),  # nothing aligned
+])
+def test_score_reads_without_primary_alignments_leaves_every_read_unassigned(tmp_path, records, unassigned):
+    # A blank, or a sample whose reads all failed the length filter, must not stop the run (F45)
+    path = write_sam(tmp_path / 'a.bam', records, 'wb')
+    assert score_reads(path) == ({}, unassigned, 0)
 
 
 def test_read_scores_to_arrays():
@@ -215,6 +224,22 @@ def test_read_likelihood_script(tmp_path):
     assert json.loads((tmp_path / 'counts.json').read_text()) == {
         'assigned_count': assigned, 'unassigned_count': unassigned}
     assert (assigned, unassigned) == (3, 1)
+
+
+def test_read_likelihood_script_without_primary_alignments(tmp_path):
+    # An empty read-score npz and the read counts, with a warning, instead of a failure (F45)
+    path = write_sam(tmp_path / 'S1_vi_alignments.bam', [('r1', UNMAPPED, None, None, 0)], 'wb')
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'read_likelihood.py'), '--alignments', path,
+         '--scores', 'scores.npz', '--counts', 'counts.json'],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert 'S1_vi_alignments.bam' in result.stderr and 'no primary alignment' in result.stderr
+    with np.load(tmp_path / 'scores.npz') as data:
+        assert data['offsets'].tolist() == [0]
+        assert data['tax_ids'].size == 0 and data['scores'].size == 0
+    assert json.loads((tmp_path / 'counts.json').read_text()) == {'assigned_count': 0, 'unassigned_count': 1}
 
 
 # ─── Options removed after the Phase 7a benchmark ──────────────────────────

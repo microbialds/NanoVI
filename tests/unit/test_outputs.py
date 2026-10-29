@@ -293,6 +293,23 @@ class TestLargestRemainder:
         result = taxonomy.largest_remainder([0.5 - 1e-12, 0.5 - 1e-12], 1000)
         assert result.sum() == 1000
 
+    # F48: the weights are renormalised, so the counts always add up to the total
+
+    @pytest.mark.parametrize('scale', [0.9995, 1.0005])
+    def test_weights_not_summing_to_one_are_renormalised(self, scale):
+        # 100,000 reads over 5 taxa; abundances summing to 0.9995 used to lose about 50 reads
+        weights = [scale * w for w in (0.4, 0.3, 0.15, 0.1, 0.05)]
+        assert list(taxonomy.largest_remainder(weights, 100_000)) == [40_000, 30_000, 15_000, 10_000, 5_000]
+
+    def test_more_leftover_reads_than_rows(self):
+        # Floors of 0.25 × 100 leave 50 reads for 2 rows: every one is handed out
+        result = taxonomy.largest_remainder([0.25, 0.25], 100)
+        assert list(result) == [50, 50]
+
+    def test_all_zero_weights_give_no_read(self):
+        # No row has an abundance to earn a read; the reads are not handed to rows at 0
+        assert list(taxonomy.largest_remainder([0.0, 0.0, 0.0], 10)) == [0, 0, 0]
+
 
 # ─── build_consolidated_tables ───────────────────────────────────────────────
 
@@ -442,6 +459,14 @@ class TestCombineOutputs:
             combine_outputs(str(tmp_path), 'species', count_table=True)
         assert 'C_rel-abundance.tsv' in str(excinfo.value)
         assert 'estimated_counts' in str(excinfo.value)
+
+    def test_no_per_sample_table_names_the_directory_and_pattern(self, tmp_path):
+        # Tables named <s>_abundance.tsv gave an empty combined table and no error (F49)
+        write_sample(tmp_path / 'A_abundance.tsv', [['Escherichia coli', 1.0] + lineage('Escherichia') + [10]])
+        with pytest.raises(ValueError) as excinfo:
+            combine_outputs(str(tmp_path), 'genus')
+        assert str(tmp_path) in str(excinfo.value) and '*_rel-abundance.tsv' in str(excinfo.value)
+        assert not (tmp_path / 'vi-combined-genus.tsv').exists()
 
     def test_absent_taxa_are_zero(self, two_samples):
         df = combine_outputs(str(two_samples), 'genus')

@@ -8,6 +8,7 @@ F06 and F07 were strict xfails until Phase 3 fixed those bugs.
 import io
 import math
 import os
+import subprocess
 import sys
 
 import numpy as np
@@ -85,6 +86,19 @@ class TestBuildSparseLikelihood:
         finite = np.isfinite(logL)
         rebuilt[np.nonzero(finite)[0], idx[finite]] = logL[finite]
         np.testing.assert_array_equal(rebuilt, L)
+
+
+def test_one_csr_builder_without_pysam():
+    # F52: the estimator kept its own copy of likelihood.read_scores_to_arrays to avoid pysam
+    import likelihood
+    import read_scores
+    assert likelihood.read_scores_to_arrays is read_scores.read_scores_to_arrays
+    assert vb.read_scores_to_arrays is read_scores.read_scores_to_arrays
+    code = ("import sys; sys.modules['pysam'] = None; sys.path.insert(0, sys.argv[1]); "
+            "import variational_inference_bayesian, em_estimator, read_scores")
+    bin_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'bin'))
+    result = subprocess.run([sys.executable, '-c', code, bin_dir], capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
 
 
 class TestSparseLikelihoodFromCsr:
@@ -280,11 +294,36 @@ class TestCaviInnerLoop:
         alpha_0 = np.full(2, 0.5)
         elbos = iter([-1000.0, -1000.0 - 1e-7, -1001.0])
         monkeypatch.setattr(vb, 'compute_elbo', lambda *args: next(elbos))
+        monkeypatch.setattr(vb, 'ELBO_EVERY', 1)
         vb.cavi_inner_loop(idx, logL, alpha_0, alpha_0 + 150, max_iterations=3, tolerance=0.0, verbose=False)
         err = capsys.readouterr().err
         # a fall of 1e-7 (1e-10 of |ELBO|) is rounding; a fall of 1 is reported once
         assert err.count('WARNING: ELBO fell') == 1
         assert 'iteration 3' in err
+
+    def test_elbo_only_on_logged_and_last_iterations(self, monkeypatch):
+        # F51: the ELBO (a pass over every entry) was computed on every iteration
+        lp = synthetic_reads({1: 200, 2: 100}, seed=4)
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1, 2])
+        alpha_0 = np.full(2, 0.5)
+        calls = []
+        compute = vb.compute_elbo
+        monkeypatch.setattr(vb, 'compute_elbo', lambda *args: calls.append(1) or compute(*args))
+        *_, elbo, n_iters = vb.cavi_inner_loop(idx, logL, alpha_0, alpha_0 + 150, max_iterations=250,
+                                               tolerance=0.0, verbose=False)
+        assert n_iters == 250 and len(calls) == 4   # iterations 1, 100, 200 and 250
+        assert np.isfinite(elbo)
+
+    def test_warns_when_elbo_falls_between_computed_values(self, monkeypatch, capsys):
+        lp = synthetic_reads({1: 200, 2: 100}, seed=4)
+        idx, logL, _ = vb.build_sparse_likelihood(lp, [1, 2])
+        alpha_0 = np.full(2, 0.5)
+        elbos = iter([-1000.0, -1001.0])
+        monkeypatch.setattr(vb, 'compute_elbo', lambda *args: next(elbos))
+        vb.cavi_inner_loop(idx, logL, alpha_0, alpha_0 + 150, max_iterations=50, tolerance=0.0, verbose=False)
+        err = capsys.readouterr().err
+        assert err.count('WARNING: ELBO fell') == 1
+        assert 'iteration 1 to -1001.000000 at CAVI iteration 50' in err
 
     def test_matches_the_dense_reference(self):
         lp = synthetic_reads({1: 400, 2: 200, 3: 60, 4: 15}, seed=5)
@@ -305,7 +344,7 @@ class TestBayesianViIterations:
     def test_recovers_known_proportions(self):
         truth = {1: 0.40, 2: 0.30, 3: 0.15, 4: 0.10, 5: 0.05}
         lp = synthetic_reads({s: int(p * 2000) for s, p in truth.items()}, seed=5)
-        freq_full, _, ci, _ = vb.bayesian_vi_iterations(lp, list(truth))
+        freq_full, _, ci, _ = vb.bayesian_vi_iterations(lp, list(truth), credible_intervals=True)
         assert sum(freq_full.values()) == pytest.approx(1.0)
         for sid, p in truth.items():
             assert freq_full[sid] == pytest.approx(p, abs=0.02)
@@ -576,6 +615,45 @@ def test_shared_reads_ignore_species_that_are_not_reported():
     summary = vb.posterior_read_summary(np.array([2.0]), idx, phi, [10])
     assert summary[10]['shared_reads'] == 0.0
     assert summary[10]['expected_reads'] == 1.5
+
+
+class TestSharedReadsByRow:
+    """shared_reads counts a split between table rows, not between tax IDs of one row (F46)."""
+
+    # read 0 split 0.5 / 0.5 between columns 0 and 1 (one row); read 1 split 0.5 / 0.5
+    # between columns 0 and 2 (two rows); read 2 split 0.4 / 0.3 / 0.3 over all three
+    idx = np.array([[0, 1, -1], [0, 2, -1], [0, 1, 2]], dtype=np.int32)
+    phi = np.array([[0.5, 0.5, 0.0], [0.5, 0.5, 0.0], [0.4, 0.3, 0.3]])
+
+    def test_a_split_within_one_row_is_not_shared(self):
+        summary = vb.posterior_read_summary(None, self.idx, self.phi, [10, 11, 20], groups=[0, 0, 1])
+        # read 0 is the row's own; reads 1 and 2 are split with tax ID 20's row
+        assert summary[10]['shared_reads'] == pytest.approx(0.9)
+        assert summary[11]['shared_reads'] == pytest.approx(0.3)
+        assert summary[20]['shared_reads'] == pytest.approx(0.8)
+        merged = (summary[10]['shared_reads'] + summary[11]['shared_reads']) / \
+            (summary[10]['expected_reads'] + summary[11]['expected_reads'])
+        assert merged == pytest.approx(1.2 / 2.2)
+
+    def test_one_row_per_tax_id_gives_the_per_tax_id_summary_exactly(self):
+        assert vb.posterior_read_summary(None, self.idx, self.phi, [10, 11, 20], groups=[5, 3, 4]) == \
+            vb.posterior_read_summary(None, self.idx, self.phi, [10, 11, 20])
+
+    def test_row_groups_skip_rows_of_one_tax_id(self):
+        # Every species in a row of its own needs no grouping: the row split is the species split
+        assert vb.row_groups([10, 11, 20], {10: 'A', 11: 'B', 20: 'C'}) is None
+        assert vb.row_groups([10, 11, 20], {10: 'A', 11: 'A', 20: 'C'}) == [0, 0, 1]
+        assert vb.row_groups([10, 11], None) is None
+
+    def test_bayesian_vi_takes_the_rows_by_tax_id(self):
+        lp = {f'a{i}': ([1, 2], [-1.0, -1.0]) for i in range(500)}
+        lp.update({f'b{i}': ([3], [-1.0]) for i in range(500)})
+        *_, by_tax_id = vb.bayesian_vi_iterations(lp, [1, 2, 3], posterior_summary=True)
+        *_, by_row = vb.bayesian_vi_iterations(lp, [1, 2, 3], posterior_summary=True,
+                                               species_rows={1: 'A', 2: 'A', 3: 'B'})
+        assert by_tax_id[1]['shared_reads'] == pytest.approx(by_tax_id[1]['expected_reads'])
+        assert by_row[1]['shared_reads'] == by_row[2]['shared_reads'] == by_row[3]['shared_reads'] == 0.0
+        assert by_row[1]['expected_reads'] == by_tax_id[1]['expected_reads']
 
 
 # ─── sparse vs dense reference (F23) ─────────────────────────────────────────

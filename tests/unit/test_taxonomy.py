@@ -16,7 +16,9 @@ from taxonomy import (
     TAXONOMY_RANKS,
     collapse_rank,
     get_species_tid,
+    freq_to_lineage_df,
     lineage_dict_from_tid,
+    species_row_keys,
     unify_species_abundance,
 )
 
@@ -169,3 +171,53 @@ class TestCollapseRank:
             for p in [tmp, out]:
                 if os.path.exists(p):
                     os.remove(p)
+
+
+# ─── species_row_keys (F46) ─────────────────────────────────────────────────
+
+@pytest.mark.parametrize('binomial', [False, True])
+def test_species_row_keys_partition_tax_ids_as_the_table_does(tmp_path, binomial):
+    # 1 and 2 share name and lineage; 3 has 1's name in another genus; 4 is a strain
+    # of 1 (merged only with binomial names); 5 has no species name; 6 is missing
+    taxonomy = pd.DataFrame(
+        [['1', 'Escherichia coli', 'Escherichia', 'Enterobacteriaceae'],
+         ['2', 'Escherichia coli', 'Escherichia', 'Enterobacteriaceae'],
+         ['3', 'Escherichia coli', 'Shigella', 'Enterobacteriaceae'],
+         ['4', 'Escherichia coli O157', 'Escherichia', 'Enterobacteriaceae'],
+         ['5', '', 'Escherichia', 'Enterobacteriaceae']],
+        columns=['tax_id', 'species', 'genus', 'family']).set_index('tax_id')
+    tax_ids = [1, 2, 3, 4, 5, 6]
+    keys = species_row_keys(tax_ids, taxonomy, binomial)
+    # Each tax ID's abundance is a distinct power of two, so a row's abundance names its tax IDs
+    freq = {t: 2.0 ** -t for t in tax_ids}
+    table = freq_to_lineage_df(freq, str(tmp_path / 'out'), taxonomy, 10, 0, binomial=binomial)
+    rows = [frozenset(t for t in tax_ids if int(a * 2 ** 6) >> (6 - t) & 1)
+            for a in table['abundance'][:-2]]
+    by_key = {}
+    for t, k in zip(tax_ids, keys):
+        by_key.setdefault(k, set()).add(t)
+    assert sorted(map(sorted, rows)) == sorted(map(sorted, by_key.values()))
+    assert (keys[0] == keys[3]) == binomial and keys[0] == keys[1] and keys[0] != keys[2]
+
+
+def test_species_row_keys_one_key_per_tax_id_with_a_repeated_tax_id():
+    # A tax_id listed twice in taxonomy.tsv must not shift the keys of the tax IDs after it
+    taxonomy = pd.DataFrame([['1', 'Alpha one', 'Alpha'], ['1', 'Alpha one', 'Alpha'], ['2', 'Beta two', 'Beta'],
+                             ['3', 'Alpha one', 'Alpha']],
+                            columns=['tax_id', 'species', 'genus']).set_index('tax_id')
+    keys = species_row_keys([1, 2, 3], taxonomy)
+    assert len(keys) == 3 and keys[0] == keys[2] != keys[1]
+
+
+def test_repeated_tax_id_is_one_row_of_the_table(tmp_path, capsys):
+    # A tax_id listed twice took one row per lineage, each with its full abundance (F46)
+    taxonomy = pd.DataFrame([['1', 'Alpha one', 'Alpha'], ['1', 'Alpha two', 'Alpha'], ['2', 'Beta two', 'Beta']],
+                            columns=['tax_id', 'species', 'genus']).set_index('tax_id')
+    table = freq_to_lineage_df({1: 0.6, 2: 0.4}, str(tmp_path / 'out'), taxonomy, 100, 0, counts=True)
+    taxa = table[~table['species'].isin(['Below detection', 'Unassigned'])]
+    assert list(taxa['species']) == ['Alpha one', 'Beta two']
+    assert taxa['abundance'].sum() == pytest.approx(1.0)
+    assert list(taxa['estimated_counts']) == [60, 40]
+    assert "tax_id 1 is listed more than once in taxonomy.tsv; using its first lineage" in capsys.readouterr().err
+    keys = species_row_keys([1, 2], taxonomy)
+    assert keys[0][0] == 'Alpha one'
