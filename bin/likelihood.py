@@ -117,12 +117,12 @@ def cigar_profile(records):
             del cigar_stats_primary[i]
 
     n_char = sum(cigar_stats_primary)
-    if n_char == 0:
-        raise ValueError(
-            f"No insertions, deletions, soft clips or mismatches in the primary alignments of {records.sam_path}; "
-            "the error profile cannot be estimated."
-        )
     dict_longest_align = dict(zip(records.names, longest.tolist()))
+    if n_char == 0:
+        # Error-free primary alignments (simulated or spike-in reads): every operation has
+        # zero count, so a perfect alignment scores 0 and any other is skipped, instead of
+        # the step failing (F45)
+        return [], zero_locs, dict_longest_align
     return [math.log(x) for x in np.array(cigar_stats_primary) / n_char], zero_locs, dict_longest_align
 
 
@@ -136,8 +136,9 @@ def get_cigar_op_log_probabilities(sam_path):
     those operations in CIGAR_OPS; and each read's longest alignment over all of
     its alignments, secondary and supplementary included (F04).
 
-    Raises ValueError when the SAM holds no primary mapped alignment or when those
-    alignments have no error operation.
+    Raises ValueError when the SAM holds no primary mapped alignment. When those
+    alignments have no error operation, every operation is a zero loc and
+    log_probs is empty: perfect alignments score 0 (F45).
     """
     return cigar_profile(read_alignment_records(sam_path))
 

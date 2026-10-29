@@ -112,10 +112,15 @@ class TestGetCigarOpLogProbabilities:
         with pytest.raises(ValueError, match='No primary mapped alignments'):
             get_cigar_op_log_probabilities(sam)
 
-    def test_no_error_operations_raises(self, tmp_path):
-        sam = write_sam(tmp_path / 'p.sam', [('r1', PRIMARY, REFS[0], '100M', 0)])
-        with pytest.raises(ValueError, match='error profile'):
-            get_cigar_op_log_probabilities(sam)
+    def test_no_error_operations_gives_an_empty_profile(self, tmp_path):
+        # Error-free primary alignments no longer stop LIKELIHOOD (F45): every operation is
+        # a zero loc, a perfect alignment scores 0 and one with any operation is skipped
+        sam = write_sam(tmp_path / 'p.sam', [('r1', PRIMARY, REFS[0], '100M', 0),
+                                            ('r1', SECONDARY, REFS[1], '95M5S', 0),
+                                            ('r2', PRIMARY, REFS[1], '100M', 0)])
+        log_probs, zero_locs, _ = get_cigar_op_log_probabilities(sam)
+        assert log_probs == [] and zero_locs == [0, 1, 2, 3]
+        assert score_reads(sam) == ({'r1': ([1], [0.0]), 'r2': ([2], [0.0])}, 0, 2)
 
 
 class TestLogProbRgsDict:
