@@ -4,6 +4,8 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-29
+
 ### Added
 
 - Clinical rerun for the manuscript (`benchmarks/clinical.py`, `docs/benchmarks/clinical_2026.md`, `docs/benchmarks/data/clinical_*.tsv`): NanoVI on GTDB r226 and on Emu's database, Emu 3.6.2 as shipped and Emu on NanoVI's alignments, on three ONT 16S cohorts (149 vaginal and stool samples). On the same alignments NanoVI and Emu give the same profiles (median species Bray-Curtis 0.004 or less); profiles on GTDB r226 differ from those on Emu's database through what each database holds. The manuscript figures add Figure 8 (W10, D34).

@@ -208,7 +208,7 @@ Every Python step runs in one image, `ghcr.io/microbialds/nanovi-python:<version
 
 **Docker:**
 ```bash
-docker build -t ghcr.io/microbialds/nanovi-python:1.0.0 -f containers/Dockerfile containers/
+docker build -t ghcr.io/microbialds/nanovi-python:1.1.0 -f containers/Dockerfile containers/
 ```
 
 **Singularity** (from the `containers/` directory, so the build finds `requirements.txt`):
