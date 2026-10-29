@@ -198,3 +198,12 @@ def test_species_row_keys_partition_tax_ids_as_the_table_does(tmp_path, binomial
         by_key.setdefault(k, set()).add(t)
     assert sorted(map(sorted, rows)) == sorted(map(sorted, by_key.values()))
     assert (keys[0] == keys[3]) == binomial and keys[0] == keys[1] and keys[0] != keys[2]
+
+
+def test_species_row_keys_one_key_per_tax_id_with_a_repeated_tax_id():
+    # A tax_id listed twice in taxonomy.tsv must not shift the keys of the tax IDs after it
+    taxonomy = pd.DataFrame([['1', 'Alpha one', 'Alpha'], ['1', 'Alpha one', 'Alpha'], ['2', 'Beta two', 'Beta'],
+                             ['3', 'Alpha one', 'Alpha']],
+                            columns=['tax_id', 'species', 'genus']).set_index('tax_id')
+    keys = species_row_keys([1, 2, 3], taxonomy)
+    assert len(keys) == 3 and keys[0] == keys[2] != keys[1]

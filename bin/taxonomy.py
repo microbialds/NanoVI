@@ -261,9 +261,13 @@ def species_row_keys(tax_ids, taxonomy_df, binomial=False):
     is a row of its own ('Unknown taxid <id>').
     """
     df = pd.DataFrame(index=pd.Index([str(t) for t in tax_ids], name="tax_id"))
+    # One key per tax ID: a tax_id listed twice in taxonomy_df takes its first lineage
+    taxonomy_df = taxonomy_df[~taxonomy_df.index.astype(str).duplicated()]
     df = label_lineages(df, taxonomy_df, warn=False)
     df, group_columns = species_row_columns(df, binomial)
-    return list(df[group_columns].itertuples(index=False, name=None))
+    keys = list(df[group_columns].itertuples(index=False, name=None))
+    assert len(keys) == len(tax_ids)
+    return keys
 
 
 def unify_species_abundance(df, binomial=False):
