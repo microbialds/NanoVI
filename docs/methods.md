@@ -3,8 +3,10 @@
 How NanoVI turns full-length 16S Nanopore reads into species abundances, what it
 takes from Emu and what it changes, the evidence behind each default, how the GTDB
 reference is built, and what the method cannot do. Numbers come from the 2026
-benchmark, [benchmarks/methods_2026.md](benchmarks/methods_2026.md) (cited as §), and
-its source data in `benchmarks/data/`. Decisions are cited by their roadmap keys
+benchmark, [methods_2026.md](https://github.com/microbialds/NanoVI-paper/blob/main/docs/benchmarks/methods_2026.md) (cited as §), and
+its source data in [`docs/benchmarks/data/`](https://github.com/microbialds/NanoVI-paper/tree/main/docs/benchmarks/data), both in the
+[NanoVI-paper](https://github.com/microbialds/NanoVI-paper) repository with the
+benchmark scripts. Decisions are cited by their roadmap keys
 (D2-D31). The output files are described in [output.md](output.md).
 
 **In one paragraph.** NanoVI scores each read against the species it aligns to with
@@ -264,7 +266,7 @@ on the released code (Phase 7b, §13).
 | Error profile | primary alignments | D3, D31 | 'All alignments' changed no metric at 1k or 10k reads; species L1 +0.0008 at 50k (§4.3) |
 | Read score | Emu's | D29 | A per-base score raised recall on the simulations (10k even: 0.990 vs 0.950) but added false positives on real mocks (L1 −0.004 to +0.012, 0-2 more false-positive species) (§4.4) |
 | Identity and aligned-length filters | none | D25 | Identity ≥ 97% removes 93% of R9.4.1 reads and every read of the two R9.4 published mocks; an aligned-length minimum of 1,000-1,400 bp changed nothing useful (§9) |
-| Unknown-taxon component | none | D22, D10 | It removed reads of a species missing from the database at 0.9-1.8 times the rate of in-database reads, and reported 14-35% of reads as unknown on mocks whose species are all in the database (§9; `docs/design/unknown_component.md`) |
+| Unknown-taxon component | none | D22, D10 | It removed reads of a species missing from the database at 0.9-1.8 times the rate of in-database reads, and reported 14-35% of reads as unknown on mocks whose species are all in the database (§9; [design note](https://github.com/microbialds/NanoVI-paper/blob/main/docs/design/unknown_component.md) in NanoVI-paper) |
 | Estimator | VB (`em` available) | D2 | VB and EM agree to three decimals on the simulations (§4.3) and within 0.002 in group L1, 0-1 false-positive group apart, on the real samples (§10) |
 | Prior, convergence | α₀ = 1, tolerance 1e-7, ≤ 1,000 iterations | F05 | The estimator runs to its fixed point; α₀ = 1 pseudo-read in total matters only for species with a few reads (section 5). Not varied in the benchmark |
 | Pruning and floor | Emu's 1/R, 10/R rule; `--min_abundance` 0.001 | D26, D31 | Pruning off reported 94-409 species on real mocks; floors of 1e-4 or 0 at 50k reads raised recall by 0.05-0.07 with 2-8 more false-positive species (§4.3, §5, §6) |
@@ -370,4 +372,4 @@ sequence (D23).
 | Uncertainty quantification | As sampling intervals plus an ambiguity flag, not as calibrated intervals (§8) |
 | Species-level resolution of close relatives | Not for species with identical 16S; partly for near-identical species on R10.4.1 (§4.5) |
 
-Per-claim detail: [benchmarks/m10_claims.md](benchmarks/m10_claims.md).
+Per-claim detail: [m10_claims.md](https://github.com/microbialds/NanoVI-paper/blob/main/docs/benchmarks/m10_claims.md) (NanoVI-paper).
