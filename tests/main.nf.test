@@ -560,7 +560,7 @@ nextflow_pipeline {
 
         then {
             assert workflow.failed
-            assert (workflow.stdout + workflow.stderr).any { it.contains("Sample IDs from FASTQ file names may only use letters, digits, '.', '_' and '-'; rename these files or use a samplesheet:") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("Sample IDs from FASTQ file names must start with a letter or digit and may only use letters, digits, '.', '_' and '-'; rename these files or use a samplesheet:") }
             assert (workflow.stdout + workflow.stderr).any { it.contains("${projectDir}/tests/test_data/bad_id_reads/S1+run.fastq") }
         }
     }
@@ -705,7 +705,8 @@ nextflow_pipeline {
         when {
             def sheet = new File("${outputDir}/samplesheet.csv")
             sheet.parentFile.mkdirs()
-            sheet.text = "sample,fastq\nS1+run,${projectDir}/tests/test_data/stub_reads/mock_run.fastq\nS2,${projectDir}/tests/test_data/stub_reads/missing.fastq\n"
+            sheet.text = "sample,fastq\nS1+run,${projectDir}/tests/test_data/stub_reads/mock_run.fastq\nS2,${projectDir}/tests/test_data/stub_reads/missing.fastq\n" +
+                "-x,${projectDir}/tests/test_data/stub_reads/mock_run.fastq\n.x,${projectDir}/tests/test_data/stub_reads/mock_run.fastq\n"
             params {
                 input        = "${outputDir}/samplesheet.csv"
                 output_dir   = "${outputDir}"
@@ -718,6 +719,9 @@ nextflow_pipeline {
             assert workflow.failed
             assert (workflow.stdout + workflow.stderr).any { it.contains("-> Entry 1: Error for field 'sample' (S1+run)") }
             assert (workflow.stdout + workflow.stderr).any { it.contains("-> Entry 2: Error for field 'fastq'") && it.contains("missing.fastq' does not exist") }
+            // An ID starting with '-' failed later, in LIKELIHOOD; one starting with '.' made hidden files
+            assert (workflow.stdout + workflow.stderr).any { it.contains("-> Entry 3: Error for field 'sample' (-x)") }
+            assert (workflow.stdout + workflow.stderr).any { it.contains("-> Entry 4: Error for field 'sample' (.x)") }
         }
     }
 

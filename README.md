@@ -79,11 +79,11 @@ sample2,reads/sample2.fastq.gz
 sample3,s3://my-bucket/run1/sample3.fastq.gz
 ```
 
-It is checked against `assets/schema_input.json` before any step runs: sample IDs must be unique and may use letters, digits, `.`, `_` and `-` (as in directory mode); each `fastq` must exist and end in `.fastq`, `.fq`, `.fastq.gz` or `.fq.gz`, with no spaces in the path. Paths may be absolute, relative to the directory you launch Nextflow from (not to the samplesheet), or remote (`s3://`, `gs://`, `az://`, `https://`). Fields may be quoted. Every line after the header is a sample: lines starting with `#` are not skipped, and a sheet with no rows stops the run.
+It is checked against `assets/schema_input.json` before any step runs: sample IDs must be unique, start with a letter or digit and may use letters, digits, `.`, `_` and `-` (as in directory mode); each `fastq` must exist and end in `.fastq`, `.fq`, `.fastq.gz` or `.fq.gz`, with no spaces in the path. Paths may be absolute, relative to the directory you launch Nextflow from (not to the samplesheet), or remote (`s3://`, `gs://`, `az://`, `https://`). Fields may be quoted. Every line after the header is a sample: lines starting with `#` are not skipped, and a sheet with no rows stops the run.
 
 ### Directory
 
-A path to a directory containing FASTQ files (`.fastq`, `.fq`, optionally gzipped), searched recursively. The sample ID is the file name without that extension, so `S1.run1.fastq.gz` becomes `S1.run1`. If two files give the same ID (for example `S1.fastq` and `S1.fq`, or the same name in two subdirectories), the pipeline stops and lists them; rename the files or use a samplesheet. IDs may use letters, digits, `.`, `_` and `-`.
+A path to a directory containing FASTQ files (`.fastq`, `.fq`, optionally gzipped), searched recursively. The sample ID is the file name without that extension, so `S1.run1.fastq.gz` becomes `S1.run1`. If two files give the same ID (for example `S1.fastq` and `S1.fq`, or the same name in two subdirectories), the pipeline stops and lists them; rename the files or use a samplesheet. IDs must start with a letter or digit and may use letters, digits, `.`, `_` and `-`.
 
 ## Parameters
 

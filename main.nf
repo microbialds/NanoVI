@@ -141,10 +141,12 @@ workflow {
                 }.sort().join('\n')
                 error "Several FASTQ files in ${params.input} give the same sample ID; rename them or use a samplesheet:\n${listing}"
             }
-            // The same rule as assets/schema_input.json for samplesheets (F53, D35)
-            def bad_ids = by_sample.keySet().findAll { id -> !(id ==~ /[A-Za-z0-9._-]+/) }.sort()
+            // The same rule as assets/schema_input.json for samplesheets (F53, D35). The first
+            // character is a letter or digit: an ID starting with '-' makes the file names
+            // passed to the bin/ scripts read as options
+            def bad_ids = by_sample.keySet().findAll { id -> !(id ==~ /[A-Za-z0-9][A-Za-z0-9._-]*/) }.sort()
             if (bad_ids)
-                error "Sample IDs from FASTQ file names may only use letters, digits, '.', '_' and '-'; rename these files or use a samplesheet:\n" +
+                error "Sample IDs from FASTQ file names must start with a letter or digit and may only use letters, digits, '.', '_' and '-'; rename these files or use a samplesheet:\n" +
                     bad_ids.collect { id -> "  ${by_sample[id][0]}" }.join('\n')
             input_reads = channel.fromList(
                 by_sample.collect { id, fs -> tuple(id, fs[0]) }.sort { it[0] }
