@@ -178,6 +178,11 @@
           "type": "boolean",
           "default": false,
           "description": "VB only: add ci_lower and ci_upper, 95% sampling intervals of the mean-field posterior. They are not calibrated: they ignore how reads shared by close relatives are split (shared_read_fraction, always written, flags those species)"
+        },
+        "read_assignments": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also write sample_outputs/<sample>_read_assignments.tsv.gz: for every read, the species (rows of the abundance table) with probability >= 0.01 and that probability, 'Below detection' or 'Unassigned'"
         }
       }
     },

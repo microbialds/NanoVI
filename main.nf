@@ -39,6 +39,7 @@ params {
     alpha_prior: Float
     vi_elbo_threshold: Float
     credible_intervals: Boolean
+    read_assignments: Boolean
 
     // Build database
     db_name: String

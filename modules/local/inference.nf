@@ -8,6 +8,7 @@ process RUN_VI {
 
     output:
     tuple val(sample_id), path("${sample_id}_abundance.json"), emit: abundance
+    tuple val(sample_id), path("${sample_id}_read_assignments.tsv.gz"), emit: read_assignments, optional: true
     path "versions.yml", emit: versions
 
     script:
@@ -22,13 +23,15 @@ process RUN_VI {
         --alpha-prior ${params.alpha_prior} \\
         --elbo-threshold ${params.vi_elbo_threshold} \\
         --taxonomy "${taxonomy_tsv}" \\
-        ${params.binomial_names ? '--binomial-names' : ''}
+        ${params.binomial_names ? '--binomial-names' : ''} \\
+        ${params.read_assignments ? "--read-assignments ${sample_id}_read_assignments.tsv.gz" : ''}
     python_versions.py "${task.process}" > versions.yml
     """
 
     stub:
     """
     echo '{"abundance": {}, "below_detection_count": 0, "read_summary": {}}' > ${sample_id}_abundance.json
+    ${params.read_assignments ? "printf 'read_id\\tspecies\\tprobability\\n' | gzip > ${sample_id}_read_assignments.tsv.gz" : ''}
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: stub
