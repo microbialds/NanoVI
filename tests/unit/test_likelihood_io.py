@@ -207,6 +207,34 @@ def test_read_scores_to_arrays():
     assert scores.tolist() == [-2.0, -5.0, -1.5]
 
 
+def test_score_reads_lists_the_unassigned_reads(tmp_path):
+    # In file order, and only on request: the three-value form stays (F55)
+    records = MIXED + [('r5', UNMAPPED, None, None, 0)]
+    path = write_sam(tmp_path / 'a.bam', records, 'wb')
+    log_p_rgs, unassigned, assigned, names = score_reads(path, unassigned_names=True)
+    assert names == ['r3', 'r5'] and unassigned == 2
+    assert score_reads(path) == (log_p_rgs, unassigned, assigned)
+    blank = write_sam(tmp_path / 'b.bam', [('u1', UNMAPPED, None, None, 0), ('u2', UNMAPPED, None, None, 0)], 'wb')
+    assert score_reads(blank, unassigned_names=True) == ({}, 2, 0, ['u1', 'u2'])
+
+
+def test_load_read_scores_with_and_without_names(tmp_path):
+    from read_scores import load_read_scores, save_read_scores
+    lp = {'b': ([3, 1], [-2.0, -5.0]), 'a': ([2], [-1.5])}
+    offsets, tax_ids, scores = read_scores_to_arrays(lp)
+    save_read_scores(tmp_path / 'new.npz', offsets, tax_ids, scores, read_names=list(lp), unassigned_names=['u'])
+    loaded = load_read_scores(tmp_path / 'new.npz')
+    assert loaded[3:] == (['b', 'a'], ['u'])
+    assert load_read_scores(tmp_path / 'new.npz', names=False)[3:] == (None, None)
+    for got, expected in zip(loaded[:3], (offsets, tax_ids, scores)):
+        np.testing.assert_array_equal(got, expected)
+    # A file written before the names were kept still loads
+    np.savez_compressed(tmp_path / 'old.npz', offsets=offsets, tax_ids=tax_ids, scores=scores)
+    assert load_read_scores(tmp_path / 'old.npz')[3:] == (None, None)
+    with pytest.raises(ValueError, match='1 read names for 2 reads'):
+        save_read_scores(tmp_path / 'bad.npz', offsets, tax_ids, scores, read_names=['b'])
+
+
 def test_read_likelihood_script(tmp_path):
     path = write_sam(tmp_path / 'a.bam', MIXED, 'wb')
     result = subprocess.run(
@@ -217,10 +245,13 @@ def test_read_likelihood_script(tmp_path):
     assert result.returncode == 0, result.stderr
     log_p_rgs, unassigned, assigned = score_reads(path)
     with np.load(tmp_path / 'scores.npz') as data:
-        assert set(data.files) == {'offsets', 'tax_ids', 'scores'}
+        assert set(data.files) == {'offsets', 'tax_ids', 'scores', 'read_names', 'unassigned_names'}
         expected = read_scores_to_arrays(log_p_rgs)
         for key, value in zip(('offsets', 'tax_ids', 'scores'), expected):
             np.testing.assert_array_equal(data[key], value)
+        # The name of each CSR row, and the unassigned reads, in file order (F55)
+        assert data['read_names'].tolist() == [n.encode() for n in log_p_rgs] == [b'r1', b'r2', b'r4']
+        assert data['unassigned_names'].tolist() == [b'r3']
     assert json.loads((tmp_path / 'counts.json').read_text()) == {
         'assigned_count': assigned, 'unassigned_count': unassigned}
     assert (assigned, unassigned) == (3, 1)
@@ -239,6 +270,7 @@ def test_read_likelihood_script_without_primary_alignments(tmp_path):
     with np.load(tmp_path / 'scores.npz') as data:
         assert data['offsets'].tolist() == [0]
         assert data['tax_ids'].size == 0 and data['scores'].size == 0
+        assert data['read_names'].size == 0 and data['unassigned_names'].tolist() == [b'r1']
     assert json.loads((tmp_path / 'counts.json').read_text()) == {'assigned_count': 0, 'unassigned_count': 1}
 
 
@@ -290,4 +322,4 @@ def test_read_likelihood_script_has_no_unknown_component(tmp_path):
     result = subprocess.run(argv, cwd=tmp_path, capture_output=True, text=True)
     assert result.returncode == 0, result.stderr
     with np.load(tmp_path / 'scores.npz') as data:
-        assert set(data.files) == {'offsets', 'tax_ids', 'scores'}
+        assert set(data.files) == {'offsets', 'tax_ids', 'scores', 'read_names', 'unassigned_names'}
