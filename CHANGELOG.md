@@ -6,6 +6,8 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 
 ### Added
 
+- `bin/build_gtdb_db.py --cross-genus-rule` and `--cmd build-database --cross_genus_rule` (`keep` by default, which builds the same database as before) can clean the 16S sequences found in species of more than one genus, which in GTDB are almost always contaminant contigs: `remove` every copy, keep each only in the genus with the most entries carrying it (`best-genus`), or in the genus whose entries stand for the most input sequences (`most-copies`). The build then writes `cross_genus_removed.tsv` (every entry removed) and `cross_genus_emptied.tsv` (species left with no sequence), and `identical_16s.tsv` describes the cleaned database. On GTDB r226 (suffix-kept build) the rules remove 4,281, 3,266 and 2,210 of 233,611 entries and leave 413, 224 and 138 species with no sequence (F56).
+
 - `--read_assignments` (off by default) writes `sample_outputs/<sample>_read_assignments.tsv.gz` beside each sample's table, for auditing a species' abundance or its `shared_read_fraction`. It lists every read that passed the length filter, with the table rows that take at least 0.01 of it and their probability: the read's responsibility in the final fit (VB's φ, or EM's posterior), summed over the row's tax IDs. Reads whose species were all pruned are `Below detection`, and reads with no scored alignment are `Unassigned`. With the option, LIKELIHOOD also keeps the read names in `*_read_scores.npz`. With the default the outputs are unchanged (F55, D37).
 
 ## [1.1.1] - 2026-10-29

@@ -19,6 +19,7 @@ process BUILD_DB {
         --sequences      ${sequences} \\
         --seq2tax        ${seq2tax} \\
         ${taxonomy_flag} ${taxonomy} \\
+        --cross-genus-rule ${params.cross_genus_rule} \\
         ${params.db_name}
     python_versions.py "${task.process}" > versions.yml
     """
@@ -28,6 +29,9 @@ process BUILD_DB {
     mkdir -p ${params.db_name}
     touch ${params.db_name}/species_taxid.fasta ${params.db_name}/taxonomy.tsv
     touch ${params.db_name}/identical_16s.tsv ${params.db_name}/cross_genus_identical.tsv
+    if [ "${params.cross_genus_rule}" != keep ]; then
+        touch ${params.db_name}/cross_genus_removed.tsv ${params.db_name}/cross_genus_emptied.tsv
+    fi
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: stub

@@ -16,6 +16,13 @@ identical_16s.tsv (species of one genus that share an identical 16S, D24) and
 cross_genus_identical.tsv (sequences found in more than one genus, likely
 contaminant contigs; D23), from identical_16s.py.
 
+--cross-genus-rule (F56; default keep) removes entries of the cross-genus
+sequences with one of identical_16s.py's rules (remove, best-genus,
+most-copies) and writes cross_genus_removed.tsv and cross_genus_emptied.tsv;
+identical_16s.tsv then describes the cleaned database. For most-copies, a
+sequence's copies are the input sequences of at least --min-length that its
+entry deduplicates (about one per genome).
+
 """
 
 import os
@@ -130,7 +137,7 @@ fasta_records = identical_16s.fasta_records
 # ─── Main build function ──────────────────────────────────────────────────────
 
 def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int = 900,
-                   merge_suffixes: bool = False):
+                   merge_suffixes: bool = False, cross_genus_rule: str = "keep"):
     """
     Build species_taxid.fasta and taxonomy.tsv from a GTDB SSU FASTA file.
 
@@ -142,7 +149,11 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
     min_length : minimum 16S sequence length to include [900 bp]
     merge_suffixes : strip GTDB clade suffixes, merging the species and genera
                  they separate, and write merged_species.tsv (F16)
+    cross_genus_rule : what to do with sequences found in more than one genus
+                 (identical_16s.CROSS_GENUS_RULES; F56); 'keep' leaves them
     """
+    if cross_genus_rule not in identical_16s.CROSS_GENUS_RULES:
+        raise ValueError(f"unknown cross-genus rule {cross_genus_rule!r}")
     os.makedirs(output_dir, exist_ok=True)
 
     # ── Pass 1: collect unique species and their lineages ─────────────────────
@@ -176,7 +187,8 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
 
     # ── Pass 2: build FASTA, deduplicating identical sequences per species ────
     print("\nPass 2: Building FASTA (deduplicating identical sequences per species)...")
-    seen_hashes = defaultdict(set)
+    seen_hashes = defaultdict(dict)  # taxid -> sequence md5 -> record ID
+    copies = defaultdict(int)        # record ID -> input sequences it stands for
     out_records = []
     n_short, n_dup = 0, 0
     seq_counter = 0
@@ -203,11 +215,14 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
 
         if seq_hash in seen_hashes[taxid]:
             n_dup += 1
+            copies[seen_hashes[taxid][seq_hash]] += 1
             continue
 
-        seen_hashes[taxid].add(seq_hash)
         seq_counter += 1
-        out_records.append((f">{taxid}:{db_name}:{seq_counter}", seq))
+        rec_id = f"{taxid}:{db_name}:{seq_counter}"
+        seen_hashes[taxid][seq_hash] = rec_id
+        copies[rec_id] = 1
+        out_records.append((f">{rec_id}", seq))
 
     print(f"  Skipped (too short <{min_length} bp) : {n_short:,}")
     print(f"  Skipped (duplicate within species)   : {n_dup:,}")
@@ -243,8 +258,11 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
 
     # Species that 16S cannot separate, and sequences shared across genera (D23, D24)
     print()
+    # With a cross-genus rule, species_taxid.fasta is cleaned first (F56)
     identical_16s.write_reports(fasta_out, tax_out, os.path.join(output_dir, "identical_16s.tsv"),
-                                os.path.join(output_dir, "cross_genus_identical.tsv"))
+                                os.path.join(output_dir, "cross_genus_identical.tsv"),
+                                cross_genus_rule=cross_genus_rule, copies=copies)
+    n_written = sum(1 for _ in fasta_records(fasta_out)) if cross_genus_rule != "keep" else len(out_records)
 
     if merge_suffixes:
         n_merged = write_merged_species(merged_sources, species_to_taxid,
@@ -255,8 +273,8 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
     print("Database build complete!")
     print(f"  Output directory : {output_dir}")
     print(f"  Species          : {n_species:,}")
-    print(f"  Sequences        : {len(out_records):,}")
-    print(f"  Avg seq/species  : {len(out_records)/n_species:.1f}")
+    print(f"  Sequences        : {n_written:,}")
+    print(f"  Avg seq/species  : {n_written/n_species:.1f}")
     print("=" * 60)
     print("\nNext step: pass the directory as --db; the pipeline builds the minimap2")
     print("index (with --type and --kmer_size) and keeps it in --index_cache_dir.")
@@ -324,6 +342,13 @@ def main():
              "merging the species and genera they separate, and write merged_species.tsv. "
              "Off by default: names are kept as GTDB writes them.",
     )
+    parser.add_argument(
+        "--cross-genus-rule", choices=identical_16s.CROSS_GENUS_RULES, default="keep",
+        help="What to do with sequences found in more than one genus (cross_genus_identical.tsv): "
+             "keep them (default); remove every copy; keep each only in the genus with the most entries "
+             "carrying it (best-genus); or in the genus whose entries stand for the most input copies "
+             "(most-copies). Ties remove every copy. Writes cross_genus_removed.tsv and cross_genus_emptied.tsv.",
+    )
     args = parser.parse_args()
 
     if not os.path.exists(args.ssu):
@@ -335,6 +360,7 @@ def main():
         output_dir=args.output_dir,
         min_length=args.min_length,
         merge_suffixes=args.merge_gtdb_suffixes,
+        cross_genus_rule=args.cross_genus_rule,
     )
 
 

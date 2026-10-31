@@ -165,6 +165,7 @@ Writes `<output_dir>/<db_name>/`, the directory to pass as `--db`:
 | `taxonomy.tsv` | With `--ncbi_taxonomy`: `tax_id`, `species`, `genus`, `family`, `order`, `class`, `phylum`, `superkingdom`, one row per species-level tax ID in `--seq2tax`, sorted by tax ID. With `--taxonomy_list`: that file's header (its first column renamed `tax_id`) and its rows for the tax IDs in `--seq2tax`, in its order, so give it these rank columns and species-level tax IDs |
 | `identical_16s.tsv` | As written by `bin/build_gtdb_db.py` (below) |
 | `cross_genus_identical.tsv` | As written by `bin/build_gtdb_db.py` (below) |
+| `cross_genus_removed.tsv`, `cross_genus_emptied.tsv` | With a `--cross_genus_rule` other than `keep`: as written by `bin/build_gtdb_db.py` (below). For `most-copies`, a sequence's copies are the input sequences its entry stands for (identical sequences and reverse complements of a species in `--sequences`) |
 
 ## `bin/build_gtdb_db.py`
 
@@ -176,7 +177,9 @@ README for the options. It writes:
 | `species_taxid.fasta` | GTDB 16S sequences of at least `--min-length` bp (900), identical sequences within a species kept once, headers `>taxid:db_name:n`. Tax IDs number the species names in alphabetical order, so a rebuild from the same file gives the same IDs |
 | `taxonomy.tsv` | `tax_id`, `species`, `genus`, `family`, `order`, `class`, `phylum`, `superkingdom` (GTDB's domain), one row per species in the input, including species with no sequence that passes the length filter. Names keep GTDB's clade suffixes unless `--merge-gtdb-suffixes` is given |
 | `identical_16s.tsv` | One row per species that shares at least one identical sequence with another species of its genus (genera compared with GTDB's suffixes stripped, so `Pseudomonas_E` counts as `Pseudomonas`). Columns: `tax_id`, `species`, `genus`; `group` (`G1`, `G2`, …, largest first: the species of the genus linked through shared sequences, directly or through a chain); `group_size`; `identical_16s_species` (the species it shares a sequence with directly, `; `-separated, the value the pipeline copies into its column). A sequence that a species of another genus also carries still links the species of each genus that carry it; only the link across genera is left out |
-| `cross_genus_identical.tsv` | One row per sequence found in species of more than one genus. Columns: `md5` (of the uppercase sequence), `species_count`, `sequence_ids` and `tax_ids` of the carriers, and the `species`, `genera`, `families` and `phyla` they span (`;`-separated). In GTDB these are almost always contaminant contigs in an assembly. They stay in the database: on the exact database at `-N 3` they carried no false-positive abundance in the benchmark |
+| `cross_genus_identical.tsv` | One row per sequence found in species of more than one genus. Columns: `md5` (of the uppercase sequence), `species_count`, `sequence_ids` and `tax_ids` of the carriers, and the `species`, `genera`, `families` and `phyla` they span (`;`-separated). In GTDB these are almost always contaminant contigs in an assembly. With the default `--cross-genus-rule keep` they stay in the database: on the exact database at `-N 3` they carried no false-positive abundance in the benchmark. With another rule the file still lists the sequences as built, since they are what the rule acted on |
+| `cross_genus_removed.tsv` | Only with a `--cross-genus-rule` other than `keep`: one row per entry the rule removed from `species_taxid.fasta`. Columns: `sequence_id`, `tax_id`, `species`, `genus`, `md5` (as in `cross_genus_identical.tsv`), `rule`, `kept_in` (the genus, as in `taxonomy.tsv` with GTDB's suffixes stripped, in which the sequence was kept; empty when the rule removed every copy). `remove` removes every copy; `best-genus` keeps the sequence only in the genus with the most entries carrying it; `most-copies` keeps it only in the genus whose entries stand for the most input sequences of at least `--min-length` (about one per genome), the genus with the most entries in the database breaking a tie. A tie the rule cannot break removes every copy. Genera are compared with GTDB's suffixes stripped |
+| `cross_genus_emptied.tsv` | Only with a `--cross-genus-rule` other than `keep`: one row per species left with no sequence. Columns: `tax_id`, `species`, `genus`, `sequences_removed`. The species stay in `taxonomy.tsv`, as species with no sequence of `--min-length` do, but no read can be assigned to them |
 | `merged_species.tsv` | Only with `--merge-gtdb-suffixes`: one row per merged name that joins two or more GTDB species with a sequence in the database. Columns: `tax_id`, `species` (the merged name), `gtdb_species_merged` (how many), `gtdb_species` and `gtdb_genera` (suffixes kept, `;`-separated), `ranks_in_conflict` (ranks at which their lineages still differ after stripping, `,`-separated), `lineage_from` (the GTDB species, first in the input, whose lineage `taxonomy.tsv` keeps) |
 
 GTDB r226 (`ssu_all_r226`): with `--merge-gtdb-suffixes`, 232,447 sequences over 59,037
@@ -187,7 +190,17 @@ kept), 233,611 sequences over 62,295 species with a sequence (84,596 species in
 `taxonomy.tsv`), and `identical_16s.tsv` lists 5,215 species in 1,513 groups: GTDB
 siblings such as *Listeria monocytogenes* and *L. monocytogenes_B* are separate species
 of one genus there. `cross_genus_identical.tsv` lists the same 1,360 sequences in both
-builds. Example rows (default build):
+builds.
+
+With a `--cross-genus-rule`, `identical_16s.tsv` is built from the cleaned sequences, so
+it loses the links that a removed sequence made; `taxonomy.tsv` and the tax IDs do not
+change. GTDB r226, default build (with `--merge-gtdb-suffixes` in brackets): `remove`
+takes out 4,281 (4,147) entries of 2,256 (2,080) species and leaves 413 (355) species
+with no sequence; `best-genus` 3,266 (3,286) entries, 224 (207) species left empty;
+`most-copies` 2,210 (2,203) entries, 138 (133) species left empty. Most of these
+sequences are carried by one species in each genus, so `best-genus` ties on 1,095
+(1,117) of the 1,360 sequences and removes every copy of them; `most-copies` ties on
+406 before its tie-break and on 4 after it. Example rows (default build):
 
 ```
 identical_16s.tsv

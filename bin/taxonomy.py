@@ -159,7 +159,8 @@ def create_unique_seq_dict(db_fasta_path, seq2tax_dict):
 def create_reduced_fasta(fasta_dict, db_name):
     """
     Flatten fasta_dict into a list of SeqRecords, giving each unique (seq, tid) pair
-    a new ID: e.g. taxid:db_name:count
+    a new ID: e.g. taxid:db_name:count. annotations['copies'] is the number of
+    input sequences the record stands for (the cross-genus rule most-copies, F56).
     """
     from Bio.SeqRecord import SeqRecord
 
@@ -169,7 +170,8 @@ def create_reduced_fasta(fasta_dict, db_name):
         for taxid, descriptions in tid_dict.items():
             rec_id = f"{taxid}:{db_name}:{count}"
             rec_desc = "; ".join(descriptions)
-            records.append(SeqRecord(seq, id=rec_id, description=rec_desc))
+            records.append(SeqRecord(seq, id=rec_id, description=rec_desc,
+                                     annotations={"copies": len(descriptions)}))
             count += 1
     return records
 
