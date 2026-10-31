@@ -95,7 +95,8 @@ alignment.
 A line is written when its probability is at least 0.01, the same share that
 `shared_read_fraction` uses (there a read is shared when the other rows together take
 0.01 of it, so a read split 0.985 / 0.005 / 0.005 / 0.005 is shared but has one line
-here). The lines of one read therefore sum to 1 less what they leave out, which is under
+here; and there the split is judged among the reported rows only, so a read's
+`Below detection` share does not make it shared). The lines of one read therefore sum to 1 less what they leave out, which is under
 0.01 for each other row. Within a read, rows are listed by decreasing probability and
 `Below detection` comes last. Two rows of the table with the same species name and
 different lineages (possible in a custom taxonomy) appear under that one name.

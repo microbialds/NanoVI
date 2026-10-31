@@ -8,7 +8,7 @@ process RUN_VI {
 
     output:
     tuple val(sample_id), path("${sample_id}_abundance.json"), emit: abundance
-    tuple val(sample_id), path("${sample_id}_read_assignments.tsv.gz"), emit: read_assignments, optional: true
+    tuple val(sample_id), path("${sample_id}_read_assignments.tsv.gz"), emit: read_assignments, optional: !params.read_assignments
     path "versions.yml", emit: versions
 
     script:

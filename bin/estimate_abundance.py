@@ -126,7 +126,7 @@ def main():
         if args.estimator == "em":
             (idx_reported, phi), reported_ids = resp, list(reported)
         else:
-            idx_reported, phi, reported_ids = result[5]
+            idx_reported, phi, reported_ids = result[-1]
         write_read_assignments(args.read_assignments, read_names, unassigned_names, idx_reported, phi,
                                reported_ids, species_rows, args.read_assignments_min_probability)
 
