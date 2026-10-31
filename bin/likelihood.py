@@ -194,18 +194,25 @@ def log_prob_rgs_dict(sam_path, log_p_cigar_op, dict_longest_align, p_cigar_op_z
         read_alignment_records(sam_path), log_p_cigar_op, dict_longest_align, p_cigar_op_zero_locs
     )
 
-def score_reads(sam_path):
+def score_reads(sam_path, unassigned_names=False):
     """Error profile and read scores from one pass over a SAM or BAM file (F24).
 
     Returns (log_p_rgs, unassigned_count, assigned_count), as log_prob_rgs_dict
     does after get_cigar_op_log_probabilities, which read the file twice. With no
     primary mapped alignment (a blank, or a sample whose reads all failed the
-    length filter) no read is scored and every read is unassigned (F45).
+    length filter) no read is scored and every read is unassigned (F45). With
+    unassigned_names=True a fourth value lists the unassigned reads, in the
+    order of the file (F55).
     """
     records = read_alignment_records(sam_path)
     if not any(records.primary):
         stdout.write(f"Unassigned read count: {len(records.names)}\n")
-        return {}, len(records.names), 0
-    log_probs, zero_locs, dict_longest_align = cigar_profile(records)
-    return read_scores_from_records(records, log_probs, dict_longest_align, zero_locs)
+        result = {}, len(records.names), 0
+    else:
+        log_probs, zero_locs, dict_longest_align = cigar_profile(records)
+        result = read_scores_from_records(records, log_probs, dict_longest_align, zero_locs)
+    if unassigned_names:
+        # Every read of the file has an alignment record, so a read without a score is unassigned
+        return (*result, [name for name in records.names if name not in result[0]])
+    return result
 

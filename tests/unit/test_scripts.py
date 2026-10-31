@@ -332,3 +332,147 @@ def write_table_with(tmp_path, data, option):
         + ([option] if option else []),
         cwd=tmp_path, capture_output=True, text=True,
     )
+
+
+# ─── Per-read assignments (F55, D37) ────────────────────────────────────────
+
+def write_named_npz(path, per_read, unassigned=()):
+    sys.path.insert(0, BIN)
+    from read_scores import read_scores_to_arrays, save_read_scores
+    offsets, tax_ids, scores = read_scores_to_arrays(per_read)
+    save_read_scores(path, offsets, tax_ids, scores, read_names=list(per_read), unassigned_names=list(unassigned))
+    return str(path)
+
+
+def read_assignments(path):
+    import pandas as pd
+    return pd.read_csv(path, sep='\t', keep_default_na=False, dtype={'read_id': str})
+
+
+def estimate_with_assignments(tmp_path, npz, name, *options):
+    out = tmp_path / f'{name}.json'
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'estimate_abundance.py'), '--scores', npz, '--output', str(out),
+         '--read-assignments', f'{name}.tsv.gz', *options],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    return json.loads(out.read_text()), read_assignments(tmp_path / f'{name}.tsv.gz')
+
+
+SPECIES_NAMES = {1: 'Alpha one', 2: 'Alpha two', 3: 'Beta three', 4: 'Beta four'}
+
+
+def write_taxonomy(tmp_path, names=SPECIES_NAMES):
+    (tmp_path / 'taxonomy.tsv').write_text(
+        'tax_id\tspecies\tgenus\n' + ''.join(f'{t}\t{n}\t{n.split()[0]}\n' for t, n in names.items()))
+
+
+@pytest.mark.parametrize('estimator', ['vb', 'em'])
+def test_read_assignments_add_up_to_each_read_and_to_expected_reads(tmp_path, estimator):
+    # With a 2 % floor species 4 (5 of 1,000 reads) is not reported: VB prunes it before
+    # its last fit, so its reads go wholly below detection; EM refits without it, and its
+    # responsibilities (from the fit before) leave part of some reads below detection
+    write_taxonomy(tmp_path)
+    per_read = synthetic_reads({1: 700, 2: 250, 3: 45, 4: 5}, seed=3)
+    npz = write_named_npz(tmp_path / 's.npz', per_read, unassigned=['u1', 'u2'])
+    options = ['--estimator', estimator, '--min-abundance', '0.02', '--taxonomy', 'taxonomy.tsv']
+    data, every = estimate_with_assignments(tmp_path, npz, 'all', *options,
+                                            '--read-assignments-min-probability', '0')
+    _, listed = estimate_with_assignments(tmp_path, npz, 'listed', *options)
+    assert list(every.columns) == ['read_id', 'species', 'probability']
+
+    # Every read, in the npz order, then the unassigned ones
+    assert list(dict.fromkeys(every['read_id'])) == list(per_read) + ['u1', 'u2']
+    assert every.groupby('read_id')['probability'].sum().to_numpy() == pytest.approx(1.0, abs=1e-12)
+    assert set(every.loc[every['read_id'].isin(['u1', 'u2']), 'species']) == {'Unassigned'}
+    # The default lists the rows at or above 0.01: the rest of each read is what it leaves out
+    np.testing.assert_array_equal(listed.to_numpy(), every[every['probability'] >= 0.01].to_numpy())
+    assert (listed['probability'] < 0.01).sum() == 0
+
+    # The file's sum for each species is its expected_reads in the read summary
+    names = {SPECIES_NAMES[int(t)]: v['expected_reads'] for t, v in data['read_summary'].items()}
+    sums = every.groupby('species')['probability'].sum()
+    assert set(sums.index) == set(names) | {'Below detection', 'Unassigned'}
+    for species, expected in names.items():
+        assert sums[species] == pytest.approx(expected, abs=1e-9)
+    # A read with no responsibility on a reported species is wholly Below detection, as in the table
+    below = every[every['species'] == 'Below detection']['probability']
+    assert (below == 1.0).sum() == data['below_detection_count'] > 0
+    if estimator == 'em':
+        assert ((below > 0) & (below < 1)).any()
+    else:
+        # Apart from rounding (1 - Σφ ≈ 1e-16, never listed at the default threshold)
+        assert set(below[below > 1e-12]) == {1.0}
+    assert 'Beta four' not in set(every['species'])
+
+
+@pytest.mark.parametrize('estimator', ['vb', 'em'])
+def test_read_assignments_name_and_merge_rows_as_the_table(tmp_path, estimator):
+    # Strains 1 and 2 split their reads 50/50; with --binomial-names they are one row
+    write_taxonomy(tmp_path, {1: 'Alpha one', 2: 'Alpha one str. B', 3: 'Alpha three'})
+    per_read = {f's{i}': ([1, 2], [-1.0, -1.0]) for i in range(400)}
+    per_read.update({f'c{i}': ([3], [-1.0]) for i in range(400)})
+    npz = write_named_npz(tmp_path / 's.npz', per_read)
+    options = ['--estimator', estimator, '--taxonomy', 'taxonomy.tsv']
+    _, apart = estimate_with_assignments(tmp_path, npz, 'apart', *options)
+    _, merged = estimate_with_assignments(tmp_path, npz, 'merged', *options, '--binomial-names')
+    s0 = apart[apart['read_id'] == 's0']
+    assert sorted(s0['species']) == ['Alpha one', 'Alpha one str. B']
+    assert s0['probability'].to_numpy() == pytest.approx([0.5, 0.5])
+    assert set(merged['species']) == {'Alpha one', 'Alpha three'}
+    assert len(merged) == 800 and merged['probability'].to_numpy() == pytest.approx(1.0)
+
+
+def test_read_assignments_leave_the_abundance_unchanged(tmp_path):
+    write_taxonomy(tmp_path)
+    npz = write_named_npz(tmp_path / 's.npz', synthetic_reads({1: 700, 2: 250, 3: 45, 4: 5}, seed=3))
+    without = estimate(tmp_path, npz, '--taxonomy', 'taxonomy.tsv')
+    with_file, _ = estimate_with_assignments(tmp_path, npz, 'ra', '--taxonomy', 'taxonomy.tsv')
+    assert with_file == without
+    # The gzip header has no name or time: the same assignments give the same bytes
+    first = (tmp_path / 'ra.tsv.gz').read_bytes()
+    estimate_with_assignments(tmp_path, npz, 'ra', '--taxonomy', 'taxonomy.tsv')
+    assert (tmp_path / 'ra.tsv.gz').read_bytes() == first
+
+
+@pytest.mark.parametrize('estimator', ['vb', 'em'])
+def test_read_assignments_with_no_scored_read(tmp_path, estimator):
+    # Every read is unassigned (F45)
+    write_taxonomy(tmp_path)
+    npz = write_named_npz(tmp_path / 's.npz', {}, unassigned=['u1', 'u2', 'u3'])
+    _, table = estimate_with_assignments(tmp_path, npz, 'ra', '--estimator', estimator, '--taxonomy', 'taxonomy.tsv')
+    assert table.values.tolist() == [['u1', 'Unassigned', 1.0], ['u2', 'Unassigned', 1.0], ['u3', 'Unassigned', 1.0]]
+
+
+def test_read_assignments_need_names_and_taxonomy(tmp_path):
+    # An npz written before the names were kept still gives the abundances, but no assignments
+    write_taxonomy(tmp_path)
+    old = write_npz(tmp_path / 'old.npz', {'r1': ([1], [-1.0])})
+    assert estimate(tmp_path, old, '--taxonomy', 'taxonomy.tsv')['abundance'] == {'1': 1.0}
+    argv = [sys.executable, os.path.join(BIN, 'estimate_abundance.py'), '--output', 'a.json',
+            '--read-assignments', 'ra.tsv.gz']
+    result = subprocess.run(argv + ['--scores', old, '--taxonomy', 'taxonomy.tsv'],
+                            cwd=tmp_path, capture_output=True, text=True)
+    assert result.returncode == 1 and 'has no read names' in result.stderr
+    named = write_named_npz(tmp_path / 'new.npz', {'r1': ([1], [-1.0])})
+    result = subprocess.run(argv + ['--scores', named], cwd=tmp_path, capture_output=True, text=True)
+    assert result.returncode == 2 and '--read-assignments needs --taxonomy' in result.stderr
+    result = subprocess.run(argv + ['--scores', named, '--taxonomy', 'taxonomy.tsv',
+                                    '--read-assignments-min-probability', '1.5'],
+                            cwd=tmp_path, capture_output=True, text=True)
+    assert result.returncode == 2 and 'must be between 0 and 1' in result.stderr
+    assert not (tmp_path / 'ra.tsv.gz').exists()
+
+
+def test_below_detection_is_1_only_without_a_reported_share():
+    # A read with a share too small to change 1 - share still has it on a reported
+    # species: it is not one of the table's Below detection reads (review of F55)
+    sys.path.insert(0, BIN)
+    from read_assignments import read_assignment_rows
+    idx = np.array([[0, -1], [-1, -1], [0, 1]])
+    phi = np.array([[1e-20, 1.0], [0.0, 0.0], [0.5, 0.5]])
+    reads, rows, prob = read_assignment_rows(idx, phi, [0, 0], 1, min_probability=0)
+    lines = list(zip(reads.tolist(), rows.tolist(), prob.tolist()))
+    assert lines[:2] == [(0, 0, 1e-20), (0, 1, np.nextafter(1.0, 0.0))]
+    assert (1, 1, 1.0) in lines and (2, 0, 1.0) in lines

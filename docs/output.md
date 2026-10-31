@@ -10,6 +10,7 @@ database, 30 that are not 16S). How the numbers are computed is in
 ```
 <output_dir>/
 ├── sample_outputs/<sample>_rel-abundance.tsv
+├── sample_outputs/<sample>_read_assignments.tsv.gz    (--read_assignments)
 ├── consolidated_output/
 │   ├── otu_table_abundance.tsv
 │   ├── otu_table_counts.tsv        (not written when no sample has counts)
@@ -77,6 +78,52 @@ row sums several tax IDs: `abundance` and `estimated_counts` add up,
 `identical_16s_species` is the union (without the row's own name), `shared_read_fraction`
 counts only the reads split with species of other rows (a read split between the summed
 tax IDs is the row's own), and the interval uses their summed Dirichlet parameter.
+
+### Per-read assignments: `sample_outputs/<sample>_read_assignments.tsv.gz`
+
+Only with `--read_assignments`. A gzipped, tab-separated long table with one line per
+read and row of the per-sample table. It lists every read that passed the length filter:
+the scored reads in the order of the alignment file, then the reads with no scored
+alignment.
+
+| Column | Meaning |
+|---|---|
+| `read_id` | The read's name in the FASTQ |
+| `species` | A row of the per-sample table, named as there (`--binomial_names` merges rows here too), or `Below detection` or `Unassigned` |
+| `probability` | The share of the read that goes to the row: its responsibility in the final fit (φ after the last pruning round for `vb`, the EM posterior for `em`), summed over the row's tax IDs, at full precision |
+
+A line is written when its probability is at least 0.01, the same share that
+`shared_read_fraction` uses (there a read is shared when the other rows together take
+0.01 of it, so a read split 0.985 / 0.005 / 0.005 / 0.005 is shared but has one line
+here; and there the split is judged among the reported rows only, so a read's
+`Below detection` share does not make it shared). The lines of one read therefore sum to 1 less what they leave out, which is under
+0.01 for each other row. Within a read, rows are listed by decreasing probability and
+`Below detection` comes last. Two rows of the table with the same species name and
+different lineages (possible in a custom taxonomy) appear under that one name.
+
+- `Below detection` is the read's share on species that are not reported, 1 − Σ of its
+  responsibility on reported species. It is exactly 1 for the table's `Below detection`
+  reads, all of whose species were pruned. With `vb` it is otherwise 0, unless pruning
+  stopped at its iteration limit (the log warns) and `--min_abundance` then dropped
+  species. With `em` above 10,000 reads the share can be a fraction: EM refits on the
+  species at or above `--min_abundance`, while its responsibilities, as for
+  `shared_read_fraction`, come from the fit before.
+- `Unassigned` (probability 1) marks the reads with no scored alignment, as counted in the
+  table's `Unassigned` row.
+- Summed over the file, a species' probabilities give its expected reads, less what falls
+  below 0.01. The table's `estimated_counts` are the abundance × assigned reads, rounded.
+
+e2e fixture (`--read_assignments true`): 630 reads in 713 lines. 547 reads have one
+line, and 83 split between two rows, 72 of them between *E. coli* and *S. flexneri*.
+The first read below leaves out its 0.009 on *S. flexneri*:
+
+```
+read_id                    species                   probability
+3_Escherichia_coli_0       Escherichia coli          0.9910712754011362
+8_Shigella_flexneri_29     Shigella flexneri         0.7659940793128952
+8_Shigella_flexneri_29     Escherichia coli          0.2340059206871047
+non16S_15                  Unassigned                1.0
+```
 
 ### Consolidated tables: `consolidated_output/`
 

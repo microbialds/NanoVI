@@ -32,6 +32,37 @@ nextflow_pipeline {
             assert versions.Workflow['microbialds/NanoVI'] ==~ /\d+\.\d+\.\d+/
             assert !file("${outputDir}/sample_outputs/versions.yml").exists()
             assert !file("${outputDir}/consolidated_output/versions.yml").exists()
+            // The per-read assignments only with --read_assignments (F55)
+            assert !file("${outputDir}/sample_outputs").listFiles().any { it.name.endsWith('_read_assignments.tsv.gz') }
+        }
+    }
+
+    // RUN_VI's stub emits the per-read file when asked (F55)
+    test("--read_assignments publishes each sample's read assignments in stub mode") {
+        tag "stub"
+        options "-profile test -stub-run --read_assignments true"
+
+        when {
+            params {
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def samples = file("${projectDir}/tests/test_data/stub_reads").listFiles()
+                .findAll { it.name =~ /\.f(ast)?q(\.gz)?$/ }.collect { it.name.replaceFirst(/\.f(ast)?q(\.gz)?$/, '') }
+            assert samples
+            samples.each { sample ->
+                def assignments = file("${outputDir}/sample_outputs/${sample}_read_assignments.tsv.gz")
+                assert assignments.exists()
+                def header = new java.util.zip.GZIPInputStream(new FileInputStream(assignments.toString())).text.readLines()[0]
+                assert header == "read_id\tspecies\tprobability"
+            }
         }
     }
 
@@ -776,6 +807,7 @@ nextflow_pipeline {
 
             def result = "${outputDir}/sample_outputs/e2e_mock_rel-abundance.tsv"
             assert file(result).exists()
+            assert !file("${outputDir}/sample_outputs/e2e_mock_read_assignments.tsv.gz").exists()
             def rows = readTsv(result)
             def expected = readTsv("${projectDir}/tests/test_data/e2e/expected.tsv")
             // The fixture's 11 species share no identical 16S (D24): the column is there, empty
@@ -876,13 +908,57 @@ nextflow_pipeline {
         }
     }
 
+    // The per-read assignments (F55, D37): every read that passed fastplong, with the
+    // table's rows at probability 0.01 or more, Below detection or Unassigned
+    test("--read_assignments lists every filtered read with the table's rows") {
+        tag "e2e"
+        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --read_assignments true"
+
+        when {
+            params {
+                output_dir = "${outputDir}"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def readTsv = { text ->
+                def lines = text.readLines().findAll { it }
+                def header = lines[0].split('\t', -1) as List
+                lines.drop(1).collect { line -> [header, line.split('\t', -1) as List].transpose().collectEntries { it } }
+            }
+            def table = readTsv(file("${outputDir}/sample_outputs/e2e_mock_rel-abundance.tsv").text)
+            def gz = "${outputDir}/sample_outputs/e2e_mock_read_assignments.tsv.gz"
+            def text = new java.util.zip.GZIPInputStream(new FileInputStream(gz)).text
+            assert text.readLines()[0] == "read_id\tspecies\tprobability"
+            def lines = readTsv(text)
+            def byRead = lines.groupBy { it.read_id }
+
+            // Every read that passed fastplong, once each
+            def report = "${outputDir}/qc/fastplong/e2e_mock_report.json.gz"
+            def qc = new groovy.json.JsonSlurper().parse(new java.util.zip.GZIPInputStream(new FileInputStream(report)))
+            assert byRead.size() == qc.summary.after_filtering.total_reads
+            // The rows are the table's, each listed at 0.01 or more, at most 1 per read in all
+            assert table*.species.containsAll(lines*.species)
+            assert lines.every { (it.probability as double) >= 0.01 && (it.probability as double) <= 1.0 }
+            // A read leaves out less than 0.01 for each of its other rows (at most --N + 1 species and Below detection)
+            assert byRead.values().every { def p = it.sum { l -> l.probability as double }; p > 0.95 && p <= 1.0 + 1e-9 }
+            // The unassigned and below-detection reads are the table's
+            def count = { species -> table.find { it.species == species }.estimated_counts as int }
+            assert lines.count { it.species == 'Unassigned' } == count('Unassigned')
+            assert lines.count { it.species == 'Below detection' && (it.probability as double) == 1.0 } == count('Below detection')
+            // Reads split between E. coli and S. flexneri are listed with both
+            assert byRead.values().count { it*.species.toSet() == ['Escherichia coli', 'Shigella flexneri'] as Set } > 0
+        }
+    }
+
     // A sample with no read aligned to the database does not stop the run (F45): its
     // table has only the Below detection (0) and Unassigned rows, and the phyloseq
     // tables keep it with zero counts. non16s holds the fixture's 30 non-16S reads;
     // too_short holds 20 reads cut to 400 bp, below --min_length 500
     test("Samples with no aligned read get an all-Unassigned table beside a normal sample") {
         tag "e2e"
-        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --keep_files true"
+        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --keep_files true --read_assignments true"
 
         when {
             def edge = "${projectDir}/tests/test_data/edge_samples"
@@ -915,6 +991,12 @@ nextflow_pipeline {
                 assert (workflow.stdout + workflow.stderr).any { it.contains(warning) } ||
                     file("${metaDir}/nextflow.log").text.contains(warning)
             }
+            // Their per-read files: every read Unassigned (F55), and only the header without reads
+            def assignments = { sample -> new java.util.zip.GZIPInputStream(
+                new FileInputStream("${outputDir}/sample_outputs/${sample}_read_assignments.tsv.gz")).text.readLines() }
+            def non16s = assignments('non16s')
+            assert non16s.size() == 31 && non16s.drop(1).every { it ==~ /[^\t]+\tUnassigned\t1\.0/ }
+            assert assignments('too_short') == ["read_id\tspecies\tprobability"]
             // fastplong leaves an empty file when no read passes; FILTER_READS makes it a gzip stream
             def filtered = new java.util.zip.GZIPInputStream(new FileInputStream("${outputDir}/filtered/too_short_filtered.fastq.gz"))
             assert filtered.read() == -1
