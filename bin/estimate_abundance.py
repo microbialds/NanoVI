@@ -60,12 +60,14 @@ def main():
     args = parser.parse_args()
     if args.read_assignments and not args.taxonomy:
         parser.error("--read-assignments needs --taxonomy: the file names the table's rows")
+    if not 0 <= args.read_assignments_min_probability <= 1:
+        parser.error("--read-assignments-min-probability must be between 0 and 1")
 
     offsets, tax_ids, scores, read_names, unassigned_names = load_read_scores(args.scores,
                                                                               names=bool(args.read_assignments))
     if args.read_assignments and (read_names is None or unassigned_names is None):
-        sys.exit(f"ERROR: {args.scores} has no read names (it was written before NanoVI kept them); "
-                 "rerun LIKELIHOOD to write the read assignments")
+        sys.exit(f"ERROR: {args.scores} has no read names; write it with read_likelihood.py --read-names "
+                 "to write the read assignments")
 
     if len(offsets) <= 1:
         # No read was scored (F45): nothing to estimate, and every read is unassigned
@@ -115,14 +117,14 @@ def main():
     if args.estimator == "em":
         surviving = list(freq_full)
         idx, logL = sparse_likelihood_from_csr(offsets, tax_ids, scores, np.array(surviving, dtype=np.int64))
+        resp = em_estimator.responsibilities(idx, logL, [freq_full[t] for t in surviving], surviving,
+                                             list(reported))
         read_summary = em_estimator.read_summary(idx, logL, [freq_full[t] for t in surviving], surviving,
-                                                 list(reported), species_rows)
+                                                 list(reported), species_rows, resp=resp)
 
     if args.read_assignments:
         if args.estimator == "em":
-            idx_reported, phi = em_estimator.responsibilities(idx, logL, [freq_full[t] for t in surviving],
-                                                              surviving, list(reported))
-            reported_ids = list(reported)
+            (idx_reported, phi), reported_ids = resp, list(reported)
         else:
             idx_reported, phi, reported_ids = result[5]
         write_read_assignments(args.read_assignments, read_names, unassigned_names, idx_reported, phi,

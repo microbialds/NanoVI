@@ -92,17 +92,21 @@ alignment.
 | `species` | A row of the per-sample table, named as there (`--binomial_names` merges rows here too), or `Below detection` or `Unassigned` |
 | `probability` | The share of the read that goes to the row: its responsibility in the final fit (φ after the last pruning round for `vb`, the EM posterior for `em`), summed over the row's tax IDs, at full precision |
 
-A line is written when its probability is at least 0.01, the split that
-`shared_read_fraction` counts. The lines of one read therefore sum to 1 less what they
-leave out, which is under 0.01 for each other row. Within a read, rows are listed by
-decreasing probability and `Below detection` comes last.
+A line is written when its probability is at least 0.01, the same share that
+`shared_read_fraction` uses (there a read is shared when the other rows together take
+0.01 of it, so a read split 0.985 / 0.005 / 0.005 / 0.005 is shared but has one line
+here). The lines of one read therefore sum to 1 less what they leave out, which is under
+0.01 for each other row. Within a read, rows are listed by decreasing probability and
+`Below detection` comes last. Two rows of the table with the same species name and
+different lineages (possible in a custom taxonomy) appear under that one name.
 
 - `Below detection` is the read's share on species that are not reported, 1 − Σ of its
-  responsibility on reported species. With `vb` this is 0 or 1. A read with probability 1
-  here is one of the table's `Below detection` reads, all of whose species were pruned.
-  With `em` above 10,000 reads the share can be a fraction: EM refits on the species at or
-  above `--min_abundance`, while its responsibilities, as for `shared_read_fraction`, come
-  from the fit before.
+  responsibility on reported species. It is exactly 1 for the table's `Below detection`
+  reads, all of whose species were pruned. With `vb` it is otherwise 0, unless pruning
+  stopped at its iteration limit (the log warns) and `--min_abundance` then dropped
+  species. With `em` above 10,000 reads the share can be a fraction: EM refits on the
+  species at or above `--min_abundance`, while its responsibilities, as for
+  `shared_read_fraction`, come from the fit before.
 - `Unassigned` (probability 1) marks the reads with no scored alignment, as counted in the
   table's `Unassigned` row.
 - Summed over the file, a species' probabilities give its expected reads, less what falls

@@ -6,7 +6,7 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 
 ### Added
 
-- `--read_assignments` (off by default) writes `sample_outputs/<sample>_read_assignments.tsv.gz` beside each sample's table, for auditing a species' abundance or its `shared_read_fraction`. It lists every read that passed the length filter, with the table rows that take at least 0.01 of it and their probability: the read's responsibility in the final fit (VB's φ, or EM's posterior), summed over the row's tax IDs. Reads whose species were all pruned are `Below detection`, and reads with no scored alignment are `Unassigned`. To make this possible, LIKELIHOOD now keeps the read names in `*_read_scores.npz`. With the default the outputs are unchanged (F55, D37).
+- `--read_assignments` (off by default) writes `sample_outputs/<sample>_read_assignments.tsv.gz` beside each sample's table, for auditing a species' abundance or its `shared_read_fraction`. It lists every read that passed the length filter, with the table rows that take at least 0.01 of it and their probability: the read's responsibility in the final fit (VB's φ, or EM's posterior), summed over the row's tax IDs. Reads whose species were all pruned are `Below detection`, and reads with no scored alignment are `Unassigned`. With the option, LIKELIHOOD also keeps the read names in `*_read_scores.npz`. With the default the outputs are unchanged (F55, D37).
 
 ## [1.1.1] - 2026-10-29
 

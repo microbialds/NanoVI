@@ -13,6 +13,9 @@ probability on species that are not reported (all its species pruned, or
 dropped by --min-abundance) is its 'Below detection' row; reads with no scored
 alignment are 'Unassigned' with probability 1. Rows below the threshold are
 left out, so a read's listed probabilities sum to 1 less what they leave out.
+Two table rows with the same species name and different lineages (possible in
+a custom taxonomy) are listed under that one name, as the table's species
+column shows them.
 """
 
 import gzip
@@ -22,9 +25,11 @@ import numpy as np
 from taxonomy import BELOW_DETECTION_LABEL, UNASSIGNED_LABEL
 from variational_inference_bayesian import SHARED_READ_MIN_SPLIT
 
-# The share of a read that makes it shared in shared_read_fraction, so the file
-# lists the splits that column counts (D37)
+# The share of a read that shared_read_fraction counts as a split (D37)
 DEFAULT_MIN_PROBABILITY = SHARED_READ_MIN_SPLIT
+
+# Lines gzipped at a time, so a large sample's file is not built in memory at once
+CHUNK_LINES = 100_000
 
 
 def read_assignment_rows(idx, phi, row_of_column, n_rows, min_probability=DEFAULT_MIN_PROBABILITY):
@@ -33,7 +38,9 @@ def read_assignment_rows(idx, phi, row_of_column, n_rows, min_probability=DEFAUL
     idx, phi: the padded responsibilities, idx the entry's column among the
     reported species or -1 (padding, or a species not reported). row_of_column:
     the table row (0 .. n_rows - 1) of each reported column. Row n_rows is
-    'Below detection': 1 minus the read's responsibility on reported species.
+    'Below detection': 1 minus the read's responsibility on reported species,
+    exactly 1 only when that responsibility is 0 (the table's Below detection
+    reads), so a read with a tiny share on a reported species keeps it.
     Lines with a probability of 0 or below min_probability are left out. Reads
     keep their order; within a read, rows go by decreasing probability, then
     Below detection.
@@ -48,7 +55,8 @@ def read_assignment_rows(idx, phi, row_of_column, n_rows, min_probability=DEFAUL
     prob = np.bincount(inverse, weights=weights, minlength=len(keys))
     line_reads, line_rows = keys // (n_rows + 1), keys % (n_rows + 1)
 
-    below = 1.0 - np.bincount(reads, weights=weights, minlength=R)
+    reported = np.bincount(reads, weights=weights, minlength=R)
+    below = np.where(reported > 0, np.minimum(1.0 - reported, np.nextafter(1.0, 0.0)), 1.0)
     line_reads = np.concatenate((line_reads, np.arange(R)))
     line_rows = np.concatenate((line_rows, np.full(R, n_rows)))
     prob = np.concatenate((prob, np.maximum(below, 0.0)))
@@ -84,8 +92,13 @@ def write_read_assignments(path, read_names, unassigned_names, idx, phi, reporte
     line_reads, line_rows, prob = read_assignment_rows(idx, phi, row_of_column, len(labels) - 1, min_probability)
     with open(path, "wb") as raw, gzip.GzipFile(filename="", mode="wb", fileobj=raw, mtime=0) as f:
         f.write(b"read_id\tspecies\tprobability\n")
-        f.write("".join(
-            f"{read_names[r]}\t{labels[g]}\t{p!r}\n"
-            for r, g, p in zip(line_reads.tolist(), line_rows.tolist(), prob.tolist())
-        ).encode())
-        f.write("".join(f"{name}\t{UNASSIGNED_LABEL}\t1.0\n" for name in unassigned_names).encode())
+        for start in range(0, len(prob), CHUNK_LINES):
+            end = start + CHUNK_LINES
+            f.write("".join(
+                f"{read_names[r]}\t{labels[g]}\t{p!r}\n"
+                for r, g, p in zip(line_reads[start:end].tolist(), line_rows[start:end].tolist(),
+                                   prob[start:end].tolist())
+            ).encode())
+        for start in range(0, len(unassigned_names), CHUNK_LINES):
+            f.write("".join(f"{name}\t{UNASSIGNED_LABEL}\t1.0\n"
+                            for name in unassigned_names[start:start + CHUNK_LINES]).encode())

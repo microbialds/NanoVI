@@ -6,10 +6,10 @@ likelihood.py writes each read's candidate species and scores as flat arrays
 from the dict form. Both use read_scores_to_arrays from this module, which
 does not import pysam, so the estimators do not need it.
 
-The npz also holds the read names (F55): "read_names", the name of each CSR
-row, and "unassigned_names", the reads with no scored alignment, both in the
-order of the alignment file. Files written before them still load, without
-names.
+With --read-names, read_likelihood.py also stores the read names (F55):
+"read_names", the name of each CSR row, and "unassigned_names", the reads with
+no scored alignment, both in the order of the alignment file. Files without
+them still load, without names.
 """
 
 import numpy as np
@@ -33,8 +33,18 @@ def read_scores_to_arrays(log_p_rgs):
 
 
 def names_to_array(names):
-    """Read names as a bytes array (UTF-8), which np.load reads without pickle."""
-    return np.array([name.encode() for name in names], dtype=np.bytes_)
+    """Read names as one uint8 array: their UTF-8 bytes joined by newlines.
+
+    A FASTQ read name holds no newline, and unlike a fixed-width bytes array one
+    long name does not widen every other (np.load reads either without pickle).
+    """
+    return np.frombuffer("\n".join(names).encode(), dtype=np.uint8)
+
+
+def names_from_array(array):
+    """The read names that names_to_array stored."""
+    text = array.tobytes().decode()
+    return text.split("\n") if text else []
 
 
 def save_read_scores(f, offsets, tax_ids, scores, read_names=None, unassigned_names=None):
@@ -58,7 +68,7 @@ def load_read_scores(path, names=True):
     with np.load(path) as data:
         offsets, tax_ids, scores = data["offsets"], data["tax_ids"], data["scores"]
         read_names, unassigned_names = (
-            [name.decode() for name in data[key].tolist()] if names and key in data.files else None
+            names_from_array(data[key]) if names and key in data.files else None
             for key in ("read_names", "unassigned_names")
         )
     return offsets, tax_ids, scores, read_names, unassigned_names

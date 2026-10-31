@@ -82,7 +82,7 @@ def count_below_detection(log_p_rgs, reported):
         if not any(reported.get(sid, 0) > 0 for sid in sids)
     )
 
-def read_summary(idx, logL, freq, species_ids, reported_ids, species_rows=None):
+def read_summary(idx, logL, freq, species_ids, reported_ids, species_rows=None, resp=None):
     """Expected and shared reads of each reported species under EM's responsibilities (D27).
 
     idx/logL are the padded likelihood over the species that survived pruning
@@ -92,8 +92,10 @@ def read_summary(idx, logL, freq, species_ids, reported_ids, species_rows=None):
     final fit; expected and shared reads are then counted over the reported species
     (reported_ids) as in posterior_read_summary, without alpha; species_rows
     (species ID → table row) counts as shared only the reads split between rows (F46).
+    resp: (idx_reported, phi) from responsibilities with the same arguments, when
+    the caller has them already.
     """
-    idx_reported, phi = responsibilities(idx, logL, freq, species_ids, reported_ids)
+    idx_reported, phi = resp if resp is not None else responsibilities(idx, logL, freq, species_ids, reported_ids)
     return posterior_read_summary(None, idx_reported, np.where(idx_reported >= 0, phi, 0.0), list(reported_ids),
                                   groups=row_groups(list(reported_ids), species_rows))
 

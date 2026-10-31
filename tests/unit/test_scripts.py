@@ -458,4 +458,21 @@ def test_read_assignments_need_names_and_taxonomy(tmp_path):
     named = write_named_npz(tmp_path / 'new.npz', {'r1': ([1], [-1.0])})
     result = subprocess.run(argv + ['--scores', named], cwd=tmp_path, capture_output=True, text=True)
     assert result.returncode == 2 and '--read-assignments needs --taxonomy' in result.stderr
+    result = subprocess.run(argv + ['--scores', named, '--taxonomy', 'taxonomy.tsv',
+                                    '--read-assignments-min-probability', '1.5'],
+                            cwd=tmp_path, capture_output=True, text=True)
+    assert result.returncode == 2 and 'must be between 0 and 1' in result.stderr
     assert not (tmp_path / 'ra.tsv.gz').exists()
+
+
+def test_below_detection_is_1_only_without_a_reported_share():
+    # A read with a share too small to change 1 - share still has it on a reported
+    # species: it is not one of the table's Below detection reads (review of F55)
+    sys.path.insert(0, BIN)
+    from read_assignments import read_assignment_rows
+    idx = np.array([[0, -1], [-1, -1], [0, 1]])
+    phi = np.array([[1e-20, 1.0], [0.0, 0.0], [0.5, 0.5]])
+    reads, rows, prob = read_assignment_rows(idx, phi, [0, 0], 1, min_probability=0)
+    lines = list(zip(reads.tolist(), rows.tolist(), prob.tolist()))
+    assert lines[:2] == [(0, 0, 1e-20), (0, 1, np.nextafter(1.0, 0.0))]
+    assert (1, 1, 1.0) in lines and (2, 0, 1.0) in lines
