@@ -106,6 +106,7 @@ def run_build_database(args):
 
     # Species that 16S cannot separate, and sequences shared across genera (D23, D24);
     # with a cross-genus rule, species_taxid.fasta is cleaned first (F56)
+    identical_16s.remove_rule_reports(custom_db_path)
     identical_16s.write_reports(
         os.path.join(custom_db_path, 'species_taxid.fasta'), output_taxonomy_location,
         os.path.join(custom_db_path, 'identical_16s.tsv'), os.path.join(custom_db_path, 'cross_genus_identical.tsv'),

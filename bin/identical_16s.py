@@ -36,9 +36,8 @@ in that report and stay. cross_genus_identical.tsv
 still lists the sequences as built, since they are what the rule acted on.
 
   remove       every copy
-  best-genus   each sequence kept only in the genus with the most entries
-               carrying it (the species of that genus that carry it); a tie
-               removes every copy
+  best-genus   each sequence kept only in the genus with the most species
+               carrying it; a tie removes every copy
   most-copies  each sequence kept only in the genus whose entries stand for the
                most copies in the input (a builder deduplicates identical
                sequences of a species into one entry; for GTDB a copy is about
@@ -202,7 +201,7 @@ def cross_genus_removals(cross, taxonomy, rule, copies=None, genus_entries=None)
 
     cross holds the rows of cross_genus_identical.tsv, taxonomy is read_taxonomy's
     dict. Genera are compared with GTDB's suffixes stripped, as in the reports.
-    most-copies needs copies (sequence ID -> input copies; missing IDs count 1)
+    best-genus counts the species of each genus that carry the sequence. most-copies needs copies (sequence ID -> input copies; missing IDs count 1)
     and genus_entries (genus -> database entries) for its tie-break.
     """
     if rule not in CROSS_GENUS_RULES:
@@ -217,7 +216,7 @@ def cross_genus_removals(cross, taxonomy, rule, copies=None, genus_entries=None)
             by_genus[strip_gtdb_suffixes(taxonomy[seq_id.split(":")[0]]["genus"])].append(seq_id)
         kept = ""
         if rule == "best-genus":
-            kept = _unique_best(by_genus, lambda g: len(by_genus[g]))
+            kept = _unique_best(by_genus, lambda g: len({s.split(":")[0] for s in by_genus[g]}))
         elif rule == "most-copies":
             kept = _unique_best(by_genus, lambda g: sum(copies.get(s, 1) for s in by_genus[g]),
                                 lambda g: genus_entries.get(g, 0))
@@ -225,6 +224,14 @@ def cross_genus_removals(cross, taxonomy, rule, copies=None, genus_entries=None)
             if genus != kept:
                 removed.update(dict.fromkeys(seq_ids, kept))
     return removed
+
+
+def remove_rule_reports(out_dir):
+    """Delete the rule's reports left in out_dir by an earlier build, which would describe a cleaning this build may not do."""
+    for name in ("cross_genus_removed.tsv", "cross_genus_emptied.tsv"):
+        path = os.path.join(out_dir, name)
+        if os.path.exists(path):
+            os.remove(path)
 
 
 def apply_cross_genus_rule(fasta_path, taxonomy_path, cross, rule, out_dir, copies=None):

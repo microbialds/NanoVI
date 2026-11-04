@@ -213,14 +213,16 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
         if seq_hash in seen_hashes[taxid]:
             n_dup += 1
             copies[seen_hashes[taxid][seq_hash]] += 1
-            gtdb_species_of[seen_hashes[taxid][seq_hash]].add(raw["species"])
+            if merge_suffixes:
+                gtdb_species_of[seen_hashes[taxid][seq_hash]].add(raw["species"])
             continue
 
         seq_counter += 1
         rec_id = f"{taxid}:{db_name}:{seq_counter}"
         seen_hashes[taxid][seq_hash] = rec_id
         copies[rec_id] = 1
-        gtdb_species_of[rec_id].add(raw["species"])
+        if merge_suffixes:
+            gtdb_species_of[rec_id].add(raw["species"])
         out_records.append((f">{rec_id}", seq))
 
     print(f"  Skipped (too short <{min_length} bp) : {n_short:,}")
@@ -258,11 +260,11 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
     # Species that 16S cannot separate, and sequences shared across genera (D23, D24)
     print()
     # With a cross-genus rule, species_taxid.fasta is cleaned first (F56)
+    identical_16s.remove_rule_reports(output_dir)
     identical_16s.write_reports(fasta_out, tax_out, os.path.join(output_dir, "identical_16s.tsv"),
                                 os.path.join(output_dir, "cross_genus_identical.tsv"),
                                 cross_genus_rule=cross_genus_rule, copies=copies)
-    kept = ([h[1:].split()[0] for h, _ in fasta_records(fasta_out)] if cross_genus_rule != "keep"
-            else [h[1:] for h, _ in out_records])
+    kept = [h[1:].split()[0] for h, _ in (fasta_records(fasta_out) if cross_genus_rule != "keep" else out_records)]
     n_written = len(kept)
 
     if merge_suffixes:
@@ -348,9 +350,10 @@ def main():
     parser.add_argument(
         "--cross-genus-rule", choices=identical_16s.CROSS_GENUS_RULES, default="keep",
         help="What to do with sequences found in more than one genus (cross_genus_identical.tsv): "
-             "keep them (default); remove every copy; keep each only in the genus with the most entries "
+             "keep them (default); remove every copy; keep each only in the genus with the most species "
              "carrying it (best-genus); or in the genus whose entries stand for the most input copies "
-             "(most-copies). Ties remove every copy. Writes cross_genus_removed.tsv and cross_genus_emptied.tsv.",
+             "(most-copies). A tie that the rule cannot break removes every copy (most-copies breaks a tie on "
+             "copies by the genera's database entries). Writes cross_genus_removed.tsv and cross_genus_emptied.tsv.",
     )
     args = parser.parse_args()
 

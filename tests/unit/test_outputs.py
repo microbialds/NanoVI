@@ -720,6 +720,19 @@ class TestBuildDatabase:
         groups = pd.read_csv(out / 'identical_16s.tsv', sep='\t')
         assert sorted(groups['species']) == (['Alpha gamma', 'Alpha_A beta'] if rule == 'best-genus' else [])
 
+    def test_rebuild_with_keep_drops_the_rule_reports(self, tmp_path):
+        lin = 'd__Bacteria;p__P;c__C;o__O;f__F{g};g__{g};s__{s}'
+        records = [(f'>g1~c1 {lin.format(g="Zeta", s="Zeta alpha")} [ssu_len=1200]', 'ACGT' * 300),
+                   (f'>g2~c2 {lin.format(g="Alpha", s="Alpha gamma")} [ssu_len=1200]', 'ACGT' * 300)]
+        ssu = tmp_path / 'ssu.fna'
+        ssu.write_text(''.join(f'{h}\n{s}\n' for h, s in records))
+        out = tmp_path / 'db'
+        build_gtdb_db.build_database(str(ssu), 'testdb', str(out), cross_genus_rule='remove')
+        assert (out / 'cross_genus_removed.tsv').exists()
+        build_gtdb_db.build_database(str(ssu), 'testdb', str(out))
+        assert not (out / 'cross_genus_removed.tsv').exists()
+        assert not (out / 'cross_genus_emptied.tsv').exists()
+
     def test_unknown_cross_genus_rule_is_refused(self, tmp_path):
         with pytest.raises(ValueError, match='unknown cross-genus rule'):
             build_gtdb_db.build_database(str(tmp_path / 'ssu.fna'), 'testdb', str(tmp_path / 'db'),

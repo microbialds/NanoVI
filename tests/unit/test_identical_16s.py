@@ -228,6 +228,15 @@ def test_most_copies_without_genus_entries_drops_ties(cross_db):
     assert removed == {'1:db:1': 'Beta', '2:db:2': 'Beta', '1:db:4': '', '5:db:5': '', '6:db:9': '', '7:db:10': ''}
 
 
+def test_best_genus_counts_species_not_entries(tmp_path):
+    # Alpha one holds X twice (cases differ, so the builder kept two entries); Beta one holds it once
+    lineages = {'1': ('Alpha one', 'Alpha', 'F1', 'P1'), '3': ('Beta one', 'Beta', 'F2', 'P2')}
+    fasta, tax = write_db(tmp_path, [('1', X), ('1', X.lower()), ('3', X)], lineages)
+    _, cross = identical_16s.identical_reports(fasta, tax)
+    removed = identical_16s.cross_genus_removals(cross, identical_16s.read_taxonomy(tax), 'best-genus')
+    assert removed == dict.fromkeys(['1:db:1', '1:db:2', '3:db:3'], '')
+
+
 def test_gzipped_database_stays_gzipped(cross_db):
     fasta, tax, out = cross_db
     gz = fasta + '.gz'

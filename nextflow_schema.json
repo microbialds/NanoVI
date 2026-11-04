@@ -229,7 +229,7 @@
             "best-genus",
             "most-copies"
           ],
-          "description": "Sequences found in species of more than one genus (cross_genus_identical.tsv): keep them; remove every copy; keep each only in the genus with the most entries carrying it (best-genus) or whose entries stand for the most input sequences (most-copies). A tie removes every copy. Any rule but keep also writes cross_genus_removed.tsv and cross_genus_emptied.tsv"
+          "description": "Sequences found in species of more than one genus (cross_genus_identical.tsv): keep them; remove every copy; keep each only in the genus with the most species carrying it (best-genus) or whose entries stand for the most input sequences (most-copies). A tie that the rule cannot break removes every copy (most-copies breaks a tie on copies by the genera's database entries). Any rule but keep also writes cross_genus_removed.tsv and cross_genus_emptied.tsv"
         }
       }
     },
