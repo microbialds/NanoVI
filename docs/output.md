@@ -200,7 +200,14 @@ with no sequence; `best-genus` 3,266 (3,286) entries, 224 (207) species left emp
 `most-copies` 2,210 (2,203) entries, 138 (133) species left empty. Most of these
 sequences are carried by one species in each genus, so `best-genus` ties on 1,095
 (1,117) of the 1,360 sequences and removes every copy of them; `most-copies` removes
-every copy of 4. Example rows (default build):
+every copy of 4.
+
+The rule stays `keep` by default (D38). In the 2026 benchmark
+([NanoVI-paper `cross_genus_2026.md`](https://github.com/microbialds/NanoVI-paper/blob/main/docs/benchmarks/cross_genus_2026.md)) each
+rule reports 0.1-0.4 fewer false-positive species per sample, but makes species L1 on
+the real mock communities worse on 12-13 of 13 samples (+0.004 to +0.006): the mock
+strains carry some of these sequences (*E. coli* loses 73-133 entries), so they are not
+all contaminants. `most-copies` costs least. Example rows (default build):
 
 ```
 identical_16s.tsv
