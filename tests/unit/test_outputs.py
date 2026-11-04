@@ -668,6 +668,23 @@ class TestBuildDatabase:
         assert list(merged['lineage_from']) == ['Gamma_B delta']
 
 
+    @pytest.mark.parametrize('rule,merged_names', [('keep', ['Alpha beta']), ('remove', [])])
+    def test_merged_species_after_a_cross_genus_rule(self, tmp_path, rule, merged_names):
+        # Alpha_A beta's only 16S is also in genus Zeta: once a rule removes it, 'Alpha beta' merges nothing
+        lin = 'd__Bacteria;p__P;c__C;o__O;f__F;g__{g};s__{s}'
+        seq_a, seq_b = 'ACGT' * 300, 'TTGCA' * 240
+        records = [
+            (f'>g1~c1 {lin.format(g="Alpha_A", s="Alpha_A beta")} [ssu_len=1200]', seq_a),
+            (f'>g2~c2 {lin.format(g="Alpha", s="Alpha beta")} [ssu_len=1200]', seq_b),
+            (f'>g3~c3 {lin.format(g="Zeta", s="Zeta alpha")} [ssu_len=1200]', seq_a),
+        ]
+        ssu = tmp_path / 'ssu.fna'
+        ssu.write_text(''.join(f'{h}\n{s}\n' for h, s in records))
+        out = tmp_path / 'db'
+        build_gtdb_db.build_database(str(ssu), 'testdb', str(out), merge_suffixes=True, cross_genus_rule=rule)
+        merged = pd.read_csv(out / 'merged_species.tsv', sep='\t', dtype=str, keep_default_na=False)
+        assert list(merged['species']) == merged_names
+
     @pytest.mark.parametrize('rule,removed,emptied', [
         # Genus Alpha has two entries carrying seq_a, Zeta one entry that stands for three genomes
         ('best-genus', ['3:testdb:1'], ['Zeta alpha']),

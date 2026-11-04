@@ -1,5 +1,6 @@
 """Unit tests for bin/identical_16s.py: species that share an identical 16S (D23, D24)."""
 import csv
+import gzip
 import os
 import sys
 
@@ -216,6 +217,26 @@ def test_keep_leaves_the_database_as_built(cross_db):
     assert open(fasta).read() == before
     assert not (out / 'cross_genus_removed.tsv').exists()
     assert not (out / 'cross_genus_emptied.tsv').exists()
+
+
+def test_most_copies_without_genus_entries_drops_ties(cross_db):
+    fasta, tax, _ = cross_db
+    _, cross = identical_16s.identical_reports(fasta, tax)
+    removed = identical_16s.cross_genus_removals(cross, identical_16s.read_taxonomy(tax), 'most-copies',
+                                                 {'3:db:3': 10})
+    # Without genus_entries a tie on copies cannot be broken: Y and W lose every copy
+    assert removed == {'1:db:1': 'Beta', '2:db:2': 'Beta', '1:db:4': '', '5:db:5': '', '6:db:9': '', '7:db:10': ''}
+
+
+def test_gzipped_database_stays_gzipped(cross_db):
+    fasta, tax, out = cross_db
+    gz = fasta + '.gz'
+    with open(fasta, 'rb') as src, gzip.open(gz, 'wb') as dst:
+        dst.write(src.read())
+    identical_16s.write_reports(gz, tax, str(out / 'identical_16s.tsv'), cross_genus_rule='remove')
+    with gzip.open(gz, 'rt') as fh:
+        ids = [line[1:].strip() for line in fh if line.startswith('>')]
+    assert ids == ['1:db:6', '2:db:7', '3:db:8']
 
 
 def test_unknown_rule_is_refused():

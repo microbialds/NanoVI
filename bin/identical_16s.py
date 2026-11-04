@@ -10,8 +10,9 @@ taxonomy.tsv and writes:
                              through shared sequences) and the species it
                              shares a sequence with. 16S cannot separate them.
   cross_genus_identical.tsv  one row per sequence found in species of more than
-                             one genus. In GTDB these are almost always
-                             contaminant contigs in an assembly; such a
+                             one genus. In GTDB most are contaminant
+                             contigs in an assembly, though real strains
+                             carry some of them; such a
                              sequence links only the species of each genus
                              that carry it, never species across genera.
 
@@ -26,10 +27,12 @@ both files into the database directory; the pipeline builds identical_16s.tsv
 for a database that lacks it (IDENTICAL_16S) and names the sharing species in
 the identical_16s_species column of each sample's table.
 
-With a cross-genus rule other than 'keep' (--cross-genus; F56), the builders
-also clean the database: the rule removes entries of the sequences in
-cross_genus_identical.tsv from species_taxid.fasta, which is rewritten in place,
-and identical_16s.tsv is built from what is left. cross_genus_identical.tsv
+With a cross-genus rule other than 'keep' (build_gtdb_db.py and 'main.py
+build-database' --cross-genus-rule; F56), the builders also clean the database:
+the rule removes entries of the sequences in cross_genus_identical.tsv from
+species_taxid.fasta, which is rewritten in place, and identical_16s.tsv is built
+from what is left. Copies held by species with no genus in taxonomy.tsv are not
+in that report and stay. cross_genus_identical.tsv
 still lists the sequences as built, since they are what the rule acted on.
 
   remove       every copy
@@ -207,7 +210,7 @@ def cross_genus_removals(cross, taxonomy, rule, copies=None, genus_entries=None)
     removed = {}
     if rule == "keep":
         return removed
-    copies = copies or {}
+    copies, genus_entries = copies or {}, genus_entries or {}
     for row in cross:
         by_genus = defaultdict(list)
         for seq_id in row["sequence_ids"].split(";"):
@@ -242,7 +245,7 @@ def apply_cross_genus_rule(fasta_path, taxonomy_path, cross, rule, out_dir, copi
 
     tmp = fasta_path + ".tmp"
     lost = defaultdict(int)
-    with open(tmp, "w", encoding="utf8") as fh:
+    with (gzip.open(tmp, "wt") if fasta_path.endswith(".gz") else open(tmp, "w", encoding="utf8")) as fh:
         for header, seq in fasta_records(fasta_path):
             seq_id = header[1:].split()[0]
             if seq_id in removed:

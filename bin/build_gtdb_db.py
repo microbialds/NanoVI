@@ -193,8 +193,8 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
     n_short, n_dup = 0, 0
     seq_counter = 0
 
-    # With merge_suffixes: the GTDB species with a sequence of at least min_length
-    with_sequence = set()
+    # For merged_species.tsv: the GTDB species with a sequence of at least min_length, per entry
+    gtdb_species_of = defaultdict(set)  # entry -> the GTDB species (suffixes kept) whose 16S it holds
 
     for header, seq in fasta_records(ssu_path):
         _, raw = parse_ssu_header(header)
@@ -207,21 +207,20 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
         if len(seq) < min_length:
             n_short += 1
             continue
-        if merge_suffixes:
-            with_sequence.add(raw["species"])
-
         taxid = species_to_taxid[sp]
         seq_hash = hashlib.md5(seq.upper().encode()).hexdigest()
 
         if seq_hash in seen_hashes[taxid]:
             n_dup += 1
             copies[seen_hashes[taxid][seq_hash]] += 1
+            gtdb_species_of[seen_hashes[taxid][seq_hash]].add(raw["species"])
             continue
 
         seq_counter += 1
         rec_id = f"{taxid}:{db_name}:{seq_counter}"
         seen_hashes[taxid][seq_hash] = rec_id
         copies[rec_id] = 1
+        gtdb_species_of[rec_id].add(raw["species"])
         out_records.append((f">{rec_id}", seq))
 
     print(f"  Skipped (too short <{min_length} bp) : {n_short:,}")
@@ -262,9 +261,13 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
     identical_16s.write_reports(fasta_out, tax_out, os.path.join(output_dir, "identical_16s.tsv"),
                                 os.path.join(output_dir, "cross_genus_identical.tsv"),
                                 cross_genus_rule=cross_genus_rule, copies=copies)
-    n_written = sum(1 for _ in fasta_records(fasta_out)) if cross_genus_rule != "keep" else len(out_records)
+    kept = ([h[1:].split()[0] for h, _ in fasta_records(fasta_out)] if cross_genus_rule != "keep"
+            else [h[1:] for h, _ in out_records])
+    n_written = len(kept)
 
     if merge_suffixes:
+        # GTDB species that still have a sequence in species_taxid.fasta, after the rule
+        with_sequence = {sp for rec_id in kept for sp in gtdb_species_of[rec_id]}
         n_merged = write_merged_species(merged_sources, species_to_taxid,
                                         os.path.join(output_dir, "merged_species.tsv"), with_sequence)
         print(f"  GTDB species merged by suffix stripping: {n_merged:,} names (merged_species.tsv)")
