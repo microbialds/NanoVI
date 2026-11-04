@@ -199,8 +199,8 @@ takes out 4,281 (4,147) entries of 2,256 (2,080) species and leaves 413 (355) sp
 with no sequence; `best-genus` 3,266 (3,286) entries, 224 (207) species left empty;
 `most-copies` 2,210 (2,203) entries, 138 (133) species left empty. Most of these
 sequences are carried by one species in each genus, so `best-genus` ties on 1,095
-(1,117) of the 1,360 sequences and removes every copy of them; `most-copies` ties on
-406 before its tie-break and on 4 after it. Example rows (default build):
+(1,117) of the 1,360 sequences and removes every copy of them; `most-copies` removes
+every copy of 4. Example rows (default build):
 
 ```
 identical_16s.tsv
