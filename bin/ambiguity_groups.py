@@ -89,8 +89,9 @@ def pairwise_shared(idx, phi, row_of_column, n_rows, shares=None):
 def tax_families(tax_ids, taxonomy_df):
     """The family of each tax ID in taxonomy_df (indexed by tax_id), with the ranks above it, or None.
 
-    A tuple of the FAMILY_LINEAGE ranks that taxonomy_df has, names stripped, so
-    that a family name used in two orders ('Family_XI') is two families. None for
+    A tuple of the FAMILY_LINEAGE ranks that taxonomy_df has, so that a family
+    name used in two orders ('Family_XI') is two families. Names are compared as
+    the table writes them, so two spellings are two families there too. None for
     a tax ID missing from taxonomy_df, a blank family, or a taxonomy without a
     family column. A tax_id listed more than once takes its first lineage, as
     taxonomy.label_lineages does.
@@ -103,8 +104,8 @@ def tax_families(tax_ids, taxonomy_df):
     lineage = lineage.reindex([str(t) for t in tax_ids])
     out = {}
     for t, names in zip(tax_ids, lineage.itertuples(index=False, name=None)):
-        names = tuple(n.strip() if isinstance(n, str) else "" for n in names)
-        out[t] = names if names[0] else None
+        names = tuple(n if isinstance(n, str) else "" for n in names)
+        out[t] = names if names[0].strip() else None
     return out
 
 
@@ -226,7 +227,8 @@ def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, bino
             "max_shared": group["max_shared"],
             SHARED_COLUMN: group["shared_reads"] / expected if expected > 0 else 0.0,
         }
-        for rank in TAXONOMY_RANKS:
+        # A rank the taxonomy lacks is filled with a placeholder in the table: never common
+        for rank in (r for r in TAXONOMY_RANKS if r == "species" or r in taxonomy_df.columns):
             values = set(rows[rank])
             if len(values) == 1 and "" not in values:
                 entry["lowest_common_rank"], entry["lowest_common_taxon"] = rank, values.pop()

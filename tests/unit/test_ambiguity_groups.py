@@ -63,7 +63,7 @@ def test_link_groups_links_only_rows_of_one_family():
 def test_tax_families_are_none_where_the_taxonomy_has_no_family():
     taxonomy = pd.DataFrame({'species': ['A a', 'B b', 'C c', 'D d', 'D e'], 'family': ['Fam1 ', '', ' ', None, 'Fam9']},
                             index=pd.Index(['1', '2', '3', '4', '1'], name='tax_id'))
-    assert tax_families([1, 2, 3, 4, 5], taxonomy) == {1: ('Fam1',), 2: None, 3: None, 4: None, 5: None}
+    assert tax_families([1, 2, 3, 4, 5], taxonomy) == {1: ('Fam1 ',), 2: None, 3: None, 4: None, 5: None}
     assert tax_families([1], taxonomy.drop(columns='family')) == {1: None}
 
 
@@ -235,6 +235,18 @@ def test_groups_without_a_family_column_link_nothing_and_say_so(tmp_path):
     assert 'no family column' in result.stderr
     groups = json.loads((tmp_path / 'abundance.json').read_text())['groups']
     assert all(len(g['tax_ids']) == 1 for g in groups)
+
+
+def test_groups_lowest_common_rank_skips_ranks_the_taxonomy_lacks(tmp_path):
+    # No genus column: the table fills the genus with a placeholder, which is not a common taxon
+    npz = write_inputs(tmp_path)
+    (tmp_path / 'taxonomy.tsv').write_text('tax_id\tspecies\tfamily\n' + ''.join(
+        f'{t}\t{s}\t{f}\n' for t, (s, _, f) in TAXONOMY.items()))
+    estimate(tmp_path, npz, '--taxonomy', 'taxonomy.tsv', '--groups')
+    _, groups = write_groups(tmp_path)
+    pair = groups.iloc[0]
+    assert pair['members'] == 'Alpha one; Alpha two'
+    assert (pair['lowest_common_rank'], pair['lowest_common_taxon']) == ('family', 'Fam1')
 
 
 def test_groups_with_a_species_missing_from_the_taxonomy(tmp_path):
