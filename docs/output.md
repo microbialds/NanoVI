@@ -209,7 +209,7 @@ species. The shares are therefore of the cells of the species listed.
 |---|---|
 | `species` | As in the species table, in the same order |
 | `abundance` | Cell-level share: the row's abundance / its copy number, renormalised over the rows listed (sums to 1) |
-| `read_abundance` | The row's abundance in the species table |
+| `read_abundance` | The row's abundance in the species table (all its tax IDs; a tax ID without a copy number in a row that has one is named in the second comment line) |
 | `copy_number` | 16S copies per genome. A row that sums several tax IDs (`--binomial_names`, or a name repeated in a custom taxonomy) takes the cell-weighted mean of their copy numbers, Σ abundance / Σ (abundance / copy number), so its cell share is the sum of theirs; its tax IDs without a copy number are left out of it (and counted in the second comment line) |
 | `copy_number_level` | Where the copy number comes from: `species` (the species' own value in `copy_numbers.tsv`), or the `genus` or `family` median it was filled from; for a summed row, the coarsest level among its tax IDs |
 | `genus` … `superkingdom` | Lineage, as in the species table |

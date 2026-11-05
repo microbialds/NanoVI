@@ -45,6 +45,7 @@ no cell abundance and are left out; the file's first lines say how much.
 
 import csv
 import gzip
+import math
 import os
 import statistics
 import sys
@@ -60,7 +61,9 @@ COMPLETE_GENOME = "Complete Genome"
 
 
 def _open_text(path):
-    return gzip.open(path, "rt", newline="") if str(path).endswith(".gz") else open(path, newline="")
+    if str(path).endswith(".gz"):
+        return gzip.open(path, "rt", encoding="utf8", newline="")
+    return open(path, encoding="utf8", newline="")
 
 
 def _positive(value, where):
@@ -68,8 +71,8 @@ def _positive(value, where):
         number = float(value)
     except ValueError:
         raise ValueError(f"{where}: copy number {value!r} is not a number")
-    if not number > 0:
-        raise ValueError(f"{where}: copy number {value!r} must be positive")
+    if not (number > 0 and math.isfinite(number)):
+        raise ValueError(f"{where}: copy number {value!r} must be a positive finite number")
     return number
 
 
@@ -113,8 +116,8 @@ def table_values(path):
         if not {"species", "copy_number"} <= set(reader.fieldnames or []):
             raise ValueError(f"{path}: needs 'species' and 'copy_number' columns")
         for line, row in enumerate(reader, 2):
-            species = row["species"].strip()
-            if not species or not row["copy_number"].strip():
+            species = (row["species"] or "").strip()
+            if not species or not (row["copy_number"] or "").strip():
                 continue
             if species in values:
                 raise ValueError(f"{path}: species {species!r} is listed more than once")
@@ -130,15 +133,15 @@ def rrndb_pantaxa_values(path):
         if not {"taxid", "rank", "median"} <= set(reader.fieldnames or []):
             raise ValueError(f"{path}: not an rrnDB pan-taxa file (needs taxid, rank and median columns)")
         for row in reader:
-            if row["rank"] == "species" and row["median"].strip():
-                values[row["taxid"].strip()] = (_positive(row["median"], f"{path} taxid {row['taxid']}"),
-                                                row.get("childcount", "").strip())
+            if row["rank"] == "species" and (row["median"] or "").strip():
+                values[(row["taxid"] or "").strip()] = (_positive(row["median"], f"{path} taxid {row['taxid']}"),
+                                                        (row.get("childcount") or "").strip())
     return values
 
 
 def read_taxonomy_rows(path):
     """taxonomy.tsv as a list of dicts, ranks the file lacks given as ''."""
-    with open(path, newline="") as fh:
+    with open(path, encoding="utf8", newline="") as fh:
         rows = list(csv.DictReader(fh, delimiter="\t"))
     return [{"tax_id": r["tax_id"], **{rank: (r.get(rank) or "").strip() for rank in LINEAGE_RANKS}}
             for r in rows]
@@ -182,7 +185,7 @@ def format_number(x):
 
 
 def write_copy_numbers(rows, path):
-    with open(path, "w", newline="") as fh:
+    with open(path, "w", encoding="utf8", newline="") as fh:
         w = csv.writer(fh, delimiter="\t", lineterminator="\n")
         w.writerow(COPY_NUMBER_COLUMNS)
         for r in rows:
@@ -200,10 +203,11 @@ def build_copy_numbers(out_dir, taxonomy_path, gtdb_metadata=None, table=None, r
     given = [s for s in (gtdb_metadata, table, rrndb_pantaxa) if s]
     if len(given) > 1:
         raise ValueError("give one copy-number source: GTDB metadata, a table or rrnDB pan-taxa")
+    # A database rebuilt without a source, or whose source fails to parse, must not keep an
+    # earlier build's values beside the new taxonomy
+    if os.path.exists(path):
+        os.remove(path)
     if not given:
-        # A database rebuilt without a source must not keep an earlier build's values
-        if os.path.exists(path):
-            os.remove(path)
         return None
     taxonomy_rows = read_taxonomy_rows(taxonomy_path)
     if gtdb_metadata:
@@ -220,18 +224,20 @@ def build_copy_numbers(out_dir, taxonomy_path, gtdb_metadata=None, table=None, r
 
 def read_copy_numbers(path):
     """tax_id -> (species, copy number or None, level) from copy_numbers.tsv."""
-    with open(path, newline="") as fh:
+    with open(path, encoding="utf8", newline="") as fh:
         reader = csv.DictReader(fh, delimiter="\t")
         missing = {"tax_id", "species", "copy_number", "level"} - set(reader.fieldnames or [])
         if missing:
             raise ValueError(f"{path}: not a copy_numbers.tsv (no {', '.join(sorted(missing))} column)")
         out = {}
-        for row in reader:
-            cn = row["copy_number"].strip()
+        for line, row in enumerate(reader, 2):
+            field = lambda k: (row[k] or "").strip()
+            cn, level = field("copy_number"), field("level")
+            if cn and level not in LEVELS[:-1]:
+                raise ValueError(f"{path} line {line}: level {level!r} is not one of {', '.join(LEVELS[:-1])}")
             # A tax ID listed twice keeps its first row, as taxonomy.label_lineages keeps its first lineage
-            out.setdefault(row["tax_id"].strip(), (
-                row["species"].strip(), _positive(cn, f"{path} tax_id {row['tax_id']}") if cn else None,
-                row["level"].strip()))
+            out.setdefault(field("tax_id"), (
+                field("species"), _positive(cn, f"{path} line {line}") if cn else None, level))
     return out
 
 
@@ -299,6 +305,15 @@ def row_cells(freq, row_of_id, cn_of_id):
     return {row: combine_cells(p) if p else None for row, p in parts.items()}
 
 
+def cell_total(cells):
+    """The cells of every row with a copy number, summed in the species table's row order.
+
+    The cell table and the group table divide by this same total, so a group of one row
+    gets exactly its row's cell share.
+    """
+    return sum(cells[i][0] for i in sorted(cells) if cells[i])
+
+
 def write_cell_table(species_df, cells, path, below_detection_count, unassigned_count):
     """Write <sample>_cell-abundance.tsv from the species table and row_cells' values.
 
@@ -310,10 +325,11 @@ def write_cell_table(species_df, cells, path, below_detection_count, unassigned_
 
     taxa = species_df[~species_df["species"].isin([BELOW_DETECTION_LABEL, UNASSIGNED_LABEL])]
     keep = [i for i in taxa.index if cells.get(i)]
-    total = sum(cells[i][0] for i in keep)
+    total = cell_total({i: cells.get(i) for i in taxa.index})
     left_out = taxa.loc[[i for i in taxa.index if not cells.get(i)]]
-    # Read share of tax IDs without a copy number inside rows that have one
-    partial = sum(float(taxa.at[i, "abundance"]) - cells[i][1] for i in keep)
+    # Read share of tax IDs without a copy number inside rows that have one: left out of the
+    # row's cell share and copy number, though read_abundance is the whole row's
+    partial = max(sum(float(taxa.at[i, "abundance"]) - cells[i][1] for i in keep), 0.0)
     table = pd.DataFrame({
         "species": taxa.loc[keep, "species"],
         "abundance": [cells[i][0] / total for i in keep],
@@ -323,13 +339,15 @@ def write_cell_table(species_df, cells, path, below_detection_count, unassigned_
     })
     for rank in TAXONOMY_RANKS[1:]:
         table[rank] = taxa.loc[keep, rank] if rank in taxa.columns else ""
-    no_cn = float(left_out["abundance"].astype(float).sum()) + max(partial, 0.0)
-    with open(path, "w") as fh:
+    no_cn = float(left_out["abundance"].astype(float).sum())
+    in_rows = (f"; tax IDs without one in rows listed below: read-level abundance {partial:.6g}, left out of "
+               f"their row's cell share and copy number" if partial > 1e-12 else "")
+    with open(path, "w", encoding="utf8") as fh:
         fh.write("# Cell-level abundance: read-level abundance / 16S copy number (the database's "
                  "copy_numbers.tsv), renormalised over the rows listed; copy_number_level 'species' is "
                  "the species' own value, 'genus' or 'family' the median it was filled from.\n")
         fh.write(f"# Not included: Below detection ({below_detection_count} reads) and Unassigned "
                  f"({unassigned_count} reads), and {len(left_out)} species without a copy number "
-                 f"(read-level abundance {no_cn:.6g}).\n")
+                 f"(read-level abundance {no_cn:.6g}){in_rows}.\n")
         table.to_csv(fh, sep="\t", index=False)
     return table

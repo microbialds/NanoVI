@@ -107,18 +107,20 @@ def main():
         identical=read_identical(args.identical_16s) if args.identical_16s is not None else None,
         binomial=args.binomial_names,
     )
-    cells = None
+    cells = row_of_id = None
     if args.cell_output:
         cn_of_id = tax_id_copy_numbers(freq, read_copy_numbers(args.copy_numbers), taxonomy_df)
         # The species table row of every tax ID, as the group table finds it
-        cells = row_cells(freq, table_row_of_ids(freq, species_df, taxonomy_df, args.binomial_names), cn_of_id)
+        row_of_id = table_row_of_ids(freq, species_df, taxonomy_df, args.binomial_names)
+        cells = row_cells(freq, row_of_id, cn_of_id)
         out_file = f"{args.cell_output}.tsv"
         write_cell_table(species_df, cells, out_file, below_detection_count, unassigned_count)
         print(f"Cell-level abundances saved as {out_file}")
     if args.groups_output:
         out_file = f"{args.groups_output}.tsv"
         write_groups_table(abundance_data["groups"], read_summary, species_df, taxonomy_df, out_file,
-                           binomial=args.binomial_names, intervals=args.credible_intervals, cells=cells)
+                           binomial=args.binomial_names, intervals=args.credible_intervals, cells=cells,
+                           row_of_id=row_of_id)
         print(f"Ambiguity groups saved as {out_file}")
 
 

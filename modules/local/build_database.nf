@@ -8,7 +8,7 @@ process BUILD_DB {
     path seq2tax         // staged from seq2tax_ch
     path taxonomy        // --taxonomy_list file or --ncbi_taxonomy directory
     val  taxonomy_flag   // '--taxonomy-list' or '--ncbi-taxonomy', matching taxonomy
-    path copy_source     // copy-number table or rrnDB pan-taxa file, or [] (F58)
+    path copy_source, stageAs: 'copy_source/*'  // copy-number table or rrnDB pan-taxa file, or [] (F58); own directory, so its name cannot collide
     val  copy_flag       // '--copy-numbers', '--rrndb-pantaxa' or ''
 
     output:

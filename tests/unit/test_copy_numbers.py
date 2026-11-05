@@ -99,7 +99,8 @@ def test_gtdb_metadata_must_have_the_columns(tmp_path):
 
 @pytest.mark.parametrize('text,message', [
     ('species\tcopy_number\nA a\t3\nA a\t4\n', 'more than once'),
-    ('species\tcopy_number\nA a\t0\n', 'must be positive'),
+    ('species\tcopy_number\nA a\t0\n', 'must be a positive finite number'),
+    ('species\tcopy_number\nA a\tinf\n', 'must be a positive finite number'),
     ('species\tcopy_number\nA a\tmany\n', 'not a number'),
     ('name\tcopies\nA a\t3\n', "needs 'species' and 'copy_number'"),
 ])
@@ -299,7 +300,9 @@ def test_a_merged_row_takes_the_cell_weighted_mean(tmp_path):
     assert cell['copy_number_level'].tolist() == ['genus', 'species']
     assert cell['abundance'].tolist() == pytest.approx([alpha_cells / (alpha_cells + 0.1), 0.1 / (alpha_cells + 0.1)])
     assert cell['read_abundance'].tolist() == pytest.approx([0.7, 0.3])
-    assert 'and 0 species without a copy number (read-level abundance 0.1)' in comments[1]
+    assert comments[1].endswith('and 0 species without a copy number (read-level abundance 0); tax IDs without one '
+                                'in rows listed below: read-level abundance 0.1, left out of their row\'s cell share '
+                                'and copy number.')
 
 
 def test_groups_get_the_members_cells_and_copy_number(tmp_path):
@@ -402,3 +405,45 @@ def test_a_species_name_shared_by_tax_ids_counts_once_in_a_median():
                 tax_row(4, 'A b', 'A', 'F'), tax_row(5, 'A c', 'A', 'F')]
     rows = fill_copy_numbers(taxonomy, {'A a': (7.0, 1), 'A b': (2.0, 1)}, 'test')
     assert by_tax(rows)['5'] == (4.5, 'genus')
+
+
+# ─── Second review ───────────────────────────────────────────────────────────
+
+def test_short_table_lines_are_skipped_not_a_crash(tmp_path):
+    path = tmp_path / 't.tsv'
+    path.write_text('species\tcopy_number\nA a\t3\nB b\n')
+    assert copy_numbers.table_values(path) == {'A a': (3.0, '')}
+
+
+@pytest.mark.parametrize('level', ['', 'manual'])
+def test_an_unknown_level_is_refused_when_read(tmp_path, level):
+    path = tmp_path / 'copy_numbers.tsv'
+    path.write_text(f'tax_id\tspecies\tcopy_number\tlevel\n1\tA a\t3\t{level}\n')
+    with pytest.raises(ValueError, match='line 2: level'):
+        read_copy_numbers(path)
+
+
+def test_a_source_that_fails_to_parse_leaves_no_old_file(tmp_path):
+    write_taxonomy(tmp_path / 'taxonomy.tsv', TAXONOMY[:2])
+    (tmp_path / 'copy_numbers.tsv').write_text('old build\n')
+    bad = tmp_path / 'bad.tsv'
+    bad.write_text('species\tcopy_number\nAlpha one\t-1\n')
+    with pytest.raises(ValueError):
+        copy_numbers.build_copy_numbers(str(tmp_path), tmp_path / 'taxonomy.tsv', table=str(bad))
+    assert not (tmp_path / 'copy_numbers.tsv').exists()
+
+
+def test_a_group_of_one_has_exactly_its_rows_cell_share(tmp_path):
+    # Abundances listed out of the species table's (alphabetical) order, with values whose sum
+    # depends on the order of addition
+    taxonomy = [tax_row(i, f'Sp{c} x', f'G{c}', f'F{c}') for i, c in enumerate('abcdef', 1)]
+    freq = {'6': 0.1, '3': 0.2, '5': 0.3, '1': 0.15, '4': 0.05, '2': 0.2}
+    groups = [{'tax_ids': [t], 'shared_reads': 0.0, 'max_shared': 0.0} for t in freq]
+    cns = [cn_row(i, f'Sp{c} x', [3.0, 7.0, 11.0, 13.0, 17.0, 19.0][i - 1]) for i, c in enumerate('abcdef', 1)]
+    write_inputs(tmp_path, freq, taxonomy, cns, groups=groups)
+    result = run_table(tmp_path, '--groups-output', 's_groups')
+    assert result.returncode == 0, result.stderr
+    _, cell = read_cell(tmp_path / 's_cell.tsv')
+    g = pd.read_csv(tmp_path / 's_groups.tsv', sep='\t').dropna(subset=['n_members'])
+    by_species = dict(zip(cell['species'], cell['abundance']))
+    assert all(v == by_species[m] for m, v in zip(g['members'], g['cell_abundance']))

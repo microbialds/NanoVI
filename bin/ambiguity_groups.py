@@ -29,7 +29,7 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
-from copy_numbers import combine_cells
+from copy_numbers import cell_total, combine_cells
 from variational_inference_bayesian import SHARED_READ_MIN_SPLIT, row_groups
 
 # Threshold on max(f_a(b), f_b(a)) (D39); estimate_abundance.py --group-min-shared is for tests
@@ -186,7 +186,7 @@ CELL_GROUP_COLUMNS = ["cell_abundance", "copy_number", "copy_number_level"]
 
 
 def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, binomial=False, intervals=False,
-                       cells=None):
+                       cells=None, row_of_id=None):
     """Write <sample>_groups.tsv from the JSON's groups and the sample's species table.
 
     species_df: the table freq_to_lineage_df wrote (its rows, lineages,
@@ -202,7 +202,8 @@ def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, bino
     cells: the species rows' copy_numbers.row_cells values (F58); adds cell_abundance (the
     sum of the members' cell abundances), copy_number (the cell-weighted mean of the
     members' copy numbers, the abundance-weighted mean at cell level) and copy_number_level
-    (the coarsest member's), from the members that have a copy number.
+    (the coarsest member's), from the members that have a copy number. row_of_id: the
+    tax ID -> species-table row map (taxonomy.table_row_of_ids) when the caller already has it.
     """
     from taxonomy import (BELOW_DETECTION_LABEL, IDENTICAL_COLUMN, INTERVAL_COLUMNS, SHARED_COLUMN,
                           TAXONOMY_RANKS, UNASSIGNED_LABEL, interval_bounds, table_row_of_ids)
@@ -216,9 +217,11 @@ def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, bino
     posterior = lambda t, col: float(summary.get(t, {}).get(col, 0.0))
     total_alpha = sum(posterior(t, "alpha") for t in summary) if intervals else None
     # The row of every tax ID, in one pass over the taxonomy
-    row_of_id = table_row_of_ids([t for group in groups for t in group["tax_ids"]], species_df, taxonomy_df, binomial)
+    if row_of_id is None:
+        row_of_id = table_row_of_ids([t for group in groups for t in group["tax_ids"]], species_df, taxonomy_df,
+                                     binomial)
 
-    total_cells = sum(c[0] for c in cells.values() if c) if cells is not None else None
+    total_cells = cell_total(cells) if cells is not None else None
     out = []
     for group in groups:
         tax_ids = [str(t) for t in group["tax_ids"]]
