@@ -14,6 +14,7 @@ through the Nextflow pipeline (decision D1).
 import argparse
 import os
 
+import copy_numbers
 import identical_16s
 from taxonomy import (
     collapse_rank,
@@ -48,6 +49,15 @@ def main():
     build_db_parser.add_argument('--cross-genus-rule', choices=identical_16s.CROSS_GENUS_RULES, default='keep',
                                  help="Sequences found in more than one genus: keep (default), remove, "
                                       "best-genus or most-copies (see identical_16s.py; F56)")
+    copy_source = build_db_parser.add_mutually_exclusive_group()
+    copy_source.add_argument('--copy-numbers', type=str, metavar='FILE',
+                             help="TSV with 'species' and 'copy_number' columns: write copy_numbers.tsv, "
+                                  "filling species without one from the genus or else family median "
+                                  "(copy_numbers.py; F58)")
+    copy_source.add_argument('--rrndb-pantaxa', type=str, metavar='FILE',
+                             help="rrnDB pan-taxa statistics for NCBI taxonomy (rrnDB-<version>_pantaxa_stats_NCBI.tsv): "
+                                  "write copy_numbers.tsv from the median of each tax ID's NCBI species "
+                                  "(needs --ncbi-taxonomy)")
 
     # 2) COLLAPSE-TAXONOMY SUBCOMMAND
     collapse_parser = subparsers.add_parser("collapse-taxonomy", help="Collapse VI output at specified taxonomic rank")
@@ -62,6 +72,8 @@ def main():
     combine_parser.add_argument('--counts', action="store_true")
 
     args = parser.parse_args()
+    if args.subparser_name == "build-database" and args.rrndb_pantaxa and not args.ncbi_taxonomy:
+        build_db_parser.error("--rrndb-pantaxa needs --ncbi-taxonomy: rrnDB is looked up by NCBI taxid")
 
     # -------------------
     #   SUBCOMMAND LOGIC
@@ -112,6 +124,9 @@ def run_build_database(args):
         os.path.join(custom_db_path, 'identical_16s.tsv'), os.path.join(custom_db_path, 'cross_genus_identical.tsv'),
         cross_genus_rule=args.cross_genus_rule, copies={r.id: r.annotations["copies"] for r in fasta_records},
     )
+    # 16S copy numbers per species (F58); a build without a source removes an earlier build's file
+    copy_numbers.build_copy_numbers(custom_db_path, output_taxonomy_location, table=args.copy_numbers,
+                                    rrndb_pantaxa=args.rrndb_pantaxa)
     print("Database creation successful")
 
 

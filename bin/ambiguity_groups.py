@@ -180,9 +180,12 @@ def ambiguity_groups(idx, phi, reported_ids, families, row_keys=None, min_shared
 
 GROUP_TABLE_COLUMNS = ["group", "members", "n_members", "abundance", "lowest_common_rank", "lowest_common_taxon"]
 RELATIVES_COLUMN = "identical_16s_relatives"
+# With copy numbers (F58): the group's share of cells, its copy number and the coarsest level filled from
+CELL_GROUP_COLUMNS = ["cell_abundance", "copy_number", "copy_number_level"]
 
 
-def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, binomial=False, intervals=False):
+def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, binomial=False, intervals=False,
+                       cells=None):
     """Write <sample>_groups.tsv from the JSON's groups and the sample's species table.
 
     species_df: the table freq_to_lineage_df wrote (its rows, lineages,
@@ -195,6 +198,10 @@ def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, bino
     intervals ci_lower and ci_upper come from its summed α, as for a summed row;
     a group of one row takes them from its species row, so the two tables agree
     exactly. A tax ID missing from the read summary counts 0, as in the species table.
+    cells: the species rows' copy_numbers.row_cells values (F58); adds cell_abundance (the
+    sum of the members' cell abundances), copy_number (the cell-weighted mean of the
+    members' copy numbers, the abundance-weighted mean at cell level) and copy_number_level
+    (the coarsest member's), from the members that have a copy number.
     """
     from taxonomy import (BELOW_DETECTION_LABEL, IDENTICAL_COLUMN, INTERVAL_COLUMNS, SHARED_COLUMN,
                           TAXONOMY_RANKS, UNASSIGNED_LABEL, interval_bounds, species_row_keys)
@@ -212,6 +219,7 @@ def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, bino
     all_ids = [str(t) for group in groups for t in group["tax_ids"]]
     row_of_id = dict(zip(all_ids, (row_of_key[k] for k in species_row_keys(all_ids, taxonomy_df, binomial))))
 
+    total_cells = sum(c[0] for c in cells.values() if c) if cells is not None else None
     out = []
     for group in groups:
         tax_ids = [str(t) for t in group["tax_ids"]]
@@ -240,6 +248,12 @@ def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, bino
             entry[RELATIVES_COLUMN] = "; ".join(sorted(names - reported_names))
         if intervals:
             entry["alpha"] = sum(posterior(t, "alpha") for t in tax_ids)
+        if cells is not None:
+            have = [cells[i] for i in rows.index if cells.get(i)]
+            if have:
+                from copy_numbers import combine_cells
+                group_cells, _, entry["copy_number"], entry["copy_number_level"] = combine_cells(have)
+                entry["cell_abundance"] = group_cells / total_cells
         if len(rows) == 1:
             # The species row's own values (summed there in another order)
             entry[SHARED_COLUMN] = rows[SHARED_COLUMN].iloc[0] if SHARED_COLUMN in rows else entry[SHARED_COLUMN]
@@ -265,7 +279,7 @@ def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, bino
 
     columns = GROUP_TABLE_COLUMNS + (["estimated_counts"] if counts else []) + \
         ([RELATIVES_COLUMN] if relatives else []) + ["max_shared", SHARED_COLUMN] + \
-        (INTERVAL_COLUMNS if intervals else [])
+        (INTERVAL_COLUMNS if intervals else []) + (CELL_GROUP_COLUMNS if cells is not None else [])
     for col in columns:
         if col not in df.columns:
             df[col] = np.nan

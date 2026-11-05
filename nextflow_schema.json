@@ -188,6 +188,11 @@
           "type": "boolean",
           "default": false,
           "description": "Also write sample_outputs/<sample>_groups.tsv: the rows of the abundance table of one family grouped where two of them share at least 0.25 of either one's reads in the sample (a row with no family in taxonomy.tsv is grouped with none), with their summed abundance and the unreported species that share an identical 16S with a member. The abundance table does not change"
+        },
+        "cell_abundance": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also write sample_outputs/<sample>_cell-abundance.tsv: each species' read-level abundance divided by its 16S copy number (copy_numbers.tsv in --db) and renormalised, the copy number and the level it was filled from (species, genus or family). Below detection, Unassigned and species without a copy number are left out. Needs a database built with copy numbers; the abundance table does not change"
         }
       }
     },
@@ -235,6 +240,18 @@
             "most-copies"
           ],
           "description": "Sequences found in species of more than one genus (cross_genus_identical.tsv): keep them; remove every copy; keep each only in the genus with the most species carrying it (best-genus) or whose entries stand for the most input sequences (most-copies). A tie that the rule cannot break removes every copy (most-copies breaks a tie on copies by the genera's database entries). Any rule but keep also writes cross_genus_removed.tsv and cross_genus_emptied.tsv"
+        },
+        "copy_numbers": {
+          "type": "string",
+          "description": "TSV with 'species' and 'copy_number' columns (16S copies per genome): write copy_numbers.tsv into the database, species without a value taking the median of their genus or else family. At most one of copy_numbers or rrndb_pantaxa",
+          "format": "file-path",
+          "exists": true
+        },
+        "rrndb_pantaxa": {
+          "type": "string",
+          "description": "rrnDB pan-taxa statistics for NCBI taxonomy (rrnDB-<version>_pantaxa_stats_NCBI.tsv): write copy_numbers.tsv from the median of each species' NCBI taxid, filled from the genus or else family median. Needs ncbi_taxonomy; at most one of copy_numbers or rrndb_pantaxa",
+          "format": "file-path",
+          "exists": true
         }
       }
     },

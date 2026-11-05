@@ -23,6 +23,12 @@ identical_16s.tsv then describes the cleaned database. For most-copies, a
 sequence's copies are the input sequences of at least --min-length that its
 entry deduplicates (about one per genome).
 
+--gtdb-metadata (F58, D40) takes the release's bac120_metadata and ar53_metadata
+files and writes copy_numbers.tsv: each species' 16S copy number, the median
+ssu_count of its complete genomes, filled from the genus or family median where
+it has none (copy_numbers.py). --copy-numbers takes a table of species and copy
+numbers instead. Without either, no copy_numbers.tsv is written.
+
 """
 
 import os
@@ -31,6 +37,7 @@ import hashlib
 import argparse
 from collections import defaultdict
 
+import copy_numbers
 import identical_16s
 
 
@@ -137,7 +144,8 @@ fasta_records = identical_16s.fasta_records
 # ─── Main build function ──────────────────────────────────────────────────────
 
 def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int = 900,
-                   merge_suffixes: bool = False, cross_genus_rule: str = "keep"):
+                   merge_suffixes: bool = False, cross_genus_rule: str = "keep",
+                   gtdb_metadata=None, copy_number_table=None):
     """
     Build species_taxid.fasta and taxonomy.tsv from a GTDB SSU FASTA file.
 
@@ -151,6 +159,9 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
                  they separate, and write merged_species.tsv (F16)
     cross_genus_rule : what to do with sequences found in more than one genus
                  (identical_16s.CROSS_GENUS_RULES; F56); 'keep' leaves them
+    gtdb_metadata : GTDB bac120/ar53 metadata files: write copy_numbers.tsv from the
+                 complete genomes' ssu_count (F58, D40)
+    copy_number_table : a TSV of species and copy_number to write copy_numbers.tsv from instead
     """
     if cross_genus_rule not in identical_16s.CROSS_GENUS_RULES:
         raise ValueError(f"unknown cross-genus rule {cross_genus_rule!r}")
@@ -264,6 +275,10 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
     identical_16s.write_reports(fasta_out, tax_out, os.path.join(output_dir, "identical_16s.tsv"),
                                 os.path.join(output_dir, "cross_genus_identical.tsv"),
                                 cross_genus_rule=cross_genus_rule, copies=copies)
+    # 16S copy numbers per species (F58); a build without a source removes an earlier build's file
+    copy_numbers.build_copy_numbers(
+        output_dir, tax_out, gtdb_metadata=gtdb_metadata, table=copy_number_table,
+        species_of=lambda lineage: parse_gtdb_lineage(lineage, merge_suffixes)["species"])
     kept = [h[1:].split()[0] for h, _ in (fasta_records(fasta_out) if cross_genus_rule != "keep" else out_records)]
     n_written = len(kept)
 
@@ -355,10 +370,23 @@ def main():
              "(most-copies). A tie that the rule cannot break removes every copy (most-copies breaks a tie on "
              "copies by the genera's database entries). Writes cross_genus_removed.tsv and cross_genus_emptied.tsv.",
     )
+    copy_source = parser.add_mutually_exclusive_group()
+    copy_source.add_argument(
+        "--gtdb-metadata", nargs="+", metavar="FILE",
+        help="GTDB bac120_metadata and ar53_metadata files of the release (.tsv or .tsv.gz): write "
+             "copy_numbers.tsv, each species' 16S copy number as the median ssu_count of its "
+             "'Complete Genome' assemblies, filled from the genus or else family median.",
+    )
+    copy_source.add_argument(
+        "--copy-numbers", metavar="FILE",
+        help="A TSV with 'species' and 'copy_number' columns to write copy_numbers.tsv from instead "
+             "(same fill rule).",
+    )
     args = parser.parse_args()
 
-    if not os.path.exists(args.ssu):
-        sys.exit(f"ERROR: SSU file not found: {args.ssu}")
+    for path in [args.ssu] + (args.gtdb_metadata or []) + ([args.copy_numbers] if args.copy_numbers else []):
+        if not os.path.exists(path):
+            sys.exit(f"ERROR: file not found: {path}")
 
     build_database(
         ssu_path=args.ssu,
@@ -367,6 +395,8 @@ def main():
         min_length=args.min_length,
         merge_suffixes=args.merge_gtdb_suffixes,
         cross_genus_rule=args.cross_genus_rule,
+        gtdb_metadata=args.gtdb_metadata,
+        copy_number_table=args.copy_numbers,
     )
 
 
