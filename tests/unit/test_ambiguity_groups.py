@@ -208,3 +208,43 @@ def test_groups_options_are_checked(tmp_path):
          '--read-counts', 'counts.json', '--taxonomy', 'taxonomy.tsv', '--output-prefix', 'out',
          '--groups-output', 'out_groups'], cwd=tmp_path, capture_output=True, text=True)
     assert result.returncode == 2 and 'needs abundances from estimate_abundance.py --groups' in result.stderr
+
+
+def test_group_shared_reads_equal_the_read_summary_with_groups_as_rows():
+    # The sparse computation gives what posterior_read_summary gives with the groups as table rows
+    from variational_inference_bayesian import posterior_read_summary
+    rng = np.random.default_rng(5)
+    idx = rng.integers(-1, 6, size=(300, 4))
+    phi = rng.dirichlet(np.ones(4), size=300)
+    ids = [11, 12, 13, 14, 15, 16]
+    for min_shared in (0.05, 0.25, 0.6):
+        groups = ambiguity_groups(idx, phi, ids, min_shared=min_shared)
+        group_of = {sid: g for g, entry in enumerate(groups) for sid in entry['tax_ids']}
+        summary = posterior_read_summary(None, idx, phi, ids, groups=[group_of[s] for s in ids])
+        for g, entry in enumerate(groups):
+            assert entry['shared_reads'] == pytest.approx(sum(summary[s]['shared_reads'] for s in entry['tax_ids']),
+                                                          rel=1e-12, abs=1e-12)
+
+
+def test_groups_of_one_row_of_several_tax_ids_match_the_species_row(tmp_path):
+    # With --binomial-names three strains are one row; its group of one has the row's exact values
+    npz = write_inputs(tmp_path)
+    taxonomy = (tmp_path / 'taxonomy.tsv').read_text().replace('Gamma four\tGamma\tFam2', 'Beta three str. X\tBeta\tFam1')
+    (tmp_path / 'taxonomy.tsv').write_text(taxonomy)
+    estimate(tmp_path, npz, '--taxonomy', 'taxonomy.tsv', '--groups', '--binomial-names')
+    species, groups = write_groups(tmp_path, '--binomial-names', '--credible-intervals')
+    row = species.set_index('species').loc['Beta three']
+    group = groups.set_index('members').loc['Beta three']
+    for col in ('abundance', 'shared_read_fraction', 'ci_lower', 'ci_upper'):
+        assert group[col] == row[col]
+
+
+def test_a_tax_id_missing_from_the_read_summary_counts_zero(tmp_path):
+    # As in the species table, which writes 0 for it
+    npz = write_inputs(tmp_path)
+    data = estimate(tmp_path, npz, '--taxonomy', 'taxonomy.tsv', '--groups')
+    del data['read_summary']['4']
+    (tmp_path / 'abundance.json').write_text(json.dumps(data))
+    species, groups = write_groups(tmp_path)
+    assert groups.set_index('members').loc['Gamma four', 'shared_read_fraction'] == \
+        species.set_index('species').loc['Gamma four', 'shared_read_fraction']

@@ -153,9 +153,9 @@ def main():
         "read_summary": read_summary,
     }
     if args.groups:
-        # EM's responsibilities cover the species that survived pruning; only the reported ones are counted
-        phi_reported = np.where(idx_reported >= 0, phi, 0.0)
-        output["groups"] = ambiguity_groups(idx_reported, phi_reported, reported_ids, species_rows,
+        # Entries of species that are not reported (idx -1; EM's responsibilities cover every
+        # species that survived pruning) are left out, as for the read summary
+        output["groups"] = ambiguity_groups(idx_reported, phi, reported_ids, species_rows,
                                             args.group_min_shared)
     with open(args.output, "w") as f:
         json.dump(output, f)

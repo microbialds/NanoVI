@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
-from variational_inference_bayesian import SHARED_READ_MIN_SPLIT, posterior_read_summary
+from variational_inference_bayesian import SHARED_READ_MIN_SPLIT, row_groups
 
 # Threshold on max(f_a(b), f_b(a)) (D39); estimate_abundance.py --group-min-shared is for tests
 GROUP_MIN_SHARED = 0.25
@@ -34,33 +34,45 @@ GROUP_MIN_SHARED = 0.25
 def table_rows(reported_ids, row_keys):
     """The table row (0, 1, …, in order of first appearance) of each reported column, and the row count.
 
-    row_keys maps a species to its table row (taxonomy.species_row_keys); without
-    it every species is a row of its own.
+    The numbering of variational_inference_bayesian.row_groups, so the groups and
+    the read summary agree on rows; without row_keys every species is a row of its own.
     """
-    numbers = {}
-    rows = [numbers.setdefault(row_keys[sid] if row_keys is not None else sid, len(numbers)) for sid in reported_ids]
-    return rows, len(numbers)
+    rows = row_groups(list(reported_ids), row_keys) or list(range(len(reported_ids)))
+    return rows, max(rows) + 1 if rows else 0
 
 
-def pairwise_shared(idx, phi, row_of_column, n_rows):
-    """Expected reads per row and the reads each row shares with each other row.
+def row_shares(idx, phi, row_of_column, n_rows):
+    """Each read's responsibility on each row, as a sparse (reads x rows) matrix, and each read's total.
 
     idx, phi: the padded responsibilities, idx the entry's column among the
-    reported species or -1 (padding, or a species not reported).
-    Returns (expected, shared): expected[a] = Σ_r φ_ra and
-    shared[a, b] = Σ_r φ_ra over the reads whose share on b, among the reported
-    rows, is at least SHARED_READ_MIN_SPLIT (shared[a, a] = 0).
+    reported species or -1 (padding, or a species not reported); entries with
+    idx -1 are left out, so a read's total is its responsibility on reported rows.
+    The tax IDs of a row add up.
     """
-    on = idx >= 0
-    reads, cols = np.nonzero(on)
+    reads, cols = np.nonzero(idx >= 0)
     rows = np.asarray(row_of_column, dtype=np.int64)[idx[reads, cols]]
-    # Each read's responsibility on each row (a sparse reads x rows matrix; duplicates, the tax IDs of a row, add up)
     share = sparse.csr_matrix((phi[reads, cols], (reads, rows)), shape=(idx.shape[0], n_rows))
     share.sum_duplicates()
-    total = np.asarray(share.sum(axis=1)).ravel()
+    return share, np.asarray(share.sum(axis=1)).ravel()
+
+
+def _entry_fraction(share, total):
+    """Each stored entry of share over its read's total (nan where the total is 0)."""
     read_of_entry = np.repeat(np.arange(share.shape[0]), np.diff(share.indptr))
     with np.errstate(divide="ignore", invalid="ignore"):
-        is_split = share.data / total[read_of_entry] >= SHARED_READ_MIN_SPLIT
+        return share.data / total[read_of_entry]
+
+
+def pairwise_shared(idx, phi, row_of_column, n_rows, shares=None):
+    """Expected reads per row and the reads each row shares with each other row.
+
+    Returns (expected, shared): expected[a] = Σ_r φ_ra and
+    shared[a, b] = Σ_r φ_ra over the reads whose share on b, among the reported
+    rows, is at least SHARED_READ_MIN_SPLIT (shared[a, a] = 0). shares: the
+    result of row_shares, when the caller has it.
+    """
+    share, total = shares if shares is not None else row_shares(idx, phi, row_of_column, n_rows)
+    is_split = _entry_fraction(share, total) >= SHARED_READ_MIN_SPLIT
     split = sparse.csr_matrix((is_split.astype(np.float64), share.indices, share.indptr), shape=share.shape)
     expected = np.asarray(share.sum(axis=0)).ravel()
     shared = np.asarray((share.T @ split).todense())
@@ -102,20 +114,26 @@ def ambiguity_groups(idx, phi, reported_ids, row_keys=None, min_shared=GROUP_MIN
     """The groups of the reported species, as written into the abundance JSON.
 
     A list with one entry per group: "tax_ids" (its species), "shared_reads"
-    (their expected reads on reads split with rows outside the group, the D27
-    rule judged between groups) and "max_shared" (the largest f between two of
-    its rows; None for a group of one row). Expected reads and α are in the
-    JSON's read summary.
+    (their expected reads on reads split with rows outside the group: the
+    group's share of the read, where the other groups take at least
+    SHARED_READ_MIN_SPLIT of it, the D27 rule judged between groups) and
+    "max_shared" (the largest f between two of its rows; None for a group of one
+    row). Expected reads and α are in the JSON's read summary.
     """
     row_of_column, n_rows = table_rows(reported_ids, row_keys)
-    expected, shared = pairwise_shared(idx, phi, row_of_column, n_rows)
+    share, total = row_shares(idx, phi, row_of_column, n_rows)
+    expected, shared = pairwise_shared(idx, phi, row_of_column, n_rows, shares=(share, total))
     group_of_row, max_shared = link_groups(expected, shared, min_shared)
-    group_of_column = [group_of_row[r] for r in row_of_column]
-    summary = posterior_read_summary(None, idx, phi, list(reported_ids), groups=group_of_column)
-    groups = [{"tax_ids": [], "shared_reads": 0.0, "max_shared": m} for m in max_shared]
-    for sid, g in zip(reported_ids, group_of_column):
-        groups[g]["tax_ids"].append(sid)
-        groups[g]["shared_reads"] += summary[sid]["shared_reads"]
+    n_groups = len(max_shared)
+    to_group = sparse.csr_matrix((np.ones(n_rows), (np.arange(n_rows), group_of_row)), shape=(n_rows, n_groups))
+    group_share = share @ to_group
+    group_share.sum_duplicates()
+    split = (group_share.data > 0) & (_entry_fraction(group_share, total) <= 1.0 - SHARED_READ_MIN_SPLIT)
+    group_shared = np.bincount(group_share.indices[split], weights=group_share.data[split], minlength=n_groups)
+    groups = [{"tax_ids": [], "shared_reads": float(group_shared[g]), "max_shared": m}
+              for g, m in enumerate(max_shared)]
+    for sid, r in zip(reported_ids, row_of_column):
+        groups[group_of_row[r]]["tax_ids"].append(sid)
     return groups
 
 
@@ -133,7 +151,9 @@ def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, bino
     the sums of its rows' values. Groups go by decreasing abundance, then the
     Below detection and Unassigned rows of the species table. The group's
     shared_read_fraction is its shared reads over its expected reads, and with
-    intervals ci_lower and ci_upper come from its summed α, as for a summed row.
+    intervals ci_lower and ci_upper come from its summed α, as for a summed row;
+    a group of one row takes them from its species row, so the two tables agree
+    exactly. A tax ID missing from the read summary counts 0, as in the species table.
     """
     from taxonomy import (BELOW_DETECTION_LABEL, IDENTICAL_COLUMN, INTERVAL_COLUMNS, SHARED_COLUMN,
                           TAXONOMY_RANKS, UNASSIGNED_LABEL, interval_bounds, species_row_keys)
@@ -145,15 +165,18 @@ def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, bino
     row_of_key = {tuple(r): i for i, r in zip(taxa.index, taxa[TAXONOMY_RANKS].itertuples(index=False, name=None))}
     reported_names = set(taxa["species"])
     summary = {str(k): v for k, v in read_summary.items()}
-    total_alpha = sum(v["alpha"] for v in summary.values()) if intervals else None
+    posterior = lambda t, col: float(summary.get(t, {}).get(col, 0.0))
+    total_alpha = sum(posterior(t, "alpha") for t in summary) if intervals else None
+    # The row of every tax ID, in one pass over the taxonomy
+    all_ids = [str(t) for group in groups for t in group["tax_ids"]]
+    row_of_id = dict(zip(all_ids, (row_of_key[k] for k in species_row_keys(all_ids, taxonomy_df, binomial))))
 
     out = []
     for group in groups:
         tax_ids = [str(t) for t in group["tax_ids"]]
-        keys = species_row_keys(tax_ids, taxonomy_df, binomial)
-        rows = taxa.loc[sorted({row_of_key[k] for k in keys})]
+        rows = taxa.loc[sorted({row_of_id[t] for t in tax_ids})]
         rows = rows.iloc[np.lexsort((rows["species"].to_numpy(), -rows["abundance"].to_numpy(dtype=float)))]
-        expected = sum(summary[t]["expected_reads"] for t in tax_ids)
+        expected = sum(posterior(t, "expected_reads") for t in tax_ids)
         entry = {
             "members": "; ".join(rows["species"]),
             "n_members": len(rows),
@@ -174,7 +197,12 @@ def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, bino
             names = {n for v in rows[IDENTICAL_COLUMN] for n in str(v).split("; ") if n}
             entry[RELATIVES_COLUMN] = "; ".join(sorted(names - reported_names))
         if intervals:
-            entry["alpha"] = sum(summary[t]["alpha"] for t in tax_ids)
+            entry["alpha"] = sum(posterior(t, "alpha") for t in tax_ids)
+        if len(rows) == 1:
+            # The species row's own values (summed there in another order)
+            entry[SHARED_COLUMN] = rows[SHARED_COLUMN].iloc[0] if SHARED_COLUMN in rows else entry[SHARED_COLUMN]
+            if intervals:
+                entry["species_ci"] = (rows["ci_lower"].iloc[0], rows["ci_upper"].iloc[0])
         out.append(entry)
     out.sort(key=lambda e: (-e["abundance"], e["members"]))
     for i, entry in enumerate(out, 1):
@@ -183,6 +211,9 @@ def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, bino
     df = pd.DataFrame(out) if out else pd.DataFrame(columns=GROUP_TABLE_COLUMNS)
     if intervals and out:
         lower, upper = interval_bounds(df["alpha"].to_numpy(dtype=float), total_alpha)
+        for i, ci in df.get("species_ci", pd.Series(dtype=object)).items():
+            if isinstance(ci, tuple):
+                lower[i], upper[i] = ci
         df["ci_lower"], df["ci_upper"] = lower, upper
     placeholders = species_df[is_placeholder]
     df = pd.concat([df, pd.DataFrame({
