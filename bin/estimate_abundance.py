@@ -17,8 +17,9 @@ among tax IDs reported in one row (F46).
 With --read-assignments (which needs --taxonomy) it also writes the per-read
 assignments, <sample>_read_assignments.tsv.gz (read_assignments.py, F55, D37).
 With --groups (which needs --taxonomy) the JSON also gets "groups": the table rows
-that share most of their reads in this sample (ambiguity_groups.py, F57, D39),
-which write_abundance_table.py --groups-output writes as <sample>_groups.tsv.
+of one family that share most of their reads in this sample (ambiguity_groups.py,
+F57, D39), which write_abundance_table.py --groups-output writes as
+<sample>_groups.tsv.
 """
 import argparse
 import json
@@ -28,7 +29,7 @@ import numpy as np
 import pandas as pd
 
 import em_estimator
-from ambiguity_groups import GROUP_MIN_SHARED, ambiguity_groups
+from ambiguity_groups import GROUP_MIN_SHARED, ambiguity_groups, tax_families
 from read_assignments import DEFAULT_MIN_PROBABILITY, write_read_assignments
 from read_scores import load_read_scores
 from taxonomy import species_row_keys
@@ -104,6 +105,9 @@ def main():
     if args.taxonomy:
         taxonomy_df = pd.read_csv(args.taxonomy, sep="\t", dtype=str).set_index("tax_id")
         species_rows = dict(zip(db_ids, species_row_keys(db_ids, taxonomy_df, args.binomial_names)))
+        if args.groups and "family" not in taxonomy_df.columns:
+            print("Warning: taxonomy.tsv has no family column, so no rows are linked: every ambiguity "
+                  "group is one row (D39)", file=sys.stderr)
 
     if args.estimator == "em":
         tax_id_lists, score_lists = tax_ids.tolist(), scores.tolist()
@@ -155,7 +159,8 @@ def main():
     if args.groups:
         # Entries of species that are not reported (idx -1; EM's responsibilities cover every
         # species that survived pruning) are left out, as for the read summary
-        output["groups"] = ambiguity_groups(idx_reported, phi, reported_ids, species_rows,
+        output["groups"] = ambiguity_groups(idx_reported, phi, reported_ids,
+                                            tax_families(reported_ids, taxonomy_df), species_rows,
                                             args.group_min_shared)
     with open(args.output, "w") as f:
         json.dump(output, f)

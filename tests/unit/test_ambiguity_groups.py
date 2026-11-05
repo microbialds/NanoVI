@@ -11,11 +11,12 @@ import pytest
 from .test_scripts import BIN, estimate, write_npz
 
 sys.path.insert(0, BIN)
-from ambiguity_groups import ambiguity_groups, link_groups, pairwise_shared  # noqa: E402
+from ambiguity_groups import ambiguity_groups, link_groups, pairwise_shared, tax_families  # noqa: E402
 
 # Four reads over three reported columns (-1: padding)
 IDX = np.array([[0, 1], [0, -1], [0, 2], [1, 2]])
 PHI = np.array([[0.5, 0.5], [1.0, 0.0], [0.995, 0.005], [0.9, 0.1]])
+ONE_FAMILY = {11: 'Fam1', 12: 'Fam1', 13: 'Fam1'}
 
 
 def test_pairwise_shared_counts_the_reads_split_with_each_partner():
@@ -41,25 +42,53 @@ def test_link_groups_uses_the_larger_share_and_chains_links():
     shared[0, 1], shared[1, 0] = 6.0, 6.0   # f_0(1) = 0.06, f_1(0) = 0.6
     shared[1, 2], shared[2, 1] = 3.0, 3.0   # 0.3 both ways
     shared[0, 3], shared[3, 0] = 2.0, 2.0   # 0.02 and 0.04
-    groups, max_shared = link_groups(expected, shared, 0.25)
+    groups, max_shared = link_groups(expected, shared, ['Fam1'] * 4, 0.25)
     assert groups == [0, 0, 0, 1]
     assert max_shared == [pytest.approx(0.6), None]
-    groups, max_shared = link_groups(expected, shared, 0.7)
+    groups, max_shared = link_groups(expected, shared, ['Fam1'] * 4, 0.7)
     assert groups == [0, 1, 2, 3] and max_shared == [None] * 4
 
 
+def test_link_groups_links_only_rows_of_one_family():
+    expected = np.array([10.0, 10.0, 10.0, 10.0])
+    shared = np.full((4, 4), 5.0)   # f = 0.5 between every pair
+    np.fill_diagonal(shared, 0.0)
+    groups, max_shared = link_groups(expected, shared, ['Fam1', 'Fam2', 'Fam1', 'Fam2'])
+    assert groups == [0, 1, 0, 1] and max_shared == [pytest.approx(0.5)] * 2
+    # A row with no family links to nothing, not even to another row with none
+    groups, max_shared = link_groups(expected, shared, ['Fam1', None, 'Fam1', None])
+    assert groups == [0, 1, 0, 2] and max_shared == [pytest.approx(0.5), None, None]
+
+
+def test_tax_families_are_none_where_the_taxonomy_has_no_family():
+    taxonomy = pd.DataFrame({'species': ['A a', 'B b', 'C c', 'D d', 'D e'], 'family': ['Fam1 ', '', ' ', None, 'Fam9']},
+                            index=pd.Index(['1', '2', '3', '4', '1'], name='tax_id'))
+    assert tax_families([1, 2, 3, 4, 5], taxonomy) == {1: ('Fam1',), 2: None, 3: None, 4: None, 5: None}
+    assert tax_families([1], taxonomy.drop(columns='family')) == {1: None}
+
+
+def test_tax_families_tell_apart_one_family_name_in_two_orders():
+    taxonomy = pd.DataFrame({'family': ['Family_XI', 'Family_XI', 'Family_XI'], 'order': ['Ord1', 'Ord2', 'Ord1']},
+                            index=pd.Index(['1', '2', '3'], name='tax_id'))
+    families = tax_families([1, 2, 3], taxonomy)
+    assert families == {1: ('Family_XI', 'Ord1'), 2: ('Family_XI', 'Ord2'), 3: ('Family_XI', 'Ord1')}
+    expected, shared = np.full(3, 10.0), np.full((3, 3), 5.0)
+    np.fill_diagonal(shared, 0.0)
+    assert link_groups(expected, shared, [families[t] for t in (1, 2, 3)])[0] == [0, 1, 0]
+
+
 def test_group_shared_reads_count_only_splits_with_other_groups():
-    groups = ambiguity_groups(IDX, PHI, [11, 12, 13], min_shared=0.3)
+    groups = ambiguity_groups(IDX, PHI, [11, 12, 13], ONE_FAMILY, min_shared=0.3)
     # f_1(0) = 0.5 / 1.4 links columns 0 and 1; f_2(1) = 0.1 / 0.105 links column 2 too
     assert [g['tax_ids'] for g in groups] == [[11, 12, 13]]
     assert groups[0]['shared_reads'] == 0.0
-    groups = ambiguity_groups(IDX, PHI, [11, 12, 13], min_shared=0.99)
+    groups = ambiguity_groups(IDX, PHI, [11, 12, 13], ONE_FAMILY, min_shared=0.99)
     assert [g['tax_ids'] for g in groups] == [[11], [12], [13]]
     # Read 3 replaced by a read of column 2's own, and read 2 split 0.98 / 0.02: f_1(0) = 1
     # links columns 0 and 1; f_0(2) = 0.98 / 2.48 and f_2(0) = 0.02 / 1.02 stay below 0.45
     idx = np.array([[0, 1], [0, -1], [0, 2], [2, -1]])
     phi = np.array([[0.5, 0.5], [1.0, 0.0], [0.98, 0.02], [1.0, 0.0]])
-    groups = ambiguity_groups(idx, phi, [11, 12, 13], min_shared=0.45)
+    groups = ambiguity_groups(idx, phi, [11, 12, 13], ONE_FAMILY, min_shared=0.45)
     assert [g['tax_ids'] for g in groups] == [[11, 12], [13]]
     # Read 2 is split between the groups; read 0, split within the first, is its own
     assert groups[0]['shared_reads'] == pytest.approx(0.98)
@@ -70,9 +99,10 @@ def test_group_shared_reads_count_only_splits_with_other_groups():
 def test_tax_ids_of_one_table_row_are_one_row_before_linking():
     # Two strains reported in one row (F46) split every read: the row is a group of one
     idx, phi = np.array([[0, 1]] * 4), np.array([[0.5, 0.5]] * 4)
-    groups = ambiguity_groups(idx, phi, [1, 2], row_keys={1: ('Alpha one',), 2: ('Alpha one',)})
+    families = {1: 'Fam1', 2: 'Fam1'}
+    groups = ambiguity_groups(idx, phi, [1, 2], families, row_keys={1: ('Alpha one',), 2: ('Alpha one',)})
     assert groups == [{'tax_ids': [1, 2], 'shared_reads': 0.0, 'max_shared': None}]
-    groups = ambiguity_groups(idx, phi, [1, 2])
+    groups = ambiguity_groups(idx, phi, [1, 2], families)
     assert groups == [{'tax_ids': [1, 2], 'shared_reads': 0.0, 'max_shared': pytest.approx(1.0)}]
 
 
@@ -184,6 +214,40 @@ def test_groups_with_binomial_names_group_table_rows(tmp_path):
     assert groups['members'].tolist()[:2] == ['Alpha one; Alpha two', 'Beta three']
 
 
+@pytest.mark.parametrize('family', ['Fam3', ''])
+def test_groups_link_only_species_of_one_family(tmp_path, family):
+    # Alpha two in another family, or with a blank one, no longer joins Alpha one
+    npz = write_inputs(tmp_path)
+    taxonomy = (tmp_path / 'taxonomy.tsv').read_text().replace('Alpha two\tAlpha\tFam1', f'Alpha two\tAlpha\t{family}')
+    (tmp_path / 'taxonomy.tsv').write_text(taxonomy)
+    data = estimate(tmp_path, npz, '--taxonomy', 'taxonomy.tsv', '--groups')
+    assert all(len(g['tax_ids']) == 1 for g in data['groups'])
+
+
+def test_groups_without_a_family_column_link_nothing_and_say_so(tmp_path):
+    npz = write_inputs(tmp_path)
+    (tmp_path / 'taxonomy.tsv').write_text('tax_id\tspecies\tgenus\n' + ''.join(
+        f'{t}\t{s}\t{g}\n' for t, (s, g, _) in TAXONOMY.items()))
+    result = subprocess.run([sys.executable, os.path.join(BIN, 'estimate_abundance.py'), '--scores', npz,
+                             '--output', 'abundance.json', '--taxonomy', 'taxonomy.tsv', '--groups'],
+                            cwd=tmp_path, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    assert 'no family column' in result.stderr
+    groups = json.loads((tmp_path / 'abundance.json').read_text())['groups']
+    assert all(len(g['tax_ids']) == 1 for g in groups)
+
+
+def test_groups_with_a_species_missing_from_the_taxonomy(tmp_path):
+    # Alpha two is an 'Unknown taxid' row with no family: it links to nothing
+    npz = write_inputs(tmp_path)
+    taxonomy = ''.join(line for line in (tmp_path / 'taxonomy.tsv').read_text().splitlines(keepends=True)
+                       if not line.startswith('2\t'))
+    (tmp_path / 'taxonomy.tsv').write_text(taxonomy)
+    data = estimate(tmp_path, npz, '--taxonomy', 'taxonomy.tsv', '--groups')
+    assert sorted(t for g in data['groups'] for t in g['tax_ids']) == sorted(int(t) for t in data['abundance'])
+    assert all(len(g['tax_ids']) == 1 for g in data['groups'])
+
+
 def test_groups_with_no_scored_read(tmp_path):
     write_inputs(tmp_path)
     data = estimate(tmp_path, write_npz(tmp_path / 'empty.npz', {}), '--taxonomy', 'taxonomy.tsv', '--groups')
@@ -218,7 +282,7 @@ def test_group_shared_reads_equal_the_read_summary_with_groups_as_rows():
     phi = rng.dirichlet(np.ones(4), size=300)
     ids = [11, 12, 13, 14, 15, 16]
     for min_shared in (0.05, 0.25, 0.6):
-        groups = ambiguity_groups(idx, phi, ids, min_shared=min_shared)
+        groups = ambiguity_groups(idx, phi, ids, dict.fromkeys(ids, 'Fam1'), min_shared=min_shared)
         group_of = {sid: g for g, entry in enumerate(groups) for sid in entry['tax_ids']}
         summary = posterior_read_summary(None, idx, phi, ids, groups=[group_of[s] for s in ids])
         for g, entry in enumerate(groups):

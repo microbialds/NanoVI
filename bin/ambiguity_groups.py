@@ -8,10 +8,14 @@ when the reads they share carry a large part of either one's estimate:
 
 where φ_ra is read r's responsibility on row a (summed over the row's tax IDs,
 from the final fit: VB's φ or EM's posterior) and E_a = Σ_r φ_ra its expected
-reads. a and b are linked when max(f_a(b), f_b(a)) ≥ GROUP_MIN_SHARED; the
-maximum, so that a small row whose estimate rests on reads it shares with a
-large one is caught. Groups are the connected components of the links, so every
-row is in exactly one group (a row that links to nothing is a group of one).
+reads. a and b are linked when they are in the same family of the database's
+taxonomy and max(f_a(b), f_b(a)) ≥ GROUP_MIN_SHARED; the maximum, so that a
+small row whose estimate rests on reads it shares with a large one is caught. A
+row with a blank family, or a tax ID missing from the taxonomy, links to nothing;
+the family rule keeps out the rows that share reads only through a database
+sequence identical across genera (D23). Groups are the connected components of
+the links, so every row is in exactly one group (a row that links to nothing is
+a group of one) and every group lies inside one family.
 As for shared_read_fraction, a read's share on b is judged among the reported
 rows. write_abundance_table.py --groups-output writes them as
 <sample>_groups.tsv, annotated with the species that share an identical 16S
@@ -29,6 +33,8 @@ from variational_inference_bayesian import SHARED_READ_MIN_SPLIT, row_groups
 
 # Threshold on max(f_a(b), f_b(a)) (D39); estimate_abundance.py --group-min-shared is for tests
 GROUP_MIN_SHARED = 0.25
+# Two rows link only when these ranks agree (D39): the family and the lineage above it
+FAMILY_LINEAGE = ["family", "order", "class", "phylum", "superkingdom"]
 
 
 def table_rows(reported_ids, row_keys):
@@ -80,16 +86,44 @@ def pairwise_shared(idx, phi, row_of_column, n_rows, shares=None):
     return expected, shared
 
 
-def link_groups(expected, shared, min_shared=GROUP_MIN_SHARED):
+def tax_families(tax_ids, taxonomy_df):
+    """The family of each tax ID in taxonomy_df (indexed by tax_id), with the ranks above it, or None.
+
+    A tuple of the FAMILY_LINEAGE ranks that taxonomy_df has, names stripped, so
+    that a family name used in two orders ('Family_XI') is two families. None for
+    a tax ID missing from taxonomy_df, a blank family, or a taxonomy without a
+    family column. A tax_id listed more than once takes its first lineage, as
+    taxonomy.label_lineages does.
+    """
+    if "family" not in taxonomy_df.columns:
+        return dict.fromkeys(tax_ids)
+    index = taxonomy_df.index.astype(str)
+    lineage = taxonomy_df.loc[~index.duplicated(), [r for r in FAMILY_LINEAGE if r in taxonomy_df.columns]]
+    lineage.index = index[~index.duplicated()]
+    lineage = lineage.reindex([str(t) for t in tax_ids])
+    out = {}
+    for t, names in zip(tax_ids, lineage.itertuples(index=False, name=None)):
+        names = tuple(n.strip() if isinstance(n, str) else "" for n in names)
+        out[t] = names if names[0] else None
+    return out
+
+
+def link_groups(expected, shared, row_families, min_shared=GROUP_MIN_SHARED):
     """Group number of each row and, per group, the largest f between two members.
 
-    Rows a and b are linked when max(f_a(b), f_b(a)) ≥ min_shared; groups are
-    numbered by their first row. The largest f of a group of one is None.
+    Rows a and b are linked when they have the same family in row_families (one
+    per row, as tax_families gives them; a row whose family is None links to
+    nothing) and
+    max(f_a(b), f_b(a)) ≥ min_shared; groups are numbered by their first row.
+    The largest f of a group of one is None.
     """
     n = len(expected)
     with np.errstate(divide="ignore", invalid="ignore"):
         f = np.where(expected[:, None] > 0, shared / expected[:, None], 0.0)
-    strength = np.maximum(f, f.T)
+    codes = {}
+    family = np.array([-1 if fam is None else codes.setdefault(fam, len(codes)) for fam in row_families])
+    same_family = (family[:, None] == family[None, :]) & (family >= 0)[:, None]
+    strength = np.where(same_family, np.maximum(f, f.T), 0.0)
     parent = list(range(n))
 
     def find(x):
@@ -110,8 +144,11 @@ def link_groups(expected, shared, min_shared=GROUP_MIN_SHARED):
     return group_of_row, max_shared
 
 
-def ambiguity_groups(idx, phi, reported_ids, row_keys=None, min_shared=GROUP_MIN_SHARED):
+def ambiguity_groups(idx, phi, reported_ids, families, row_keys=None, min_shared=GROUP_MIN_SHARED):
     """The groups of the reported species, as written into the abundance JSON.
+
+    families: the family of each reported tax ID (tax_families); the tax IDs of
+    a row share their lineage (F46), so the row has their family.
 
     A list with one entry per group: "tax_ids" (its species), "shared_reads"
     (their expected reads on reads split with rows outside the group: the
@@ -123,7 +160,10 @@ def ambiguity_groups(idx, phi, reported_ids, row_keys=None, min_shared=GROUP_MIN
     row_of_column, n_rows = table_rows(reported_ids, row_keys)
     share, total = row_shares(idx, phi, row_of_column, n_rows)
     expected, shared = pairwise_shared(idx, phi, row_of_column, n_rows, shares=(share, total))
-    group_of_row, max_shared = link_groups(expected, shared, min_shared)
+    row_families = [None] * n_rows
+    for sid, r in zip(reported_ids, row_of_column):
+        row_families[r] = families.get(sid)
+    group_of_row, max_shared = link_groups(expected, shared, row_families, min_shared)
     n_groups = len(max_shared)
     to_group = sparse.csr_matrix((np.ones(n_rows), (np.arange(n_rows), group_of_row)), shape=(n_rows, n_groups))
     group_share = share @ to_group
