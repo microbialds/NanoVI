@@ -157,8 +157,9 @@ Give the caps on the command line or in a `-params-file`. In a custom `-c` confi
 | `--seq2tax` | required | Sequence-to-taxonomy mapping TSV |
 | `--taxonomy_list` | one of these two | Taxonomy TSV with a `tax_id` column and one column per rank |
 | `--ncbi_taxonomy` | one of these two | NCBI taxonomy dump directory (`names.dmp`, `nodes.dmp`) |
+| `--cross_genus_rule` | `keep` | What to do with sequences found in species of more than one genus (`cross_genus_identical.tsv`), as `bin/build_gtdb_db.py --cross-genus-rule` below: `keep`, `remove`, `best-genus` or `most-copies` |
 
-`--cmd build-database` writes `<output_dir>/<db_name>/` with `species_taxid.fasta`, `taxonomy.tsv`, `identical_16s.tsv` and `cross_genus_identical.tsv` (see [docs/output.md](docs/output.md)); pass that directory as `--db`.
+`--cmd build-database` writes `<output_dir>/<db_name>/` with `species_taxid.fasta`, `taxonomy.tsv`, `identical_16s.tsv` and `cross_genus_identical.tsv`, plus `cross_genus_removed.tsv` and `cross_genus_emptied.tsv` with a `--cross_genus_rule` other than `keep` (see [docs/output.md](docs/output.md)); pass that directory as `--db`.
 
 ### Post-Processing
 
@@ -254,6 +255,7 @@ python3 bin/build_gtdb_db.py \
 | `--output-dir` | `./db` | Directory where output files are written |
 | `--min-length` | `900` | Minimum 16S sequence length in bp to include |
 | `--merge-gtdb-suffixes` | off | Strip GTDB's clade suffixes (`Listeria monocytogenes_B` → `Listeria monocytogenes`, `Pseudomonas_E` → `Pseudomonas`), merging the species and genera GTDB separates with them into one tax ID, and write `merged_species.tsv`. Off: names are kept as GTDB writes them |
+| `--cross-genus-rule` | `keep` | What to do with the sequences found in species of more than one genus (`cross_genus_identical.tsv`): `keep` them; `remove` every copy; keep each only in the genus with the most species carrying it (`best-genus`); or only in the genus whose entries stand for the most input sequences, about one per GTDB genome (`most-copies`; a tie goes to the genus with more entries in the database). A tie that the rule cannot break removes every copy. Species left with no sequence stay in `taxonomy.tsv`; `identical_16s.tsv` describes the cleaned database. Writes `cross_genus_removed.tsv` and `cross_genus_emptied.tsv`. Off by default: on the benchmark the rules remove a few false-positive species but make the real mocks' abundances slightly worse ([docs/output.md](docs/output.md)) |
 
 **Output files:**
 
@@ -262,7 +264,9 @@ python3 bin/build_gtdb_db.py \
 | `species_taxid.fasta` | Reference FASTA — one entry per unique 16S sequence, header: `taxid:db_name:n` |
 | `taxonomy.tsv` | Taxonomy table — one row per species with full lineage |
 | `identical_16s.tsv` | Species that share an identical 16S sequence with another species of their genus (genera compared without GTDB's suffixes), one row each: its group (the species of the genus linked through shared sequences) and the species it shares a sequence with. 16S cannot tell these species apart; the pipeline names them in the `identical_16s_species` column. `--cmd build-database` writes it too |
-| `cross_genus_identical.tsv` | Sequences found in species of more than one genus, with their species, genera, families and phyla. In GTDB these are almost always contaminant contigs in an assembly (1,360 sequences in r226). They stay in the database, and `identical_16s.tsv` still groups the species of one genus that carry such a sequence; only the link across genera is left out |
+| `cross_genus_identical.tsv` | Sequences found in species of more than one genus, with their species, genera, families and phyla. In GTDB most are contaminant contigs in an assembly, but real strains carry some of them (1,360 sequences in r226). With the default `--cross-genus-rule keep` they stay in the database, and `identical_16s.tsv` still groups the species of one genus that carry such a sequence; only the link across genera is left out |
+| `cross_genus_removed.tsv` | With a `--cross-genus-rule` other than `keep`: one row per database entry the rule removed (sequence ID, tax ID, species, genus, the sequence's MD5, the rule and the genus the sequence was kept in, empty when none was) |
+| `cross_genus_emptied.tsv` | With a `--cross-genus-rule` other than `keep`: the species the rule left with no sequence (tax ID, species, genus, entries removed). They stay in `taxonomy.tsv` but can no longer be reported |
 | `merged_species.tsv` | With `--merge-gtdb-suffixes` only: each name that merges two or more GTDB species with a sequence in the database, with those species and their genera, the ranks at which their lineages differ, and the GTDB species whose lineage `taxonomy.tsv` keeps (the first in the input) |
 
 ### 3. Run NanoVI with the GTDB database

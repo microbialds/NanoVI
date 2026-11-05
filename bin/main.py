@@ -45,6 +45,9 @@ def main():
     taxonomy_group = build_db_parser.add_mutually_exclusive_group(required=True)
     taxonomy_group.add_argument('--ncbi-taxonomy', type=str)
     taxonomy_group.add_argument('--taxonomy-list', type=str)
+    build_db_parser.add_argument('--cross-genus-rule', choices=identical_16s.CROSS_GENUS_RULES, default='keep',
+                                 help="Sequences found in more than one genus: keep (default), remove, "
+                                      "best-genus or most-copies (see identical_16s.py; F56)")
 
     # 2) COLLAPSE-TAXONOMY SUBCOMMAND
     collapse_parser = subparsers.add_parser("collapse-taxonomy", help="Collapse VI output at specified taxonomic rank")
@@ -101,10 +104,13 @@ def run_build_database(args):
     else:
         build_direct_taxonomy(db_unique_ids, args.taxonomy_list, output_taxonomy_location)
 
-    # Species that 16S cannot separate, and sequences shared across genera (D23, D24)
+    # Species that 16S cannot separate, and sequences shared across genera (D23, D24);
+    # with a cross-genus rule, species_taxid.fasta is cleaned first (F56)
+    identical_16s.remove_rule_reports(custom_db_path)
     identical_16s.write_reports(
         os.path.join(custom_db_path, 'species_taxid.fasta'), output_taxonomy_location,
         os.path.join(custom_db_path, 'identical_16s.tsv'), os.path.join(custom_db_path, 'cross_genus_identical.tsv'),
+        cross_genus_rule=args.cross_genus_rule, copies={r.id: r.annotations["copies"] for r in fasta_records},
     )
     print("Database creation successful")
 

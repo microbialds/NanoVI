@@ -476,3 +476,36 @@ def test_below_detection_is_1_only_without_a_reported_share():
     lines = list(zip(reads.tolist(), rows.tolist(), prob.tolist()))
     assert lines[:2] == [(0, 0, 1e-20), (0, 1, np.nextafter(1.0, 0.0))]
     assert (1, 1, 1.0) in lines and (2, 0, 1.0) in lines
+
+
+# ─── main.py build-database with a cross-genus rule (F56) ────────────────────
+
+@pytest.mark.parametrize('rule,kept', [
+    ('keep', ['10:mydb:1', '20:mydb:2', '20:mydb:3', '30:mydb:4']),
+    # seq_a: one Alpha entry from three input copies against one Beta entry from one
+    ('most-copies', ['10:mydb:1', '20:mydb:3', '30:mydb:4']),
+    ('remove', ['20:mydb:3', '30:mydb:4']),
+])
+def test_build_database_applies_the_cross_genus_rule(tmp_path, rule, kept):
+    seq_a, seq_b, seq_c = 'ACGT' * 300, 'TTGCA' * 240, 'GGCAT' * 240
+    (tmp_path / 'seqs.fa').write_text(
+        f'>a1\n{seq_a}\n>a2\n{seq_a}\n>a3\n{seq_a}\n>b1\n{seq_a}\n>b2\n{seq_b}\n>c1\n{seq_c}\n')
+    (tmp_path / 'seq2tax.tsv').write_text('a1\t10\na2\t10\na3\t10\nb1\t20\nb2\t20\nc1\t30\n')
+    (tmp_path / 'lineages.tsv').write_text(
+        'tax_id\tspecies\tgenus\tfamily\torder\tclass\tphylum\tsuperkingdom\n'
+        '10\tAlpha one\tAlpha\tF1\tO\tC\tP\tBacteria\n'
+        '20\tBeta one\tBeta\tF2\tO\tC\tP\tBacteria\n'
+        '30\tGamma one\tGamma\tF3\tO\tC\tP\tBacteria\n')
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'main.py'), 'build-database', 'mydb', '--sequences', 'seqs.fa',
+         '--seq2tax', 'seq2tax.tsv', '--taxonomy-list', 'lineages.tsv', '--cross-genus-rule', rule],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    db = tmp_path / 'mydb'
+    ids = [line[1:].split()[0] for line in (db / 'species_taxid.fasta').read_text().splitlines()
+           if line.startswith('>')]
+    assert ids == kept
+    assert (db / 'cross_genus_removed.tsv').exists() == (rule != 'keep')
+    if rule == 'remove':
+        assert 'Alpha one' in (db / 'cross_genus_emptied.tsv').read_text()

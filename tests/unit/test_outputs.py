@@ -668,6 +668,77 @@ class TestBuildDatabase:
         assert list(merged['lineage_from']) == ['Gamma_B delta']
 
 
+    @pytest.mark.parametrize('rule,merged_names', [('keep', ['Alpha beta']), ('remove', [])])
+    def test_merged_species_after_a_cross_genus_rule(self, tmp_path, rule, merged_names):
+        # Alpha_A beta's only 16S is also in genus Zeta: once a rule removes it, 'Alpha beta' merges nothing
+        lin = 'd__Bacteria;p__P;c__C;o__O;f__F;g__{g};s__{s}'
+        seq_a, seq_b = 'ACGT' * 300, 'TTGCA' * 240
+        records = [
+            (f'>g1~c1 {lin.format(g="Alpha_A", s="Alpha_A beta")} [ssu_len=1200]', seq_a),
+            (f'>g2~c2 {lin.format(g="Alpha", s="Alpha beta")} [ssu_len=1200]', seq_b),
+            (f'>g3~c3 {lin.format(g="Zeta", s="Zeta alpha")} [ssu_len=1200]', seq_a),
+        ]
+        ssu = tmp_path / 'ssu.fna'
+        ssu.write_text(''.join(f'{h}\n{s}\n' for h, s in records))
+        out = tmp_path / 'db'
+        build_gtdb_db.build_database(str(ssu), 'testdb', str(out), merge_suffixes=True, cross_genus_rule=rule)
+        merged = pd.read_csv(out / 'merged_species.tsv', sep='\t', dtype=str, keep_default_na=False)
+        assert list(merged['species']) == merged_names
+
+    @pytest.mark.parametrize('rule,removed,emptied', [
+        # Genus Alpha has two entries carrying seq_a, Zeta one entry that stands for three genomes
+        ('best-genus', ['3:testdb:1'], ['Zeta alpha']),
+        ('most-copies', ['2:testdb:2', '1:testdb:4'], ['Alpha gamma']),
+        ('remove', ['3:testdb:1', '2:testdb:2', '1:testdb:4'], ['Alpha gamma', 'Zeta alpha']),
+    ])
+    def test_cross_genus_rule(self, tmp_path, rule, removed, emptied):
+        lin = 'd__Bacteria;p__P;c__C;o__O;f__F{g};g__{g};s__{s}'
+        seq_a, seq_b = 'ACGT' * 300, 'TTGCA' * 240
+        records = [(f'>g{i}~c{i} {lin.format(g="Zeta", s="Zeta alpha")} [ssu_len=1200]', seq_a) for i in (1, 2, 3)]
+        records += [
+            (f'>g4~c4 {lin.format(g="Alpha_A", s="Alpha_A beta")} [ssu_len=1200]', seq_a),
+            (f'>g4~c5 {lin.format(g="Alpha_A", s="Alpha_A beta")} [ssu_len=1200]', seq_b),
+            (f'>g5~c6 {lin.format(g="Alpha", s="Alpha gamma")} [ssu_len=1200]', seq_a),
+        ]
+        ssu = tmp_path / 'ssu.fna'
+        ssu.write_text(''.join(f'{h}\n{s}\n' for h, s in records))
+        out = tmp_path / 'db'
+        build_gtdb_db.build_database(str(ssu), 'testdb', str(out), cross_genus_rule=rule)
+
+        every = ['3:testdb:1', '2:testdb:2', '2:testdb:3', '1:testdb:4']
+        headers = [h[1:] for h, _ in build_gtdb_db.fasta_records(str(out / 'species_taxid.fasta'))]
+        assert headers == [h for h in every if h not in removed]
+        report = pd.read_csv(out / 'cross_genus_removed.tsv', sep='\t', dtype=str, keep_default_na=False)
+        assert list(report['sequence_id']) == removed
+        assert set(report['rule']) == {rule}
+        assert list(pd.read_csv(out / 'cross_genus_emptied.tsv', sep='\t')['species']) == emptied
+        # The report of what was found lists the sequence as built; taxonomy.tsv keeps every species
+        assert len(pd.read_csv(out / 'cross_genus_identical.tsv', sep='\t')) == 1
+        assert list(pd.read_csv(out / 'taxonomy.tsv', sep='\t')['species']) == ['Alpha gamma', 'Alpha_A beta',
+                                                                                'Zeta alpha']
+        # Alpha gamma and Alpha_A beta share seq_a within their genus only while both keep it
+        groups = pd.read_csv(out / 'identical_16s.tsv', sep='\t')
+        assert sorted(groups['species']) == (['Alpha gamma', 'Alpha_A beta'] if rule == 'best-genus' else [])
+
+    def test_rebuild_with_keep_drops_the_rule_reports(self, tmp_path):
+        lin = 'd__Bacteria;p__P;c__C;o__O;f__F{g};g__{g};s__{s}'
+        records = [(f'>g1~c1 {lin.format(g="Zeta", s="Zeta alpha")} [ssu_len=1200]', 'ACGT' * 300),
+                   (f'>g2~c2 {lin.format(g="Alpha", s="Alpha gamma")} [ssu_len=1200]', 'ACGT' * 300)]
+        ssu = tmp_path / 'ssu.fna'
+        ssu.write_text(''.join(f'{h}\n{s}\n' for h, s in records))
+        out = tmp_path / 'db'
+        build_gtdb_db.build_database(str(ssu), 'testdb', str(out), cross_genus_rule='remove')
+        assert (out / 'cross_genus_removed.tsv').exists()
+        build_gtdb_db.build_database(str(ssu), 'testdb', str(out))
+        assert not (out / 'cross_genus_removed.tsv').exists()
+        assert not (out / 'cross_genus_emptied.tsv').exists()
+
+    def test_unknown_cross_genus_rule_is_refused(self, tmp_path):
+        with pytest.raises(ValueError, match='unknown cross-genus rule'):
+            build_gtdb_db.build_database(str(tmp_path / 'ssu.fna'), 'testdb', str(tmp_path / 'db'),
+                                         cross_genus_rule='majority')
+
+
 class TestNcbiTaxonomyOrder:
     """build-database --ncbi-taxonomy writes taxonomy.tsv sorted by tax_id (F41)."""
 

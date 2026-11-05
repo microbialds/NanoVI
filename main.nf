@@ -47,6 +47,7 @@ params {
     seq2tax: String?
     ncbi_taxonomy: String?
     taxonomy_list: String?
+    cross_genus_rule: String
 
     // Post-processing
     input_tsv: String?

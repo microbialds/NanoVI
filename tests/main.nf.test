@@ -429,6 +429,49 @@ nextflow_pipeline {
             assert file("${outputDir}/db_custom/identical_16s.tsv").exists()
             assert file("${outputDir}/db_custom/cross_genus_identical.tsv").exists()
             assert !file("${outputDir}/db_custom/db_custom").exists()
+            // No cross-genus rule by default (F56)
+            assert !file("${outputDir}/db_custom/cross_genus_removed.tsv").exists()
+        }
+    }
+
+    test("build-database with --cross_genus_rule writes the removal reports") {
+        tag "stub"
+        options "-profile test -stub-run --cross_genus_rule most-copies"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                sequences     = "${projectDir}/tests/test_data/mock_db/species_taxid.fasta"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                ncbi_taxonomy = "${projectDir}/tests/test_data/mock_db"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/db_custom/cross_genus_removed.tsv").exists()
+            assert file("${outputDir}/db_custom/cross_genus_emptied.tsv").exists()
+        }
+    }
+
+    test("build-database rejects an unknown --cross_genus_rule") {
+        tag "stub"
+        options "-profile test -stub-run --cross_genus_rule majority"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                sequences     = "${projectDir}/tests/test_data/mock_db/species_taxid.fasta"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                ncbi_taxonomy = "${projectDir}/tests/test_data/mock_db"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("cross_genus_rule") }
         }
     }
 

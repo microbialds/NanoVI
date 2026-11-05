@@ -1,5 +1,6 @@
 """Unit tests for bin/identical_16s.py: species that share an identical 16S (D23, D24)."""
 import csv
+import gzip
 import os
 import sys
 
@@ -124,3 +125,129 @@ def test_genera_of_other_databases_are_not_cut(tmp_path):
 def test_fasta_records_is_the_builders_reader():
     import build_gtdb_db
     assert build_gtdb_db.fasta_records is identical_16s.fasta_records
+
+
+# ─── Cross-genus rules (F56) ──────────────────────────────────────────────────
+
+X, Y, W = 'ACGTT' * 240, 'GATTACA' * 172, 'CCGTA' * 240
+OWN1, OWN2, OWN3 = 'TTAGC' * 240, 'AGCTA' * 240, 'CGATG' * 240
+
+
+@pytest.fixture
+def cross_db(tmp_path):
+    """X: Alpha one, Alpha two, Beta one. Y: Alpha one, Gamma one. W: Delta one, Epsilon one."""
+    lineages = {
+        '1': ('Alpha one', 'Alpha', 'F1', 'P1'),
+        '2': ('Alpha two', 'Alpha_A', 'F1', 'P1'),
+        '3': ('Beta one', 'Beta', 'F2', 'P2'),
+        '5': ('Gamma one', 'Gamma', 'F3', 'P2'),
+        '6': ('Delta one', 'Delta', 'F4', 'P3'),
+        '7': ('Epsilon one', 'Epsilon', 'F5', 'P3'),
+    }
+    records = [
+        ('1', X), ('2', X), ('3', X),   # 1:db:1, 2:db:2, 3:db:3
+        ('1', Y), ('5', Y),             # 1:db:4, 5:db:5
+        ('1', OWN1), ('2', OWN2), ('3', OWN3),
+        ('6', W), ('7', W),             # 6:db:9, 7:db:10
+    ]
+    fasta, tax = write_db(tmp_path, records, lineages)
+    return fasta, tax, tmp_path
+
+
+def build_reports(cross_db, rule, copies=None):
+    fasta, tax, out = cross_db
+    identical_16s.write_reports(fasta, tax, str(out / 'identical_16s.tsv'), str(out / 'cross_genus_identical.tsv'),
+                                cross_genus_rule=rule, copies=copies)
+    removed = {r['sequence_id']: r['kept_in'] for r in read_tsv(out / 'cross_genus_removed.tsv')}
+    emptied = [r['species'] for r in read_tsv(out / 'cross_genus_emptied.tsv')]
+    ids = [h[1:] for h, _ in identical_16s.fasta_records(fasta)]
+    return removed, emptied, ids
+
+
+def test_remove_drops_every_copy(cross_db):
+    removed, emptied, ids = build_reports(cross_db, 'remove')
+    assert removed == dict.fromkeys(['1:db:1', '2:db:2', '3:db:3', '1:db:4', '5:db:5', '6:db:9', '7:db:10'], '')
+    assert ids == ['1:db:6', '2:db:7', '3:db:8']
+    assert emptied == ['Delta one', 'Epsilon one', 'Gamma one']
+
+
+def test_best_genus_keeps_the_genus_with_most_entries_and_drops_ties(cross_db):
+    removed, emptied, ids = build_reports(cross_db, 'best-genus')
+    # X: two Alpha entries (Alpha_A is Alpha) against one Beta; Y and W tie, so every copy goes
+    assert removed == {'3:db:3': 'Alpha', '1:db:4': '', '5:db:5': '', '6:db:9': '', '7:db:10': ''}
+    assert ids == ['1:db:1', '2:db:2', '1:db:6', '2:db:7', '3:db:8']
+    assert emptied == ['Delta one', 'Epsilon one', 'Gamma one']
+
+
+def test_most_copies_counts_input_copies_then_genus_entries(cross_db):
+    # Beta one's X stands for ten input sequences; every other entry for one
+    removed, emptied, ids = build_reports(cross_db, 'most-copies', copies={'3:db:3': 10})
+    # X goes to Beta; Y ties on copies and goes to Alpha (5 entries against Gamma's 1);
+    # W ties on both, so both copies go
+    assert removed == {'1:db:1': 'Beta', '2:db:2': 'Beta', '5:db:5': 'Alpha', '6:db:9': '', '7:db:10': ''}
+    assert ids == ['3:db:3', '1:db:4', '1:db:6', '2:db:7', '3:db:8']
+    assert emptied == ['Delta one', 'Epsilon one', 'Gamma one']
+
+
+def test_reports_describe_the_cleaned_database(cross_db):
+    fasta, tax, out = cross_db
+    build_reports(cross_db, 'best-genus')
+    # X still links Alpha one and Alpha two; cross_genus_identical.tsv lists the sequences as built
+    assert [r['species'] for r in read_tsv(out / 'identical_16s.tsv')] == ['Alpha one', 'Alpha two']
+    assert len(read_tsv(out / 'cross_genus_identical.tsv')) == 3
+    removed_rows = read_tsv(out / 'cross_genus_removed.tsv')
+    assert list(removed_rows[0]) == identical_16s.REMOVED_COLUMNS
+    assert removed_rows[0] == {'sequence_id': '3:db:3', 'tax_id': '3', 'species': 'Beta one', 'genus': 'Beta',
+                               'md5': removed_rows[0]['md5'], 'rule': 'best-genus', 'kept_in': 'Alpha'}
+    emptied_rows = read_tsv(out / 'cross_genus_emptied.tsv')
+    assert list(emptied_rows[0]) == identical_16s.EMPTIED_COLUMNS
+    assert emptied_rows[0] == {'tax_id': '6', 'species': 'Delta one', 'genus': 'Delta', 'sequences_removed': '1'}
+
+
+def test_removing_a_shared_sequence_removes_the_group(cross_db):
+    fasta, tax, out = cross_db
+    build_reports(cross_db, 'most-copies', copies={'3:db:3': 10})
+    assert read_tsv(out / 'identical_16s.tsv') == []
+
+
+def test_keep_leaves_the_database_as_built(cross_db):
+    fasta, tax, out = cross_db
+    before = open(fasta).read()
+    identical_16s.write_reports(fasta, tax, str(out / 'identical_16s.tsv'), str(out / 'cross.tsv'))
+    assert open(fasta).read() == before
+    assert not (out / 'cross_genus_removed.tsv').exists()
+    assert not (out / 'cross_genus_emptied.tsv').exists()
+
+
+def test_most_copies_without_genus_entries_drops_ties(cross_db):
+    fasta, tax, _ = cross_db
+    _, cross = identical_16s.identical_reports(fasta, tax)
+    removed = identical_16s.cross_genus_removals(cross, identical_16s.read_taxonomy(tax), 'most-copies',
+                                                 {'3:db:3': 10})
+    # Without genus_entries a tie on copies cannot be broken: Y and W lose every copy
+    assert removed == {'1:db:1': 'Beta', '2:db:2': 'Beta', '1:db:4': '', '5:db:5': '', '6:db:9': '', '7:db:10': ''}
+
+
+def test_best_genus_counts_species_not_entries(tmp_path):
+    # Alpha one holds X twice (cases differ, so the builder kept two entries); Beta one holds it once
+    lineages = {'1': ('Alpha one', 'Alpha', 'F1', 'P1'), '3': ('Beta one', 'Beta', 'F2', 'P2')}
+    fasta, tax = write_db(tmp_path, [('1', X), ('1', X.lower()), ('3', X)], lineages)
+    _, cross = identical_16s.identical_reports(fasta, tax)
+    removed = identical_16s.cross_genus_removals(cross, identical_16s.read_taxonomy(tax), 'best-genus')
+    assert removed == dict.fromkeys(['1:db:1', '1:db:2', '3:db:3'], '')
+
+
+def test_gzipped_database_stays_gzipped(cross_db):
+    fasta, tax, out = cross_db
+    gz = fasta + '.gz'
+    with open(fasta, 'rb') as src, gzip.open(gz, 'wb') as dst:
+        dst.write(src.read())
+    identical_16s.write_reports(gz, tax, str(out / 'identical_16s.tsv'), cross_genus_rule='remove')
+    with gzip.open(gz, 'rt') as fh:
+        ids = [line[1:].strip() for line in fh if line.startswith('>')]
+    assert ids == ['1:db:6', '2:db:7', '3:db:8']
+
+
+def test_unknown_rule_is_refused():
+    with pytest.raises(ValueError, match='unknown cross-genus rule'):
+        identical_16s.cross_genus_removals([], {}, 'majority')
