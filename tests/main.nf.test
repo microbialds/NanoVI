@@ -75,6 +75,48 @@ nextflow_pipeline {
         }
     }
 
+    test("--cell_abundance refuses a --taxonomy_tsv other than the database's") {
+        tag "stub"
+        options "-profile test -stub-run --cell_abundance true"
+
+        when {
+            params {
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/e2e/db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.trace.tasks().size() == 0
+            assert (workflow.stdout + workflow.stderr).any { it.contains("it cannot be used with another --taxonomy_tsv") }
+        }
+    }
+
+    test("--copy_numbers in abundance mode is ignored with a warning") {
+        tag "stub"
+        options "-profile test -stub-run --cell_abundance true --copy_numbers ${projectDir}/tests/test_data/e2e/copy_number_sources.tsv"
+
+        when {
+            params {
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/e2e/db"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def warning = "--copy_numbers is a build-database option and is ignored by --cmd abundance"
+            assert (workflow.stdout + workflow.stderr).any { it.contains(warning) } ||
+                file("${metaDir}/nextflow.log").text.contains(warning)
+        }
+    }
+
     test("--cell_abundance fails on a database without copy_numbers.tsv") {
         tag "stub"
         options "-profile test -stub-run --cell_abundance true"

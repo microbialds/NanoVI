@@ -29,6 +29,7 @@ import numpy as np
 import pandas as pd
 from scipy import sparse
 
+from copy_numbers import combine_cells
 from variational_inference_bayesian import SHARED_READ_MIN_SPLIT, row_groups
 
 # Threshold on max(f_a(b), f_b(a)) (D39); estimate_abundance.py --group-min-shared is for tests
@@ -204,20 +205,18 @@ def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, bino
     (the coarsest member's), from the members that have a copy number.
     """
     from taxonomy import (BELOW_DETECTION_LABEL, IDENTICAL_COLUMN, INTERVAL_COLUMNS, SHARED_COLUMN,
-                          TAXONOMY_RANKS, UNASSIGNED_LABEL, interval_bounds, species_row_keys)
+                          TAXONOMY_RANKS, UNASSIGNED_LABEL, interval_bounds, table_row_of_ids)
 
     counts = "estimated_counts" in species_df.columns
     relatives = IDENTICAL_COLUMN in species_df.columns
     is_placeholder = species_df["species"].isin([BELOW_DETECTION_LABEL, UNASSIGNED_LABEL])
     taxa = species_df[~is_placeholder]
-    row_of_key = {tuple(r): i for i, r in zip(taxa.index, taxa[TAXONOMY_RANKS].itertuples(index=False, name=None))}
     reported_names = set(taxa["species"])
     summary = {str(k): v for k, v in read_summary.items()}
     posterior = lambda t, col: float(summary.get(t, {}).get(col, 0.0))
     total_alpha = sum(posterior(t, "alpha") for t in summary) if intervals else None
     # The row of every tax ID, in one pass over the taxonomy
-    all_ids = [str(t) for group in groups for t in group["tax_ids"]]
-    row_of_id = dict(zip(all_ids, (row_of_key[k] for k in species_row_keys(all_ids, taxonomy_df, binomial))))
+    row_of_id = table_row_of_ids([t for group in groups for t in group["tax_ids"]], species_df, taxonomy_df, binomial)
 
     total_cells = sum(c[0] for c in cells.values() if c) if cells is not None else None
     out = []
@@ -251,7 +250,6 @@ def write_groups_table(groups, read_summary, species_df, taxonomy_df, path, bino
         if cells is not None:
             have = [cells[i] for i in rows.index if cells.get(i)]
             if have:
-                from copy_numbers import combine_cells
                 group_cells, _, entry["copy_number"], entry["copy_number_level"] = combine_cells(have)
                 entry["cell_abundance"] = group_cells / total_cells
         if len(rows) == 1:

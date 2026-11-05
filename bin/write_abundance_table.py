@@ -26,8 +26,7 @@ import pandas as pd
 
 from ambiguity_groups import write_groups_table
 from copy_numbers import read_copy_numbers, row_cells, tax_id_copy_numbers, write_cell_table
-from taxonomy import (BELOW_DETECTION_LABEL, IDENTICAL_COLUMN, TAXONOMY_RANKS, UNASSIGNED_LABEL,
-                      freq_to_lineage_df, species_row_keys)
+from taxonomy import IDENTICAL_COLUMN, freq_to_lineage_df, table_row_of_ids
 
 
 def read_identical(path):
@@ -112,11 +111,7 @@ def main():
     if args.cell_output:
         cn_of_id = tax_id_copy_numbers(freq, read_copy_numbers(args.copy_numbers), taxonomy_df)
         # The species table row of every tax ID, as the group table finds it
-        taxa = species_df[~species_df["species"].isin([BELOW_DETECTION_LABEL, UNASSIGNED_LABEL])]
-        row_of_key = {tuple(r): i for i, r in zip(taxa.index, taxa[TAXONOMY_RANKS].itertuples(index=False, name=None))}
-        ids = [str(t) for t in freq]
-        row_of_id = dict(zip(ids, (row_of_key[k] for k in species_row_keys(ids, taxonomy_df, args.binomial_names))))
-        cells = row_cells(freq, row_of_id, cn_of_id)
+        cells = row_cells(freq, table_row_of_ids(freq, species_df, taxonomy_df, args.binomial_names), cn_of_id)
         out_file = f"{args.cell_output}.tsv"
         write_cell_table(species_df, cells, out_file, below_detection_count, unassigned_count)
         print(f"Cell-level abundances saved as {out_file}")

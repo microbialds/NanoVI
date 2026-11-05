@@ -90,9 +90,10 @@ def gtdb_metadata_values(paths, species_of):
             if missing:
                 raise ValueError(f"{path}: not a GTDB metadata file (no {', '.join(missing)} column)")
             i_tax, i_ssu, i_level = (header.index(c) for c in needed)
+            width = max(i_tax, i_ssu, i_level) + 1
             for line in fh:
                 row = line.rstrip("\r\n").split("\t")
-                if row[i_level] != COMPLETE_GENOME:
+                if len(row) < width or row[i_level] != COMPLETE_GENOME:
                     continue
                 try:
                     n = float(row[i_ssu])
@@ -163,15 +164,16 @@ def fill_copy_numbers(taxonomy_rows, values, source, by="species"):
                      "copy_number": value[0] if value else None, "level": "species" if value else "none",
                      "n_genomes": value[1] if value else "", "source": source})
     for rank in FILL_RANKS:
+        # Each species name once, so tax IDs that share a name do not outweigh the others
         known = {}
         for t, r in zip(taxonomy_rows, rows):
             key = _lineage_key(t, rank)
             if r["level"] == "species" and key is not None:
-                known.setdefault(key, []).append(r["copy_number"])
+                known.setdefault(key, {}).setdefault(t["species"], r["copy_number"])
         for t, r in zip(taxonomy_rows, rows):
             key = _lineage_key(t, rank)
             if r["level"] == "none" and key in known:
-                r["copy_number"], r["level"] = statistics.median(known[key]), rank
+                r["copy_number"], r["level"] = statistics.median(known[key].values()), rank
     return rows
 
 
@@ -226,8 +228,10 @@ def read_copy_numbers(path):
         out = {}
         for row in reader:
             cn = row["copy_number"].strip()
-            out[row["tax_id"].strip()] = (row["species"], _positive(cn, f"{path} tax_id {row['tax_id']}") if cn else None,
-                                          row["level"].strip())
+            # A tax ID listed twice keeps its first row, as taxonomy.label_lineages keeps its first lineage
+            out.setdefault(row["tax_id"].strip(), (
+                row["species"].strip(), _positive(cn, f"{path} tax_id {row['tax_id']}") if cn else None,
+                row["level"].strip()))
     return out
 
 
@@ -238,8 +242,13 @@ def tax_id_copy_numbers(freq, copy_numbers, taxonomy_df):
     two files are of different databases: that is an error. A tax ID missing from
     copy_numbers.tsv has no copy number (with a warning).
     """
-    names = taxonomy_df["species"].to_dict() if "species" in taxonomy_df.columns else {}
-    names = {str(k): v for k, v in names.items()}
+    names = {}
+    if "species" in taxonomy_df.columns:
+        for tid, name in taxonomy_df["species"].items():
+            # copy_numbers.tsv writes names stripped; a blank name, or one pandas reads as missing
+            # ('NA', 'null'), cannot be compared and is not checked (it is an 'Unknown taxid' row)
+            if not (name is None or name != name or not str(name).strip()):
+                names.setdefault(str(tid), str(name).strip())
     out = {}
     for tid in map(str, freq):
         if tid not in copy_numbers:
@@ -247,7 +256,7 @@ def tax_id_copy_numbers(freq, copy_numbers, taxonomy_df):
             out[tid] = None
             continue
         species, cn, level = copy_numbers[tid]
-        if tid in names and str(names[tid]) != species:
+        if tid in names and names[tid] != species:
             raise ValueError(f"copy_numbers.tsv does not match taxonomy.tsv: tax_id {tid} is "
                              f"{species!r} there and {names[tid]!r} in taxonomy.tsv")
         out[tid] = (cn, level) if cn is not None else None
@@ -276,7 +285,8 @@ def row_cells(freq, row_of_id, cn_of_id):
 
     cells = Σ r_t / c_t over the row's tax IDs that have a copy number c_t (r_t: read-level
     abundance), so the row's copy number, (reads with one) / cells, is the cell-weighted mean
-    of its tax IDs' copy numbers. A row none of whose tax IDs has a copy number gets None.
+    of its tax IDs' copy numbers. Tax IDs with no abundance do not count; a row none of whose
+    tax IDs has a copy number gets None.
     """
     parts = {}
     for tid, r in freq.items():
@@ -284,7 +294,7 @@ def row_cells(freq, row_of_id, cn_of_id):
         row = row_of_id[tid]
         parts.setdefault(row, [])
         cn = cn_of_id.get(tid)
-        if cn is not None:
+        if cn is not None and float(r) > 0:
             parts[row].append((float(r) / cn[0], float(r), cn[0], cn[1]))
     return {row: combine_cells(p) if p else None for row, p in parts.items()}
 

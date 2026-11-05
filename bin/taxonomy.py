@@ -270,6 +270,19 @@ def species_row_keys(tax_ids, taxonomy_df, binomial=False):
     return keys
 
 
+def table_row_of_ids(tax_ids, species_df, taxonomy_df, binomial=False):
+    """tax ID -> the index of its row in species_df, the table freq_to_lineage_df wrote.
+
+    Rows are matched on their species name and lineage (species_row_keys), so tax IDs
+    summed into one row (F46, --binomial_names) map to it. One pass over the taxonomy;
+    the group table (F57) and the cell table (F58) share it.
+    """
+    taxa = species_df[~species_df["species"].isin([BELOW_DETECTION_LABEL, UNASSIGNED_LABEL])]
+    row_of_key = {tuple(r): i for i, r in zip(taxa.index, taxa[TAXONOMY_RANKS].itertuples(index=False, name=None))}
+    ids = [str(t) for t in tax_ids]
+    return dict(zip(ids, (row_of_key[k] for k in species_row_keys(ids, taxonomy_df, binomial))))
+
+
 def unify_species_abundance(df, binomial=False):
     """
     Sums the rows that share a species name and lineage. Names are kept whole

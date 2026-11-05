@@ -348,3 +348,57 @@ def test_copy_numbers_and_cell_output_go_together(tmp_path):
     write_inputs(tmp_path, {'1': 1.0}, [tax_row(1, 'Alpha one', 'Alpha', 'F1')], [cn_row(1, 'Alpha one', 3.0)])
     result = run_table(tmp_path, '--copy-numbers', 'copy_numbers.tsv', cell=False)
     assert result.returncode != 0 and 'go together' in result.stderr
+
+
+# ─── Edge cases (review of the branch) ───────────────────────────────────────
+
+def test_blank_na_and_padded_species_names_pass_the_database_check(tmp_path):
+    # copy_numbers.tsv is written from the taxonomy by build_copy_numbers, as the builders do
+    write_inputs(tmp_path, {'1': 0.4, '2': 0.3, '3': 0.2, '4': 0.1}, [tax_row(1, 'x', 'X', 'F')], [])
+    (tmp_path / 'taxonomy.tsv').write_text(
+        'tax_id\tspecies\tgenus\tfamily\torder\tclass\tphylum\tsuperkingdom\n'
+        '1\tAlpha one\tAlpha\tF1\tO\tC\tP\tBacteria\n'
+        '2\t\tAlpha\tF1\tO\tC\tP\tBacteria\n'
+        '3\tNA\tAlpha\tF1\tO\tC\tP\tBacteria\n'
+        '4\tBeta one \tAlpha\tF1\tO\tC\tP\tBacteria\n')
+    (tmp_path / 'source.tsv').write_text('species\tcopy_number\nAlpha one\t4\nBeta one\t2\n')
+    with open(os.devnull, 'w') as quiet:
+        stdout, sys.stdout = sys.stdout, quiet
+        try:
+            copy_numbers.build_copy_numbers(str(tmp_path), tmp_path / 'taxonomy.tsv', table=str(tmp_path / 'source.tsv'))
+        finally:
+            sys.stdout = stdout
+    result = run_table(tmp_path)
+    assert result.returncode == 0, result.stderr
+    _, cell = read_cell(tmp_path / 's_cell.tsv')
+    assert len(cell) == 4 and cell['copy_number'].sum() == pytest.approx(4 + 3 + 3 + 2)
+
+
+def test_a_tax_id_listed_twice_takes_its_first_row(tmp_path):
+    taxonomy = [tax_row(5, 'Gamma one', 'Gamma', 'F1'), tax_row(5, 'Delta one', 'Delta', 'F1')]
+    write_inputs(tmp_path, {'5': 1.0}, taxonomy, [cn_row(5, 'Gamma one', 3.0), cn_row(5, 'Delta one', 9.0)])
+    result = run_table(tmp_path)
+    assert result.returncode == 0, result.stderr
+    _, cell = read_cell(tmp_path / 's_cell.tsv')
+    assert cell[['species', 'copy_number']].values.tolist() == [['Gamma one', 3.0]]
+
+
+def test_gtdb_metadata_skips_blank_and_short_lines(tmp_path):
+    path = tmp_path / 'm.tsv'
+    path.write_text('accession\tgtdb_taxonomy\tncbi_assembly_level\tssu_count\n'
+                    f'RS_1\t{LIN.format(g="Alpha", s="Alpha one")}\tComplete Genome\t5\n\nRS_2\tcut\n')
+    assert gtdb_metadata_values([path], lambda lin: build_gtdb_db.parse_gtdb_lineage(lin)['species']) == \
+        {'Alpha one': (5.0, 1)}
+
+
+def test_tax_ids_without_abundance_do_not_count():
+    rows = copy_numbers.row_cells({'1': 0.0, '2': 0.0, '3': 0.5}, {'1': 0, '2': 0, '3': 1},
+                                  {'1': (4.0, 'species'), '2': (8.0, 'species'), '3': (2.0, 'genus')})
+    assert rows == {0: None, 1: (0.25, 0.5, 2.0, 'genus')}
+
+
+def test_a_species_name_shared_by_tax_ids_counts_once_in_a_median():
+    taxonomy = [tax_row(1, 'A a', 'A', 'F'), tax_row(2, 'A a', 'A', 'F'), tax_row(3, 'A a', 'A', 'F'),
+                tax_row(4, 'A b', 'A', 'F'), tax_row(5, 'A c', 'A', 'F')]
+    rows = fill_copy_numbers(taxonomy, {'A a': (7.0, 1), 'A b': (2.0, 1)}, 'test')
+    assert by_tax(rows)['5'] == (4.5, 'genus')

@@ -189,8 +189,10 @@ stay apart.
 
 ### Cell-level abundance: `sample_outputs/<sample>_cell-abundance.tsv`
 
-Only with `--cell_abundance`, which needs `copy_numbers.tsv` in `--db` (a database built
-without one stops the run before any task starts). The species table gives each species'
+Only with `--cell_abundance`, which needs `copy_numbers.tsv` in `--db` and the database's
+own `taxonomy.tsv` (a database built without copy numbers, or another `--taxonomy_tsv`,
+stops the run before any task starts; `--copy_numbers` and `--rrndb_pantaxa` are
+build-database options and are ignored here, with a warning). The species table gives each species'
 share of 16S reads, which follows its share of 16S genes; this table divides each species
 row's abundance by its 16S copy number and renormalises, so that a species with ten copies
 per genome no longer weighs ten times one with a single copy. The species table does not

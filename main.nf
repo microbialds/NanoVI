@@ -172,6 +172,15 @@ workflow {
                 error "--cell_abundance needs copy_numbers.tsv in the database directory (${params.db}). " +
                     "Build the database with copy numbers: bin/build_gtdb_db.py --gtdb-metadata (GTDB), or " +
                     "--cmd build-database --copy_numbers <table> or --rrndb_pantaxa <file>"
+            // Its tax IDs are those of the database's own taxonomy.tsv
+            if (tax_file != file("${params.db}/taxonomy.tsv"))
+                error "--cell_abundance uses ${params.db}/copy_numbers.tsv, which matches the database's own taxonomy.tsv; " +
+                    "it cannot be used with another --taxonomy_tsv (${taxonomy_tsv})"
+        }
+        // The copy-number sources are build-database options (F58)
+        ['copy_numbers', 'rrndb_pantaxa'].findAll { params[it] }.each {
+            log.warn "--${it} is a build-database option and is ignored by --cmd abundance; " +
+                "--cell_abundance reads copy_numbers.tsv from --db"
         }
 
         ABUNDANCE(input_reads, fasta_file, tax_file, db_index, identical_16s, copy_numbers)
