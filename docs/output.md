@@ -11,6 +11,7 @@ database, 30 that are not 16S). How the numbers are computed is in
 <output_dir>/
 ├── sample_outputs/<sample>_rel-abundance.tsv
 ├── sample_outputs/<sample>_read_assignments.tsv.gz    (--read_assignments)
+├── sample_outputs/<sample>_groups.tsv                 (--ambiguity_groups)
 ├── consolidated_output/
 │   ├── otu_table_abundance.tsv
 │   ├── otu_table_counts.tsv        (not written when no sample has counts)
@@ -124,6 +125,59 @@ read_id                    species                   probability
 8_Shigella_flexneri_29     Escherichia coli          0.2340059206871047
 non16S_15                  Unassigned                1.0
 ```
+
+### Ambiguity groups: `sample_outputs/<sample>_groups.tsv`
+
+Only with `--ambiguity_groups`. The per-sample table's species rows grouped where the
+sample cannot separate them, so that a pair of species whose reads are split by
+abundance is also reported by its sum, the quantity the reads support. The species table
+does not change. Two rows a and b are linked when the reads they share carry at least
+0.25 of either one's expected reads, max(f_a(b), f_b(a)) ≥ 0.25, where f_a(b) is the
+share of a's expected reads on reads that b takes at least 0.01 of (responsibilities from
+the final fit, `vb` or `em`, summed over each row's tax IDs, so `--binomial_names` merges
+rows first). A group is a set of rows connected by links, so every species row is in
+exactly one group; a row that links to nothing is a group of one. f is counted per
+partner, so it is not `shared_read_fraction`, which counts a read as shared when all the
+other rows together take 0.01 of it.
+
+| Column | When | Meaning |
+|---|---|---|
+| `group` | always | `G1`, `G2`, … by decreasing abundance; then `Below detection` and `Unassigned` as in the species table |
+| `members` | always | The group's species rows, named as in the species table, `; `-separated, by decreasing abundance |
+| `n_members` | always | Number of species rows (empty on the placeholder rows) |
+| `abundance` | always | Sum of the members' abundances |
+| `lowest_common_rank`, `lowest_common_taxon` | always | The lowest rank at which the members' lineages agree and the taxon there (`species` and the name for a group of one); empty if they agree at no rank. A group can cross genera |
+| `estimated_counts` | `--keep_counts` | Sum of the members' `estimated_counts`; the placeholder rows as in the species table, so the column adds up to the reads that passed the length filter |
+| `identical_16s_relatives` | always | Species of the members' genera that share an identical 16S with a member in the database (`identical_16s_species`) and are not reported in the sample, `; `-separated: species the group may also contain, whose reads would then have gone to a member. The fit cannot form groups with them, since they are not reported: *Staphylococcus argenteus*, for example, was pruned beside *S. aureus* in every simulated community that had both at 5% each. Empty when no member has one, or without an identical-16S table |
+| `max_shared` | always | The largest max(f_a(b), f_b(a)) between two members: how strongly the group is held together. Empty for a group of one |
+| `shared_read_fraction` | always | As in the species table, judged between groups: the share of the group's expected reads whose responsibility is split with rows outside the group. For a group of one it equals the species row's value |
+| `ci_lower`, `ci_upper` | `--credible_intervals` (VB only) | From the group's summed Dirichlet parameter, Beta(Σ α, A − Σ α), as for a summed species row. For a group of one they equal the species row's |
+
+The 0.25 comes from the 2026 benchmark ([NanoVI-paper `ambiguity_2026.md`](https://github.com/microbialds/NanoVI-paper/blob/main/docs/benchmarks/ambiguity_2026.md)): on simulated communities the group table's L1 against the truth summed over the same groups was 0.075, against the species table's 0.132 (0.010 when the listed relatives count towards their group), and 0.325 against 0.352 on 13 real mock communities. The cost: about 1.5 of the 12 species that the species table had within 25% of the truth went into a group per simulated sample, and on the real mocks 7 of 18 groups crossed a genus, through a false-positive species that shared reads with a mock species.
+
+The group table is per sample: groups are formed from each sample's own reads, so two
+samples can group the same species differently, and `combine-outputs`, `collapse-taxonomy`
+and the consolidated tables work on the species tables only. The per-read file
+(`--read_assignments`) keeps its species rows; a group's reads are its members' lines.
+
+e2e fixture (`--ambiguity_groups true`; lineage and `identical_16s_relatives` columns
+left out, the latter is empty since the fixture's 11 sequences are all distinct):
+
+| group | members | n_members | abundance | estimated_counts | max_shared | shared_read_fraction |
+|---|---|---|---|---|---|---|
+| G1 | Staphylococcus aureus | 1 | 0.399612 | 240 | | 0.0 |
+| G2 | Escherichia coli; Shigella flexneri | 2 | 0.300055 | 180 | 0.771 | 0.0 |
+| G3 | Streptococcus pneumoniae | 1 | 0.150081 | 90 | | 0.101 |
+| G4 | Pseudomonas aeruginosa | 1 | 0.100111 | 60 | | 0.0 |
+| G5 | Streptococcus mitis | 1 | 0.050141 | 30 | | 0.067 |
+| Below detection | Below detection | | 0.0 | 0 | | |
+| Unassigned | Unassigned | | 0.0 | 30 | | |
+
+*S. flexneri*'s estimate rests on reads it shares with *E. coli* (f = 0.771: 16.8 of its
+21.8 expected reads), so the two are one group, at 0.300 against a truth of 0.30 (0.25 and
+0.05); the group's lowest common rank is the family Enterobacteriaceae. *S. pneumoniae* and
+*S. mitis*, which the fixture splits correctly, share 0.101 of *S. pneumoniae*'s reads and
+stay apart.
 
 ### Consolidated tables: `consolidated_output/`
 

@@ -69,8 +69,9 @@ nextflow_pipeline {
                 .find { it.name.startsWith('ABUNDANCE:GENERATE_PHYLOSEQ_TABLES') }
             def (prefix, rest) = task.hash.split('/')
             def taskDir = new File("${metaDir}/../work/${prefix}").listFiles().find { it.name.startsWith(rest) }
-            def script = new File(taskDir, '.command.sh').text
-            assert script.contains('_rel-abundance.tsv') && !script.contains('_groups.tsv')
+            // The files staged into the task
+            def staged = taskDir.list() as List
+            assert staged.any { it.endsWith('_rel-abundance.tsv') } && !staged.any { it.endsWith('_groups.tsv') }
         }
     }
 
