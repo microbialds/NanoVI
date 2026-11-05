@@ -11,6 +11,8 @@ identical_16s.tsv; empty when the file is ''), shared_read_fraction (from the
 read summary of estimate_abundance.py; D27), and with --credible-intervals the
 ci_lower and ci_upper columns (sampling intervals of the Bayesian VI's
 mean-field posterior, which ignore how shared reads are split; D7, D27).
+With --groups-output it also writes <prefix>.tsv of the ambiguity groups that
+estimate_abundance.py --groups put into the JSON (ambiguity_groups.py, F57, D39).
 """
 import argparse
 import json
@@ -18,6 +20,7 @@ import sys
 
 import pandas as pd
 
+from ambiguity_groups import write_groups_table
 from taxonomy import IDENTICAL_COLUMN, freq_to_lineage_df
 
 
@@ -54,6 +57,9 @@ def main():
     parser.add_argument("--identical-16s", metavar="FILE",
                         help="identical_16s.tsv of the database: add the identical_16s_species column "
                              "('' writes the column empty)")
+    parser.add_argument("--groups-output", metavar="PREFIX",
+                        help="also write the ambiguity groups to PREFIX.tsv (<sample>_groups; needs abundances "
+                             "from estimate_abundance.py --groups)")
     args = parser.parse_args()
 
     with open(args.abundance) as f:
@@ -62,6 +68,8 @@ def main():
     if args.credible_intervals and not (read_summary is not None
                                         and all("alpha" in v for v in read_summary.values())):
         parser.error("--credible-intervals needs abundances from estimate_abundance.py --estimator vb")
+    if args.groups_output and "groups" not in abundance_data:
+        parser.error("--groups-output needs abundances from estimate_abundance.py --groups")
 
     freq = abundance_data["abundance"]
     below_detection_count = abundance_data["below_detection_count"]
@@ -74,7 +82,7 @@ def main():
 
     taxonomy_df = pd.read_csv(args.taxonomy, sep="\t", dtype=str).set_index("tax_id")
 
-    freq_to_lineage_df(
+    species_df = freq_to_lineage_df(
         freq,
         tsv_output_path=args.output_prefix,
         taxonomy_df=taxonomy_df,
@@ -87,6 +95,11 @@ def main():
         identical=read_identical(args.identical_16s) if args.identical_16s is not None else None,
         binomial=args.binomial_names,
     )
+    if args.groups_output:
+        out_file = f"{args.groups_output}.tsv"
+        write_groups_table(abundance_data["groups"], read_summary, species_df, taxonomy_df, out_file,
+                           binomial=args.binomial_names, intervals=args.credible_intervals)
+        print(f"Ambiguity groups saved as {out_file}")
 
 
 if __name__ == "__main__":

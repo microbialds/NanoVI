@@ -24,13 +24,14 @@ process RUN_VI {
         --elbo-threshold ${params.vi_elbo_threshold} \\
         --taxonomy "${taxonomy_tsv}" \\
         ${params.binomial_names ? '--binomial-names' : ''} \\
-        ${params.read_assignments ? "--read-assignments ${sample_id}_read_assignments.tsv.gz" : ''}
+        ${params.read_assignments ? "--read-assignments ${sample_id}_read_assignments.tsv.gz" : ''} \\
+        ${params.ambiguity_groups ? '--groups' : ''}
     python_versions.py "${task.process}" > versions.yml
     """
 
     stub:
     """
-    echo '{"abundance": {}, "below_detection_count": 0, "read_summary": {}}' > ${sample_id}_abundance.json
+    echo '{"abundance": {}, "below_detection_count": 0, "read_summary": {}${params.ambiguity_groups ? ', "groups": []' : ''}}' > ${sample_id}_abundance.json
     ${params.read_assignments ? "printf 'read_id\\tspecies\\tprobability\\n' | gzip > ${sample_id}_read_assignments.tsv.gz" : ''}
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":

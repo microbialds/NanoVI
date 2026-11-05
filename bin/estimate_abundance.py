@@ -16,6 +16,9 @@ among tax IDs reported in one row (F46).
 
 With --read-assignments (which needs --taxonomy) it also writes the per-read
 assignments, <sample>_read_assignments.tsv.gz (read_assignments.py, F55, D37).
+With --groups (which needs --taxonomy) the JSON also gets "groups": the table rows
+that share most of their reads in this sample (ambiguity_groups.py, F57, D39),
+which write_abundance_table.py --groups-output writes as <sample>_groups.tsv.
 """
 import argparse
 import json
@@ -25,6 +28,7 @@ import numpy as np
 import pandas as pd
 
 import em_estimator
+from ambiguity_groups import GROUP_MIN_SHARED, ambiguity_groups
 from read_assignments import DEFAULT_MIN_PROBABILITY, write_read_assignments
 from read_scores import load_read_scores
 from taxonomy import species_row_keys
@@ -57,9 +61,18 @@ def main():
     parser.add_argument("--read-assignments-min-probability", type=float, default=DEFAULT_MIN_PROBABILITY,
                         help="with --read-assignments: the lowest probability listed "
                              f"(default {DEFAULT_MIN_PROBABILITY})")
+    parser.add_argument("--groups", action="store_true",
+                        help="also write the ambiguity groups of the table's rows into the JSON (needs --taxonomy)")
+    parser.add_argument("--group-min-shared", type=float, default=GROUP_MIN_SHARED,
+                        help="with --groups: link two rows when either one's shared-read share reaches this "
+                             f"(default {GROUP_MIN_SHARED})")
     args = parser.parse_args()
     if args.read_assignments and not args.taxonomy:
         parser.error("--read-assignments needs --taxonomy: the file names the table's rows")
+    if args.groups and not args.taxonomy:
+        parser.error("--groups needs --taxonomy: groups are made of the table's rows")
+    if not 0 < args.group_min_shared <= 1:
+        parser.error("--group-min-shared must be above 0 and at most 1")
     if not 0 <= args.read_assignments_min_probability <= 1:
         parser.error("--read-assignments-min-probability must be between 0 and 1")
 
@@ -72,8 +85,11 @@ def main():
     if len(offsets) <= 1:
         # No read was scored (F45): nothing to estimate, and every read is unassigned
         print(f"WARNING: {args.scores} has no scored read; writing an empty abundance", file=sys.stderr)
+        empty = {"abundance": {}, "below_detection_count": 0, "read_summary": {}}
+        if args.groups:
+            empty["groups"] = []
         with open(args.output, "w") as f:
-            json.dump({"abundance": {}, "below_detection_count": 0, "read_summary": {}}, f)
+            json.dump(empty, f)
         if args.read_assignments:
             write_read_assignments(args.read_assignments, [], unassigned_names, np.zeros((0, 1), dtype=np.int32),
                                    np.zeros((0, 1)), [], {}, args.read_assignments_min_probability)
@@ -109,7 +125,7 @@ def main():
             inner_tolerance=args.tolerance,
             posterior_summary=True,
             species_rows=species_rows,
-            responsibilities=bool(args.read_assignments),
+            responsibilities=bool(args.read_assignments or args.groups),
         )
         freq_full, freq_thresh, _, below_detection_count, read_summary = result[:5]
 
@@ -122,11 +138,12 @@ def main():
         read_summary = em_estimator.read_summary(idx, logL, [freq_full[t] for t in surviving], surviving,
                                                  list(reported), species_rows, resp=resp)
 
-    if args.read_assignments:
+    if args.read_assignments or args.groups:
         if args.estimator == "em":
             (idx_reported, phi), reported_ids = resp, list(reported)
         else:
             idx_reported, phi, reported_ids = result[-1]
+    if args.read_assignments:
         write_read_assignments(args.read_assignments, read_names, unassigned_names, idx_reported, phi,
                                reported_ids, species_rows, args.read_assignments_min_probability)
 
@@ -135,6 +152,11 @@ def main():
         "below_detection_count": below_detection_count,
         "read_summary": read_summary,
     }
+    if args.groups:
+        # EM's responsibilities cover the species that survived pruning; only the reported ones are counted
+        phi_reported = np.where(idx_reported >= 0, phi, 0.0)
+        output["groups"] = ambiguity_groups(idx_reported, phi_reported, reported_ids, species_rows,
+                                            args.group_min_shared)
     with open(args.output, "w") as f:
         json.dump(output, f)
 

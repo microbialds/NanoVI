@@ -32,8 +32,45 @@ nextflow_pipeline {
             assert versions.Workflow['microbialds/NanoVI'] ==~ /\d+\.\d+\.\d+/
             assert !file("${outputDir}/sample_outputs/versions.yml").exists()
             assert !file("${outputDir}/consolidated_output/versions.yml").exists()
-            // The per-read assignments only with --read_assignments (F55)
+            // The per-read assignments only with --read_assignments (F55), the groups only with --ambiguity_groups (F57)
             assert !file("${outputDir}/sample_outputs").listFiles().any { it.name.endsWith('_read_assignments.tsv.gz') }
+            assert !file("${outputDir}/sample_outputs").listFiles().any { it.name.endsWith('_groups.tsv') }
+        }
+    }
+
+    // WRITE_OUTPUT's stub emits the group table when asked (F57), and only the species
+    // tables reach GENERATE_PHYLOSEQ_TABLES
+    test("--ambiguity_groups publishes each sample's group table in stub mode") {
+        tag "stub"
+        options "-profile test -stub-run --ambiguity_groups true"
+
+        when {
+            params {
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def samples = file("${projectDir}/tests/test_data/stub_reads").listFiles()
+                .findAll { it.name =~ /\.f(ast)?q(\.gz)?$/ }.collect { it.name.replaceFirst(/\.f(ast)?q(\.gz)?$/, '') }
+            assert samples
+            samples.each { sample ->
+                assert file("${outputDir}/sample_outputs/${sample}_groups.tsv").exists()
+                assert file("${outputDir}/sample_outputs/${sample}_rel-abundance.tsv").exists()
+            }
+            def lines = file("${metaDir}/trace.csv").readLines()
+            def fields = lines[0].split('\t') as List
+            def task = lines.drop(1).collect { [fields, it.split('\t') as List].transpose().collectEntries { it } }
+                .find { it.name.startsWith('ABUNDANCE:GENERATE_PHYLOSEQ_TABLES') }
+            def (prefix, rest) = task.hash.split('/')
+            def taskDir = new File("${metaDir}/../work/${prefix}").listFiles().find { it.name.startsWith(rest) }
+            def script = new File(taskDir, '.command.sh').text
+            assert script.contains('_rel-abundance.tsv') && !script.contains('_groups.tsv')
         }
     }
 
@@ -851,6 +888,7 @@ nextflow_pipeline {
             def result = "${outputDir}/sample_outputs/e2e_mock_rel-abundance.tsv"
             assert file(result).exists()
             assert !file("${outputDir}/sample_outputs/e2e_mock_read_assignments.tsv.gz").exists()
+            assert !file("${outputDir}/sample_outputs/e2e_mock_groups.tsv").exists()
             def rows = readTsv(result)
             def expected = readTsv("${projectDir}/tests/test_data/e2e/expected.tsv")
             // The fixture's 11 species share no identical 16S (D24): the column is there, empty
@@ -995,13 +1033,66 @@ nextflow_pipeline {
         }
     }
 
+    // Ambiguity groups (F57, D39): E. coli and S. flexneri share most of S. flexneri's
+    // reads (51 tie), so they are one group; the other species are groups of one
+    test("--ambiguity_groups groups E. coli and S. flexneri on the e2e fixture") {
+        tag "e2e"
+        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --ambiguity_groups true"
+
+        when {
+            params {
+                output_dir = "${outputDir}"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def readTsv = { f ->
+                def lines = file(f).readLines().findAll { it }
+                def header = lines[0].split('\t', -1) as List
+                lines.drop(1).collect { line -> [header, line.split('\t', -1) as List].transpose().collectEntries { it } }
+            }
+            def species = readTsv("${outputDir}/sample_outputs/e2e_mock_rel-abundance.tsv")
+            def groups = readTsv("${outputDir}/sample_outputs/e2e_mock_groups.tsv")
+            assert file("${outputDir}/sample_outputs/e2e_mock_groups.tsv").readLines()[0].split('\t') as List ==
+                ['group', 'members', 'n_members', 'abundance', 'lowest_common_rank', 'lowest_common_taxon',
+                 'estimated_counts', 'identical_16s_relatives', 'max_shared', 'shared_read_fraction']
+            assert groups*.group == ['G1', 'G2', 'G3', 'G4', 'G5', 'Below detection', 'Unassigned']
+            def pair = groups.find { it.members == 'Escherichia coli; Shigella flexneri' }
+            assert pair != null && pair.n_members == '2'
+            def bySpecies = species.collectEntries { [(it.species): it] }
+            def members = ['Escherichia coli', 'Shigella flexneri']
+            assert Math.abs((pair.abundance as double) - members.sum { bySpecies[it].abundance as double }) < 1e-12
+            assert (pair.estimated_counts as int) == members.sum { bySpecies[it].estimated_counts as int }
+            // Their summed truth is 0.30 (0.25 + 0.05); the group no longer shares its tied reads
+            assert Math.abs((pair.abundance as double) - 0.30) <= 0.02
+            assert (pair.max_shared as double) >= 0.25
+            assert (pair.shared_read_fraction as double) < (bySpecies['Shigella flexneri'].shared_read_fraction as double)
+            assert pair.lowest_common_rank == 'family'
+            // Every other species is a group of one, with the species table's values
+            groups.findAll { it.n_members == '1' }.each { g ->
+                def row = bySpecies[g.members]
+                assert g.abundance == row.abundance && g.estimated_counts == row.estimated_counts
+                assert g.lowest_common_rank == 'species' && g.max_shared == ''
+                assert g.shared_read_fraction == row.shared_read_fraction
+            }
+            assert groups.count { it.n_members == '1' } == 4
+            assert groups.sum { it.estimated_counts as int } == species.sum { it.estimated_counts as int }
+            // No identical 16S in the fixture's database
+            assert groups.every { it.identical_16s_relatives == '' }
+            // The consolidated tables keep species rows
+            def otu = readTsv("${outputDir}/consolidated_output/otu_table_abundance.tsv")
+            assert otu*.species.toSet() == species*.species.toSet()
+        }
+    }
+
     // A sample with no read aligned to the database does not stop the run (F45): its
     // table has only the Below detection (0) and Unassigned rows, and the phyloseq
     // tables keep it with zero counts. non16s holds the fixture's 30 non-16S reads;
     // too_short holds 20 reads cut to 400 bp, below --min_length 500
     test("Samples with no aligned read get an all-Unassigned table beside a normal sample") {
         tag "e2e"
-        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --keep_files true --read_assignments true"
+        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --keep_files true --read_assignments true --ambiguity_groups true"
 
         when {
             def edge = "${projectDir}/tests/test_data/edge_samples"
@@ -1040,6 +1131,12 @@ nextflow_pipeline {
             def non16s = assignments('non16s')
             assert non16s.size() == 31 && non16s.drop(1).every { it ==~ /[^\t]+\tUnassigned\t1\.0/ }
             assert assignments('too_short') == ["read_id\tspecies\tprobability"]
+            // Their group tables (F57): only the two placeholder rows
+            [non16s: 30, too_short: 0].each { sample, unassigned ->
+                def groups = readTsv("${outputDir}/sample_outputs/${sample}_groups.tsv")
+                assert groups.collect { [it.group, it.members, it.estimated_counts as int] } ==
+                    [['Below detection', 'Below detection', 0], ['Unassigned', 'Unassigned', unassigned]]
+            }
             // fastplong leaves an empty file when no read passes; FILTER_READS makes it a gzip stream
             def filtered = new java.util.zip.GZIPInputStream(new FileInputStream("${outputDir}/filtered/too_short_filtered.fastq.gz"))
             assert filtered.read() == -1
