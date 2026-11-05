@@ -496,18 +496,25 @@ def add_interval_columns(results_df):
     50k reads in the Phase 7a benchmark; M2, D27). The Below detection and
     Unassigned rows are left empty.
     """
-    from scipy.stats import beta as beta_dist
-
     is_taxon = ~results_df["species"].isin([BELOW_DETECTION_LABEL, UNASSIGNED_LABEL])
     alpha = results_df.loc[is_taxon, "alpha"].to_numpy(dtype=float)
-    rest = alpha.sum() - alpha
-    lower, upper = beta_dist.ppf([[0.025], [0.975]], alpha, np.where(rest > 0, rest, 1.0))
-    # A single reported species has all the mass: Beta(α, 0) is a point at 1
-    lower, upper = np.where(rest > 0, lower, 1.0), np.where(rest > 0, upper, 1.0)
+    lower, upper = interval_bounds(alpha, alpha.sum())
     for col in INTERVAL_COLUMNS:
         results_df[col] = np.nan
     results_df.loc[is_taxon, "ci_lower"] = lower
     results_df.loc[is_taxon, "ci_upper"] = upper
+
+
+def interval_bounds(alpha, total):
+    """2.5% and 97.5% quantiles of Beta(α, total − α) for each α (the interval columns).
+
+    A row with all the mass (total − α = 0) is a point at 1.
+    """
+    from scipy.stats import beta as beta_dist
+
+    rest = total - alpha
+    lower, upper = beta_dist.ppf([[0.025], [0.975]], alpha, np.where(rest > 0, rest, 1.0))
+    return np.where(rest > 0, lower, 1.0), np.where(rest > 0, upper, 1.0)
 
 
 def collapse_rank(path, rank):

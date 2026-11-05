@@ -183,6 +183,11 @@
           "type": "boolean",
           "default": false,
           "description": "Also write sample_outputs/<sample>_read_assignments.tsv.gz: for every read, the species (rows of the abundance table) with probability >= 0.01 and that probability, 'Below detection' or 'Unassigned'"
+        },
+        "ambiguity_groups": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also write sample_outputs/<sample>_groups.tsv: the rows of the abundance table of one family grouped where two of them share at least 0.25 of either one's reads in the sample (a row with no family in taxonomy.tsv is grouped with none), with their summed abundance and the unreported species that share an identical 16S with a member. The abundance table does not change"
         }
       }
     },

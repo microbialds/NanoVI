@@ -8,7 +8,8 @@ process WRITE_OUTPUT {
     path identical_16s   // the database's identical_16s.tsv, or [] when there is none (D24)
 
     output:
-    path "*.tsv", emit: result_tsv
+    path "${sample_id}_rel-abundance.tsv", emit: result_tsv
+    path "${sample_id}_groups.tsv", emit: groups, optional: !params.ambiguity_groups
     path "versions.yml", emit: versions
 
     script:
@@ -23,13 +24,15 @@ process WRITE_OUTPUT {
         --identical-16s ${identical} \\
         ${params.binomial_names ? '--binomial-names' : ''} \\
         ${params.credible_intervals ? '--credible-intervals' : ''} \\
-        ${params.keep_counts ? '--counts' : ''}
+        ${params.keep_counts ? '--counts' : ''} \\
+        ${params.ambiguity_groups ? "--groups-output ${sample_id}_groups" : ''}
     python_versions.py "${task.process}" > versions.yml
     """
 
     stub:
     """
     touch ${sample_id}_rel-abundance.tsv
+    ${params.ambiguity_groups ? "touch ${sample_id}_groups.tsv" : ''}
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
         python: stub
