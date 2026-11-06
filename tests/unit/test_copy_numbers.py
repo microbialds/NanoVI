@@ -447,3 +447,45 @@ def test_a_group_of_one_has_exactly_its_rows_cell_share(tmp_path):
     g = pd.read_csv(tmp_path / 's_groups.tsv', sep='\t').dropna(subset=['n_members'])
     by_species = dict(zip(cell['species'], cell['abundance']))
     assert all(v == by_species[m] for m, v in zip(g['members'], g['cell_abundance']))
+
+
+# ─── Third review ────────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize('source', ['bad.tsv', 'missing.tsv'])
+def test_build_database_reads_the_copy_number_source_before_building(tmp_path, source):
+    build_database_inputs(tmp_path)
+    (tmp_path / 'lineages.tsv').write_text(
+        'tax_id\tspecies\tgenus\tfamily\torder\tclass\tphylum\tsuperkingdom\n'
+        '287\tAlpha one\tAlpha\tF1\tO\tC\tP\tBacteria\n1001\tAlpha two\tAlpha\tF1\tO\tC\tP\tBacteria\n')
+    (tmp_path / 'bad.tsv').write_text('species\tcopy_number\nAlpha one\t0\n')
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'main.py'), 'build-database', 'mydb', '--sequences', 'seqs.fa',
+         '--seq2tax', 'seq2tax.tsv', '--taxonomy-list', 'lineages.tsv', '--copy-numbers', source],
+        cwd=tmp_path, capture_output=True, text=True)
+    assert result.returncode != 0
+    assert not (tmp_path / 'mydb').exists()
+
+
+def test_build_gtdb_db_reads_the_metadata_before_building(tmp_path):
+    ssu, meta, out = tmp_path / 'ssu.fna', tmp_path / 'bac120_metadata_r0.tsv', tmp_path / 'db'
+    ssu_fasta(ssu)
+    meta.write_text('accession\tgtdb_taxonomy\n')
+    with pytest.raises(ValueError):
+        build_gtdb_db.build_database(str(ssu), 'db_gtdb', str(out), gtdb_metadata=[str(meta)])
+    assert not out.exists()
+
+
+def test_rrndb_refuses_a_repeated_species_taxid(tmp_path):
+    path = tmp_path / 'pantaxa.tsv'
+    path.write_text('taxid\trank\tname\tchildcount\tmedian\n'
+                    '287\tspecies\tA a\t3\t4\n287\tspecies\tA b\t2\t6\n')
+    with pytest.raises(ValueError, match="taxid '287' is listed more than once"):
+        copy_numbers.rrndb_pantaxa_values(path)
+
+
+def test_only_the_samples_tax_ids_are_read(tmp_path):
+    path = tmp_path / 'copy_numbers.tsv'
+    path.write_text('tax_id\tspecies\tcopy_number\tlevel\n1\tA a\t3\tspecies\n2\tB b\t4\tmanual\n')
+    assert read_copy_numbers(path, {'1'}) == {'1': ('A a', 3.0, 'species')}
+    with pytest.raises(ValueError, match='line 3: level'):
+        read_copy_numbers(path)

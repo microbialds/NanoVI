@@ -109,7 +109,7 @@ def main():
     )
     cells = row_of_id = None
     if args.cell_output:
-        cn_of_id = tax_id_copy_numbers(freq, read_copy_numbers(args.copy_numbers), taxonomy_df)
+        cn_of_id = tax_id_copy_numbers(freq, read_copy_numbers(args.copy_numbers, set(map(str, freq))), taxonomy_df)
         # The species table row of every tax ID, as the group table finds it
         row_of_id = table_row_of_ids(freq, species_df, taxonomy_df, args.binomial_names)
         cells = row_cells(freq, row_of_id, cn_of_id)

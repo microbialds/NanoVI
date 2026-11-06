@@ -91,6 +91,9 @@ def main():
 def run_build_database(args):
     if not args.db_name:
         raise ValueError("Please provide a database name.")
+    # The copy-number source is read first, so a bad one fails before the build (F58)
+    copy_number_source = copy_numbers.read_copy_number_source(table=args.copy_numbers,
+                                                              rrndb_pantaxa=args.rrndb_pantaxa)
     custom_db_path = os.path.join(os.getcwd(), args.db_name)
     if not os.path.exists(custom_db_path):
         os.makedirs(custom_db_path)
@@ -125,8 +128,7 @@ def run_build_database(args):
         cross_genus_rule=args.cross_genus_rule, copies={r.id: r.annotations["copies"] for r in fasta_records},
     )
     # 16S copy numbers per species (F58); a build without a source removes an earlier build's file
-    copy_numbers.build_copy_numbers(custom_db_path, output_taxonomy_location, table=args.copy_numbers,
-                                    rrndb_pantaxa=args.rrndb_pantaxa)
+    copy_numbers.build_copy_numbers(custom_db_path, output_taxonomy_location, source=copy_number_source)
     print("Database creation successful")
 
 

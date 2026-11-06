@@ -165,6 +165,10 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
     """
     if cross_genus_rule not in identical_16s.CROSS_GENUS_RULES:
         raise ValueError(f"unknown cross-genus rule {cross_genus_rule!r}")
+    # The copy-number source is read first, so a bad one fails before the build (F58)
+    copy_number_source = copy_numbers.read_copy_number_source(
+        gtdb_metadata=gtdb_metadata, table=copy_number_table,
+        species_of=lambda lineage: parse_gtdb_lineage(lineage, merge_suffixes)["species"])
     os.makedirs(output_dir, exist_ok=True)
 
     # ── Pass 1: collect unique species and their lineages ─────────────────────
@@ -276,9 +280,7 @@ def build_database(ssu_path: str, db_name: str, output_dir: str, min_length: int
                                 os.path.join(output_dir, "cross_genus_identical.tsv"),
                                 cross_genus_rule=cross_genus_rule, copies=copies)
     # 16S copy numbers per species (F58); a build without a source removes an earlier build's file
-    copy_numbers.build_copy_numbers(
-        output_dir, tax_out, gtdb_metadata=gtdb_metadata, table=copy_number_table,
-        species_of=lambda lineage: parse_gtdb_lineage(lineage, merge_suffixes)["species"])
+    copy_numbers.build_copy_numbers(output_dir, tax_out, source=copy_number_source)
     kept = [h[1:].split()[0] for h, _ in (fasta_records(fasta_out) if cross_genus_rule != "keep" else out_records)]
     n_written = len(kept)
 

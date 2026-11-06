@@ -134,8 +134,11 @@ def rrndb_pantaxa_values(path):
             raise ValueError(f"{path}: not an rrnDB pan-taxa file (needs taxid, rank and median columns)")
         for row in reader:
             if row["rank"] == "species" and (row["median"] or "").strip():
-                values[(row["taxid"] or "").strip()] = (_positive(row["median"], f"{path} taxid {row['taxid']}"),
-                                                        (row.get("childcount") or "").strip())
+                taxid = (row["taxid"] or "").strip()
+                if taxid in values:
+                    raise ValueError(f"{path}: species taxid {taxid!r} is listed more than once")
+                values[taxid] = (_positive(row["median"], f"{path} taxid {taxid}"),
+                                 (row.get("childcount") or "").strip())
     return values
 
 
@@ -196,34 +199,52 @@ def write_copy_numbers(rows, path):
     return counts
 
 
-def build_copy_numbers(out_dir, taxonomy_path, gtdb_metadata=None, table=None, rrndb_pantaxa=None,
-                       species_of=None):
-    """Write <out_dir>/copy_numbers.tsv from one source, or remove an old one when none is given."""
-    path = os.path.join(out_dir, COPY_NUMBER_FILE)
+def read_copy_number_source(gtdb_metadata=None, table=None, rrndb_pantaxa=None, species_of=None):
+    """(values, source label, key) from the one copy-number source given, or None without one.
+
+    The builders read it before building, so a source that is missing or fails to parse
+    stops the build before its slow steps.
+    """
     given = [s for s in (gtdb_metadata, table, rrndb_pantaxa) if s]
     if len(given) > 1:
         raise ValueError("give one copy-number source: GTDB metadata, a table or rrnDB pan-taxa")
+    if not given:
+        return None
+    if gtdb_metadata:
+        return (gtdb_metadata_values(gtdb_metadata, species_of),
+                "gtdb_complete_genomes:" + ",".join(os.path.basename(p) for p in gtdb_metadata), "species")
+    if table:
+        return table_values(table), "table:" + os.path.basename(table), "species"
+    return rrndb_pantaxa_values(rrndb_pantaxa), "rrndb_pantaxa:" + os.path.basename(rrndb_pantaxa), "tax_id"
+
+
+def build_copy_numbers(out_dir, taxonomy_path, gtdb_metadata=None, table=None, rrndb_pantaxa=None,
+                       species_of=None, source=None):
+    """Write <out_dir>/copy_numbers.tsv from one source, or remove an old one when none is given.
+
+    source: read_copy_number_source's result, read before the build; without it the
+    source given here is read.
+    """
+    path = os.path.join(out_dir, COPY_NUMBER_FILE)
     # A database rebuilt without a source, or whose source fails to parse, must not keep an
     # earlier build's values beside the new taxonomy
     if os.path.exists(path):
         os.remove(path)
-    if not given:
+    if source is None:
+        source = read_copy_number_source(gtdb_metadata, table, rrndb_pantaxa, species_of)
+    if source is None:
         return None
-    taxonomy_rows = read_taxonomy_rows(taxonomy_path)
-    if gtdb_metadata:
-        values = gtdb_metadata_values(gtdb_metadata, species_of)
-        source, by = "gtdb_complete_genomes:" + ",".join(os.path.basename(p) for p in gtdb_metadata), "species"
-    elif table:
-        values, source, by = table_values(table), "table:" + os.path.basename(table), "species"
-    else:
-        values, source, by = rrndb_pantaxa_values(rrndb_pantaxa), "rrndb_pantaxa:" + os.path.basename(rrndb_pantaxa), "tax_id"
-    rows = fill_copy_numbers(taxonomy_rows, values, source, by=by)
+    values, label, by = source
+    rows = fill_copy_numbers(read_taxonomy_rows(taxonomy_path), values, label, by=by)
     write_copy_numbers(rows, path)
     return rows
 
 
-def read_copy_numbers(path):
-    """tax_id -> (species, copy number or None, level) from copy_numbers.tsv."""
+def read_copy_numbers(path, tax_ids=None):
+    """tax_id -> (species, copy number or None, level) from copy_numbers.tsv.
+
+    tax_ids: read and check only these rows (a sample's tax IDs, not the whole database).
+    """
     with open(path, encoding="utf8", newline="") as fh:
         reader = csv.DictReader(fh, delimiter="\t")
         missing = {"tax_id", "species", "copy_number", "level"} - set(reader.fieldnames or [])
@@ -232,6 +253,8 @@ def read_copy_numbers(path):
         out = {}
         for line, row in enumerate(reader, 2):
             field = lambda k: (row[k] or "").strip()
+            if tax_ids is not None and field("tax_id") not in tax_ids:
+                continue
             cn, level = field("copy_number"), field("level")
             if cn and level not in LEVELS[:-1]:
                 raise ValueError(f"{path} line {line}: level {level!r} is not one of {', '.join(LEVELS[:-1])}")
@@ -249,8 +272,10 @@ def tax_id_copy_numbers(freq, copy_numbers, taxonomy_df):
     copy_numbers.tsv has no copy number (with a warning).
     """
     names = {}
+    wanted = set(map(str, freq))
     if "species" in taxonomy_df.columns:
-        for tid, name in taxonomy_df["species"].items():
+        species = taxonomy_df["species"]
+        for tid, name in species[species.index.astype(str).isin(wanted)].items():
             # copy_numbers.tsv writes names stripped; a blank name, or one pandas reads as missing
             # ('NA', 'null'), cannot be compared and is not checked (it is an 'Unknown taxid' row)
             if not (name is None or name != name or not str(name).strip()):
