@@ -22,6 +22,8 @@ Every new option is off by default: with the defaults the outputs are those of 1
 
 ### Documentation
 
+- An overview figure at the top of the README, `docs/images/nanovi_overview.svg` (Inter and the run report's Okabe-Ito colours; solid boxes run by default, dashed ones name the parameter they need) with its PNG; `docs/images/render_overview.sh` embeds the Inter subset and renders the PNG in pinned containers (F59).
+
 - `docs/workflow.md`: a Mermaid diagram of each `--cmd`, with the parameter that switches each step or output on, and a table of every process with its label, image and published files. CI checks that the page names every process and subworkflow the code includes, and no other (`tests/check_workflow_diagram.sh`) (F59).
 
 - `docs/methods.md` describes each new option with its benchmark evidence (the NanoVI-paper reports `cross_genus_2026.md`, `ambiguity_2026.md` and `copy_number_2026.md`) and its limitations rewritten for them: 16S copy number, the database's cross-genus sequences and the species 16S cannot separate. The README, `docs/output.md` and `docs/methods.md` were read as one, and every parameter and default checked against `nextflow.config` and `nextflow_schema.json` (F59).
