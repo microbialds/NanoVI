@@ -55,6 +55,9 @@ jobs:
       - name: Check nextflow.config, CHANGELOG.md, Dockerfile, Singularity.def, bin/_version.py and conf/base.config
         run: .github/scripts/check_versions.sh
 
+      - name: Check that docs/workflow.md names every process and subworkflow (F59)
+        run: tests/check_workflow_diagram.sh
+
   # ── 2. Nextflow integration tests ──────────────────────────────────────────
   integration-tests:
     name: Nextflow integration tests (nf-test)
