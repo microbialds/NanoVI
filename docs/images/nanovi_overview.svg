@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="780" viewBox="0 0 1280 780" role="img" aria-labelledby="title desc">
   <title id="title">NanoVI pipeline overview</title>
-  <desc id="desc">For each sample, full-length 16S Nanopore reads are length-filtered with fastplong, aligned with minimap2 against the database's index, scored with Emu's read score and fitted by Bayesian variational inference with pruning, and written as a species table; the minimap2 index and the identical-16S table are built once into the index cache. The run then writes the consolidated phyloseq tables and, with --report, an HTML and PDF report. Solid green boxes run by default; dashed boxes need the parameter they name. The build-database, collapse-taxonomy and combine-outputs commands are shown below.</desc>
+  <desc id="desc">For each sample, full-length 16S Nanopore reads are length-filtered with fastplong, aligned with minimap2 against the database's index, scored with Emu's read score and fitted by Bayesian variational inference with pruning, and written as a species table; the minimap2 index, and the identical-16S table when the database has none, are built once into the index cache. The run then writes the consolidated phyloseq tables and, with --report, an HTML and PDF report. Solid green boxes run by default; dashed boxes need the parameter they name. The build-database, collapse-taxonomy and combine-outputs commands are shown below.</desc>
   <!--
     Hand-written, edit freely. Layout: reference database and index cache | each
     sample (left to right) | whole run (right to left) | published outputs on the
@@ -79,7 +79,7 @@
     <rect width="272" height="58" rx="6"/>
     <text class="n" x="136" y="18">IDENTICAL_16S</text>
     <text class="d" x="136" y="34">species of a genus sharing an identical 16S</text>
-    <text class="d" x="136" y="48">only when --db has no identical_16s.tsv</text>
+    <text class="d" x="136" y="48">if --db has none, or another --taxonomy_tsv</text>
   </g>
 
   <!-- Index to the alignment, identical-16S table to the output step -->

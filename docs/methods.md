@@ -39,7 +39,7 @@ changes the output.
 |---|---|---|
 | FILTER_READS | fastplong 0.7.0 | Keeps reads of 500-2,000 bp (`--min_length`, `--max_length`). The quality filter is off (`--disable_quality_filtering`); `--min_quality Q` turns on fastplong's mean-quality filter (`--mean_qual Q`) |
 | INDEX_DB | minimap2 2.31 | Indexes the database's `species_taxid.fasta` with `-x map-ont -k 21`, once; the index is cached under a name that records the FASTA's MD5, the preset, k and the minimap2 version |
-| IDENTICAL_16S | `bin/identical_16s.py` | Only for a database without `identical_16s.tsv`: the species of each genus that share an identical 16S (section 10), built once and cached beside the index |
+| IDENTICAL_16S | `bin/identical_16s.py` | Only when the run has no table to use (a database without `identical_16s.tsv`, or a `--taxonomy_tsv` other than the database's own): the species of each genus that share an identical 16S (section 10), built once and cached beside the index |
 | ALIGN_READS | minimap2 2.31, samtools 1.24 | `minimap2 -ax map-ont -N 3 -p 0.9 -K 500M -k 21`: the primary alignment and up to 3 secondary alignments scoring at least 90% of it; BAM output |
 | LIKELIHOOD | `bin/read_likelihood.py` | The sample's error profile and each read's score against each candidate species (section 2) |
 | RUN_VI | `bin/estimate_abundance.py` | Abundances by variational inference with pruning (sections 3-4); `--estimator em` runs Emu's EM instead (section 5). With `--read_assignments`, each read's probabilities (section 6); with `--ambiguity_groups`, the groups (section 7) |
@@ -288,13 +288,15 @@ database). On the 92 simulations the group table's L1, against the truth summed 
 same groups, was 0.075 against the species table's 0.132 (lower on 83, higher on none),
 and 0.0096 when the listed relatives' truth counts towards their group; the
 *E. coli* / *E. fergusonii*, *Bacillus* and *Streptococcus* groups were within 25% of
-their truth in all 152 samples where they formed. The cost: 1.5 of the 12.1 species
+their truth in all 152 cases where they formed (73, 45 and 34 samples). The cost: 1.5 of the 12.1 species
 per sample that the species table had within 25% of the truth went into a group, and
 separable pairs were grouped where one member was much rarer (*Klebsiella* in 22 of 40
 log-distributed samples). On the 13 real mocks, L1 fell from 0.352 to 0.326, almost all
 on the three R9.4.1 mocks. Without the family rule, 7 of the 18 real-mock groups crossed
 a genus, each through a false-positive species that carries one of the cross-genus
-sequences of section 10; the rule removes them, changes mean L1 by at most 0.0006 and
+sequences of section 10, and every one of them also crossed a family (in this database
+every cross-genus group did; a group of two genera of one family, such as *Escherichia*
+and *Shigella* in an NCBI-style taxonomy, still forms); the rule removes them, changes mean L1 by at most 0.0006 and
 leaves those species as rows of their own (3.54 false-positive rows per real mock,
 against 2.85 without the rule and 5.15 in the species table). τ = 0.2 scored marginally
 lower but hid more right species (1.8 per sample) and formed more cross-genus groups;
@@ -448,7 +450,7 @@ genes, not of cells. With `--cell_abundance` (off by default; D40, F58) each sam
 gets a table with, for each row $g$ of the species table with copy number $k_g$,
 
 $$
-c_g = rac{\pi_g / k_g}{\sum_{h} \pi_h / k_h} ,
+c_g = \frac{\pi_g / k_g}{\sum_{h} \pi_h / k_h} ,
 $$
 
 over the rows that have a copy number. A row of several tax IDs (`--binomial_names`), and

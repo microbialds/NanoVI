@@ -4,7 +4,8 @@
 # that main.nf or a local subworkflow includes (under its alias when it has one) must
 # be named in one of the page's Mermaid diagrams or tables (prose does not count), and
 # every process the page shows (an upper-case Mermaid node id, or a backticked
-# upper-case name in a table's first column) must still be included somewhere.
+# upper-case name in any column of a table) must still be included somewhere.
+# Includes inside // or /* */ comments do not count.
 # Functions (validateParameters, samplesheetToList) are camelCase and are not checked;
 # file nodes have mixed-case ids. Adapted from gene2dis/BugBuster's
 # tests/bin/test_workflow_diagram.sh (dev @ de57f34). Run by CI's version-check job.
@@ -24,12 +25,17 @@ trap cleanup EXIT
 PASS=0
 FAIL=0
 
-# Names included by main.nf and the local subworkflows: the alias after "as" when
-# there is one, else the name; include blocks may span lines and hold several names
-# separated by ";"
+# Names included by the given Nextflow files (default: main.nf and the local
+# subworkflows): the alias after "as" when there is one, else the name; include blocks
+# may span lines and hold several names separated by ";". Comments are removed first
 included_names() {
-    cat "${REPO_DIR}/main.nf" "${REPO_DIR}"/subworkflows/local/*.nf \
+    if [ "$#" -eq 0 ]; then
+        set -- "${REPO_DIR}/main.nf" "${REPO_DIR}"/subworkflows/local/*.nf
+    fi
+    cat "$@" \
+        | sed -E 's#//.*$##' \
         | tr '\n' ' ' \
+        | sed -E 's#/\*([^*]|\*+[^*/])*\*+/##g' \
         | grep -oE 'include[[:space:]]*\{[^}]*\}' \
         | sed -E 's/^include[[:space:]]*\{//; s/\}$//' \
         | tr ';' '\n' \
@@ -51,13 +57,13 @@ check_doc() {
         fi
     done < "${TMP_DIR}/included.txt"
     # the processes the page shows: Mermaid node ids (labels, edge texts and style
-    # lines removed) and the backticked names of a table's first column
+    # lines removed) and the backticked upper-case names in any column of a table
     {
         awk '/^```mermaid/ { m = 1; next } m && /^```/ { m = 0 } m' "${doc}" \
             | grep -vE '^[[:space:]]*(%%|classDef|class|flowchart|direction|subgraph|end)\b' \
             | sed -E 's/"[^"]*"//g; s/\|[^|]*\|//g; s/\[[^]]*\]//g; s/\([^)]*\)//g; s/\{[^}]*\}//g' \
             | grep -oE '\b[A-Z][A-Z0-9_]+\b' || true
-        awk -F'|' '/^\|/ { print $2 }' "${doc}" | grep -oE '`[A-Z][A-Z0-9_]+`' | tr -d '`' || true
+        awk -F'|' '/^\|/ { for (i = 2; i < NF; i++) print $i }' "${doc}" | grep -oE '`[A-Z][A-Z0-9_]+`' | tr -d '`' || true
     } | sort -u > "${TMP_DIR}/shown.txt"
     while read -r name; do
         if ! grep -qx -- "${name}" "${TMP_DIR}/included.txt"; then
@@ -70,6 +76,17 @@ check_doc() {
 
 included_names > "${TMP_DIR}/included.txt"
 n_names=$(wc -l < "${TMP_DIR}/included.txt")
+
+# A commented-out include is not an include
+printf '%s\n' "include { FILTER_READS } from './a'" "// include { OLD_LINE } from './b'" \
+    "/* include { OLD_BLOCK } from './c'" "   include { OLD_BLOCK2 } from './d' */" > "${TMP_DIR}/comments.nf"
+if [ "$(included_names "${TMP_DIR}/comments.nf" | tr '\n' ' ')" = "FILTER_READS " ]; then
+    echo "✓ includes inside // and /* */ comments are not counted"
+    PASS=$((PASS + 1))
+else
+    echo "✗ commented-out includes were counted: $(included_names "${TMP_DIR}/comments.nf" | tr '\n' ' ')"
+    FAIL=$((FAIL + 1))
+fi
 
 # The parser must find the subworkflows and processes the pipeline is built from
 if [ "${n_names}" -ge 16 ] && grep -qx ABUNDANCE "${TMP_DIR}/included.txt" \
@@ -107,7 +124,8 @@ fi
 # are reported; a file name or an acronym in backticks in prose is not a process
 awk '{ print } /^```mermaid/ && !done { print "    LIKELIHOOD --> GET_CIGAR[\"GET_CIGAR\"]"; done = 1 }' "${DOC}" > "${TMP_DIR}/stale_box.md"
 { cat "${DOC}"; printf '\n| `COMPUTE_LOGP` | `vi_stats` | removed process | |\n'; } > "${TMP_DIR}/stale_row.md"
-for case in "stale_box.md GET_CIGAR" "stale_row.md COMPUTE_LOGP"; do
+sed -E '/^\| `ABUNDANCE` \|/ s/`FILTER_READS`/`FILTER_READS`, `GET_CIGAR`/' "${DOC}" > "${TMP_DIR}/stale_cell.md"
+for case in "stale_box.md GET_CIGAR" "stale_row.md COMPUTE_LOGP" "stale_cell.md GET_CIGAR"; do
     set -- ${case}
     if ! check_doc "${TMP_DIR}/$1" > "${TMP_DIR}/stale.log" && grep -q "stale: .*shows $2," "${TMP_DIR}/stale.log"; then
         echo "✓ $2, which the code no longer includes, is reported ($1)"

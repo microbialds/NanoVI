@@ -9,8 +9,12 @@ the parameters are in the [README](../README.md#parameters), the files in
 named as in `main.nf` and `subworkflows/local/`; rounded boxes are files. An edge label is
 either the condition under which the edge exists, written as `main.nf`, the subworkflow or
 the module tests it (`params.ambiguity_groups`), or, for an edge that always exists, what it
-carries. Boxes with a solid green border run with the default parameters; boxes with a
-dashed border need a parameter.
+carries. Boxes with a solid green border run with the default parameters, two of them
+only when the run needs them: INDEX_DB is skipped with `--db_index` or when the index
+cache already holds the index, and IDENTICAL_16S runs only when the run has no
+identical-16S table to use (so not for a database from `bin/build_gtdb_db.py` or
+`--cmd build-database`, which ships one, unless `--taxonomy_tsv` is another file). Boxes
+with a dashed border need a parameter.
 
 `tests/check_workflow_diagram.sh` (run in CI) fails when a process or subworkflow that
 `main.nf` or a subworkflow includes is not named in a diagram or table on this page, or when
@@ -40,12 +44,15 @@ flowchart TD
     IDENTICAL_16S -->|"identical-16S table"| WRITE_OUTPUT
 
     ALIGN_READS["ALIGN_READS<br/>minimap2 -ax map-ont -N 3 -p 0.9<br/>into samtools view -b"] -->|"BAM"| LIKELIHOOD
-    ALIGN_READS -->|"params.keep_files"| Bam(["bam/, filtered/"])
+    ALIGN_READS -->|"params.keep_files"| Bam(["bam/"])
+    FILTER_READS -->|"params.keep_files"| Filtered(["filtered/"])
     LIKELIHOOD["LIKELIHOOD<br/>bin/read_likelihood.py<br/>error profile, Emu's read score"] -->|"read_scores.npz"| RUN_VI
     LIKELIHOOD -->|"params.read_assignments:<br/>read names kept in the npz"| RUN_VI
     LIKELIHOOD -->|"read_counts.json"| WRITE_OUTPUT
 
     Tax(["taxonomy.tsv<br/>--taxonomy_tsv, else in --db"]) -->|"rows of the table"| RUN_VI
+    Tax -->|"lineages"| WRITE_OUTPUT
+    Tax -->|"when IDENTICAL_16S runs"| IDENTICAL_16S
     RUN_VI["RUN_VI<br/>bin/estimate_abundance.py<br/>params.estimator: vb or em"] -->|"abundance JSON"| WRITE_OUTPUT
     RUN_VI -->|"params.read_assignments"| ReadAssign(["sample_outputs/#lt;sample#gt;_read_assignments.tsv.gz"])
     RUN_VI -->|"params.ambiguity_groups:<br/>groups in the JSON"| WRITE_OUTPUT
@@ -68,7 +75,7 @@ flowchart TD
     classDef opt fill:#F7F7F7,stroke:#777,stroke-width:1.5px,stroke-dasharray:5 4,color:#111
     classDef data fill:#FFF8E6,stroke:#E69F00,stroke-width:1.5px,color:#111
     class ABUNDANCE,FILTER_READS,INDEX_DB,IDENTICAL_16S,ALIGN_READS,LIKELIHOOD,RUN_VI,WRITE_OUTPUT,GENERATE_PHYLOSEQ_TABLES on
-    class REPORT,Quality,Bam,ReadAssign,Groups,Cell,ReportDir,Metadata,DbIndex opt
+    class REPORT,Quality,Bam,Filtered,ReadAssign,Groups,Cell,ReportDir,Metadata,DbIndex opt
     class Reads,Db,Tax,CopyNumbers,SpeciesTable,Consolidated,Versions,SoftwareVersions data
 ```
 
