@@ -12,14 +12,7 @@ NanoVI is a Nextflow DSL2 pipeline that performs taxonomic classification of ful
 
 ### Pipeline Workflow
 
-```
-Input FASTQs
-  → Length filter (fastplong, 500-2,000 bp; quality filter off unless --min_quality)
-  → Align (minimap2 -ax map-ont -N 3 -p 0.9, against the cached database index)
-  → Read likelihoods (error profile from primary alignments, Emu's CIGAR read score)
-  → Abundance estimation (Bayesian VI with pruning; --estimator em for Emu's EM)
-  → Per-sample tables → Consolidated tables (phyloseq)
-```
+For each sample, fastplong filters the reads by length (500-2,000 bp), minimap2 aligns them (`-ax map-ont -N 3 -p 0.9`) against the database's index, which is built once and cached, LIKELIHOOD scores each read against its candidate species with Emu's CIGAR-based read score (error profile from the primary alignments), and RUN_VI estimates the abundances by Bayesian variational inference with pruning (`--estimator em` runs Emu's EM). WRITE_OUTPUT writes the per-sample table and GENERATE_PHYLOSEQ_TABLES the consolidated tables; [docs/workflow.md](docs/workflow.md) shows every step with the condition that runs it.
 
 Reads are filtered by length only: the 2026 benchmark found that a mean-quality filter changed little on real data and distorted the composition where it removed reads ([methods_2026.md](https://github.com/microbialds/NanoVI-paper/blob/main/docs/benchmarks/methods_2026.md) §7, in [NanoVI-paper](https://github.com/microbialds/NanoVI-paper)). `--min_quality` turns fastplong's quality filter on.
 
@@ -210,7 +203,7 @@ Give the caps on the command line or in a `-params-file`. In a custom `-c` confi
 | `pipeline_info/software_versions.yml` | Versions of fastplong, minimap2, samtools, Python and its packages, NanoVI and Nextflow used in the run |
 | `report/` | Only with `--report`: the run report, `index.html` (an offline site), `nanovi_report.pdf`, `figures/` and the report's own `versions.yml` (above) |
 
-Every column, the consolidated tables and the database files are described in [docs/output.md](docs/output.md); the model behind the numbers is in [docs/methods.md](docs/methods.md).
+Every column, the consolidated tables and the database files are described in [docs/output.md](docs/output.md); the model behind the numbers, with the benchmark evidence for each default and option, is in [docs/methods.md](docs/methods.md), and which process writes each file in [docs/workflow.md](docs/workflow.md).
 
 **Species with identical 16S.** The per-sample table's `identical_16s_species` column names, for each reported species, the species of the same genus in the database that share an identical 16S sequence with it (`; `-separated, empty for most species). 16S cannot tell such species apart: reads that match both score the same, so the reported split between them is not evidence of either. The list comes from the database's `identical_16s.tsv`, which `bin/build_gtdb_db.py` and `--cmd build-database` write; for a database without it, the pipeline builds it once from `species_taxid.fasta` and `taxonomy.tsv` and keeps it beside the cached indexes in `--index_cache_dir`, under a name made of the MD5s of the FASTA, the taxonomy and `bin/identical_16s.py`. An `identical_16s.tsv` in `--db` is used as it is when the taxonomy is `<db>/taxonomy.tsv` (with another `--taxonomy_tsv` the table is built from the FASTA and that taxonomy); delete it to have the pipeline build the table again. With `--db_index` and no FASTA in `--db` the column is left empty.
 
@@ -318,22 +311,24 @@ nextflow run microbialds/NanoVI \
 
 The unit tests cover the Python code the pipeline runs (likelihood, both estimators, output tables, database reports and the `bin/` scripts); the pipeline tests run `main.nf` with nf-test.
 
-**Unit tests** (pytest, no database needed; 257 tests):
+**Unit tests** (pytest, no database needed; 381 tests, of which the PDF test needs Typst and is skipped without it):
 ```bash
-pip install -r containers/requirements.txt pytest
+pip install -r containers/requirements.txt -r tests/requirements-report.txt pytest
 pytest tests/unit/ -v
 ```
 
-**Pipeline tests** (nf-test; 30 tests tagged `stub`, 3 tagged `e2e`):
+**Pipeline tests** (nf-test; 43 tests tagged `stub`, 7 tagged `e2e`):
 ```bash
 nf-test test tests/main.nf.test --tag stub   # stub mode: channel wiring and parameter errors, no tools or database needed
 nf-test test tests/main.nf.test --tag e2e    # real tools with Docker on the fixture in tests/test_data/e2e
 NANOVI_E2E_PROFILE=conda nf-test test tests/main.nf.test --tag e2e    # the same test with -profile conda
 ```
 
-The `e2e` tests run fastplong, minimap2 and the Python steps on a small real 16S database (11 sequences, including the near neighbours *E. coli* / *S. flexneri* and *S. pneumoniae* / *S. mitis*) with 600 simulated reads in known proportions plus 30 non-16S reads, and check the result against `tests/test_data/e2e/expected.tsv` (every present species reported, those at 10% or more within 5 percentage points, absent species below 1%), the `Below detection` and `Unassigned` rows, the four consolidated tables and the tool versions, and that samples with no aligned read (only non-16S reads, or every read below `--min_length`) get an all-Unassigned table beside a normal sample; see [tests/test_data/e2e/README.md](tests/test_data/e2e/README.md). `-profile test,docker` runs the pipeline on the same fixture (`-profile test` on its own sets no container engine).
+The `e2e` tests run fastplong, minimap2 and the Python steps on a small real 16S database (11 sequences, including the near neighbours *E. coli* / *S. flexneri* and *S. pneumoniae* / *S. mitis*) with 600 simulated reads in known proportions plus 30 non-16S reads, and check the result against `tests/test_data/e2e/expected.tsv` (every present species reported, those at 10% or more within 5 percentage points, absent species below 1%), the `Below detection` and `Unassigned` rows, the four consolidated tables and the tool versions, that samples with no aligned read (only non-16S reads, or every read below `--min_length`) get an all-Unassigned table beside a normal sample, and the per-read file, the group and cell-level tables and the run report (its PDF's pages and fonts, no network request in the HTML, identical files on a second render); see [tests/test_data/e2e/README.md](tests/test_data/e2e/README.md). `-profile test,docker` runs the pipeline on the same fixture (`-profile test` on its own sets no container engine).
 
-Continuous integration (GitHub Actions) runs on every push to `main`, `dev`, `feat/**`, `fix/**` and `roadmap/**`, on `v*` tags and on every pull request into `main` or `dev`: the unit tests on Python 3.11 and 3.13, a check that the version strings agree, the `stub` tests, and the `e2e` tests with Docker (on the Python and report images built from the commit, then the report's tests inside its image, where Typst is) and with conda. Both Docker images are built on every run; they are published to `ghcr.io/microbialds/nanovi-python` and `ghcr.io/microbialds/nanovi-report` only from `main` (as `:main` and `:sha-<commit>`) and from release tags (see Releasing).
+`tests/check_workflow_diagram.sh` checks that [docs/workflow.md](docs/workflow.md) names every process and subworkflow the code includes, and no other.
+
+Continuous integration (GitHub Actions) runs on every push to `main`, `dev`, `feat/**`, `fix/**` and `roadmap/**`, on `v*` tags and on every pull request into `main` or `dev`: the unit tests on Python 3.11 and 3.13, a check that the version strings agree and that docs/workflow.md names every process, the `stub` tests, and the `e2e` tests with Docker (on the Python and report images built from the commit, then the report's tests inside its image, where Typst is) and with conda. Both Docker images are built on every run; they are published to `ghcr.io/microbialds/nanovi-python` and `ghcr.io/microbialds/nanovi-report` only from `main` (as `:main` and `:sha-<commit>`) and from release tags (see Releasing).
 
 ## Releasing
 

@@ -3,7 +3,8 @@
 What each command writes, column by column. The examples come from the e2e fixture
 (`nextflow run main.nf -profile test,docker`, 630 reads: 600 from six species in the
 database, 30 that are not 16S). How the numbers are computed is in
-[methods.md](methods.md).
+[methods.md](methods.md), and which process writes each file, under which parameter, in
+[workflow.md](workflow.md).
 
 ## `--cmd abundance`
 
@@ -38,7 +39,7 @@ none did); the run log warns, naming it.
 | Column | When | Meaning |
 |---|---|---|
 | `species` | always | Species name as the database's `taxonomy.tsv` gives it: whole, GTDB clade suffixes included (`Listeria monocytogenes_B`). With `--binomial_names`, cut to genus and epithet (`Candidatus` names keep three words) and rows that then share a name summed. A tax ID that `taxonomy.tsv` lacks, or that has no species name there, is reported as `Unknown taxid <id>` with a warning |
-| `abundance` | always | Posterior mean relative abundance of the species among the reads with at least one scored alignment, renormalised over the reported species, so the species rows sum to 1. It is a share of 16S reads, not of cells (no copy-number correction). `0` on the two placeholder rows |
+| `abundance` | always | Posterior mean relative abundance of the species among the reads with at least one scored alignment, renormalised over the reported species, so the species rows sum to 1. It is a share of 16S reads, not of cells (`--cell_abundance` writes a copy-number-corrected table beside it). `0` on the two placeholder rows |
 | `genus` … `superkingdom` | always | Lineage from `taxonomy.tsv` (`genus`, `family`, `order`, `class`, `phylum`, `superkingdom`). On the placeholder rows and on `Unknown taxid` rows with blank ranks, each rank repeats the row's label, so collapsing to a higher rank keeps them apart |
 | `estimated_counts` | `--keep_counts` (default on) | Reads attributed to the species: `abundance` × (reads with a scored alignment − reads below detection), rounded by largest remainder so the species rows add up exactly. `Below detection` holds the reads whose candidate species were all pruned; `Unassigned` the reads with no scored alignment (no alignment, or only alignments using an error operation absent from the sample's error profile). All rows together add up to the reads that passed the length filter |
 | `identical_16s_species` | always | The species of the same genus that share at least one identical 16S sequence with this species in the database, `; `-separated; empty for most species and on the placeholder rows. 16S cannot separate these species, so the split between them is not evidence for either (see below) |
@@ -162,7 +163,7 @@ other rows together take 0.01 of it.
 | `ci_lower`, `ci_upper` | `--credible_intervals` (VB only) | From the group's summed Dirichlet parameter, Beta(Σ α, A − Σ α), as for a summed species row. For a group of one they equal the species row's |
 | `cell_abundance`, `copy_number`, `copy_number_level` | `--cell_abundance` | The sum of the members' cell-level shares (below), the cell-weighted mean of their copy numbers and the coarsest level any member's came from, over the members that have one. Empty for a group none of whose members has a copy number, and on the placeholder rows |
 
-The 0.25 and the family rule come from the 2026 benchmark ([NanoVI-paper `ambiguity_2026.md`](https://github.com/microbialds/NanoVI-paper/blob/main/docs/benchmarks/ambiguity_2026.md)): on simulated communities the group table's L1 against the truth summed over the same groups was 0.075, against the species table's 0.132 (0.010 when the listed relatives count towards their group), and 0.326 against 0.352 on 13 real mock communities. The cost: about 1.5 of the 12 species that the species table had within 25% of the truth went into a group per simulated sample. Without the family rule, 7 of the 18 groups on the real mocks joined a false-positive species to a mock species of another phylum or class; the rule removes them, with L1 within 0.001, and leaves those false positives as rows of their own (3.5 per real mock against 2.8 without the rule and 5.2 in the species table).
+The 0.25 and the family rule come from the 2026 benchmark ([NanoVI-paper `ambiguity_2026.md`](https://github.com/microbialds/NanoVI-paper/blob/main/docs/benchmarks/ambiguity_2026.md)): on simulated communities the group table's L1 against the truth summed over the same groups was 0.075, against the species table's 0.132 (0.010 when the listed relatives count towards their group), and 0.326 against 0.352 on 13 real mock communities. The cost: about 1.5 of the 12 species that the species table had within 25% of the truth went into a group per simulated sample. Without the family rule, 7 of the 18 groups on the real mocks joined a false-positive species to a mock species of another phylum or class; the rule removes them, with L1 within 0.001, and leaves those false positives as rows of their own (3.54 per real mock against 2.85 without the rule and 5.15 in the species table).
 
 The group table is per sample: groups are formed from each sample's own reads, so two
 samples can group the same species differently, and `combine-outputs`, `collapse-taxonomy`
