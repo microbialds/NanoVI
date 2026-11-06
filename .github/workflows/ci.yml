@@ -25,8 +25,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
 
+      # The run report's packages too (F60); its PDF test needs typst and runs in the report image (e2e job)
       - name: Install Python dependencies
-        run: pip install -r containers/requirements.txt pytest pytest-cov
+        run: pip install -r containers/requirements.txt -r tests/requirements-report.txt pytest pytest-cov
 
       - name: Run unit tests with coverage
         run: |
@@ -113,8 +114,39 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # The run report (F60, D42) has its own image, built from this commit the same way
+      - name: Find the report image tag
+        id: report_image
+        run: |
+          IMAGE=$(grep -o "ghcr.io/microbialds/nanovi-report:[A-Za-z0-9._-]*" conf/base.config | sort -u)
+          test "$(echo "$IMAGE" | wc -l)" -eq 1 || { echo "conf/base.config names more than one nanovi-report tag: $IMAGE"; exit 1; }
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Build the report image
+        uses: docker/build-push-action@v5
+        with:
+          context: containers/report/
+          file: containers/report/Dockerfile
+          load: true
+          tags: ${{ steps.report_image.outputs.image }}
+          cache-from: type=gha,scope=nanovi-report
+          cache-to: type=gha,mode=max,scope=nanovi-report
+
+      # pdfinfo and pdffonts for the report's e2e test
+      - name: Install poppler
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+
       - name: Run nf-test (e2e, Docker)
         run: nf-test test tests/main.nf.test --tag e2e --verbose
+
+      # The report's unit and render tests in its image, where typst and Inter are (the
+      # unit-tests job skips the PDF); pytest goes into a folder outside the image
+      - name: Report tests in the report image
+        run: |
+          docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp -v "$PWD:/repo" -w /repo \
+            ${{ steps.report_image.outputs.image }} bash -euo pipefail -c '
+              python -m pip install -q --target /tmp/pt pytest
+              PYTHONPATH=/tmp/pt python -m pytest -p no:cacheprovider -v tests/unit/test_report_model.py tests/unit/test_report_render.py'
 
   # ── 3b. End-to-end test with -profile conda ───────────────────────────────
   e2e-conda:
@@ -145,6 +177,9 @@ jobs:
           mkdir -p ~/.nextflow
           echo 'conda.useMicromamba = true' >> ~/.nextflow/config
 
+      - name: Install poppler
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends poppler-utils
+
       - name: Run nf-test (e2e, conda)
         env:
           NANOVI_E2E_PROFILE: conda
@@ -154,15 +189,26 @@ jobs:
   # A push to main publishes :main and :sha-<short>. A v<X.Y.Z> git tag publishes
   # :X.Y.Z and :latest, once: the job fails if the tag does not match the top
   # release in CHANGELOG.md or if :X.Y.Z already exists. Other events only build.
+  # Both images, nanovi-python and the run report's nanovi-report (F60, D42), follow these rules.
   container-build:
-    name: Build & push Docker image
+    name: Build & push Docker image (${{ matrix.image }})
     runs-on: ubuntu-latest
     needs: [version-check, unit-tests, integration-tests, e2e-tests, e2e-conda]
     permissions:
       contents: read
       packages: write
+    strategy:
+      matrix:
+        include:
+          # scope: the build cache each image shares with its e2e build (buildkit is the default)
+          - image: nanovi-python
+            context: containers/
+            scope: buildkit
+          - image: nanovi-report
+            context: containers/report/
+            scope: nanovi-report
     env:
-      IMAGE: ghcr.io/${{ github.repository_owner }}/nanovi-python
+      IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
 
     steps:
       - uses: actions/checkout@v4
@@ -220,13 +266,13 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: containers/
-          file: containers/Dockerfile
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}Dockerfile
           push: ${{ steps.tags.outputs.push == 'true' }}
           tags: ${{ steps.tags.outputs.tags }}
           labels: |
             org.opencontainers.image.version=${{ steps.tags.outputs.version }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.scope }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.scope }}

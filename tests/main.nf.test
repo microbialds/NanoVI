@@ -35,8 +35,51 @@ nextflow_pipeline {
             // The per-read assignments only with --read_assignments (F55), the groups only with --ambiguity_groups (F57)
             assert !file("${outputDir}/sample_outputs").listFiles().any { it.name.endsWith('_read_assignments.tsv.gz') }
             assert !file("${outputDir}/sample_outputs").listFiles().any { it.name.endsWith('_groups.tsv') }
-            // The cell-level table only with --cell_abundance (F58)
+            // The cell-level table only with --cell_abundance (F58), the run report only with --report (F60)
             assert !file("${outputDir}/sample_outputs").listFiles().any { it.name.endsWith('_cell-abundance.tsv') }
+            assert !file("${outputDir}/report").exists()
+            assert workflow.trace.tasks().count { it.name.startsWith('REPORT') } == 0
+        }
+    }
+
+    // The run report (F60, D42) runs after software_versions.yml, which it reads, so its own
+    // versions go in report/versions.yml and the collected file does not change
+    test("--report publishes the run report in stub mode") {
+        tag "stub"
+        options "-profile test -stub-run --report true"
+
+        when {
+            params {
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().count { it.name.startsWith('REPORT') } == 1
+            ['index.html', 'methods.html', 'nanovi_report.pdf', 'versions.yml', 'assets/site.css',
+             'figures/read_fate.svg', 'figures/read_fate.csv'].each { f ->
+                assert file("${outputDir}/report/${f}").exists()
+            }
+            assert !file("${outputDir}/versions.yml").exists()
+            def versions = new org.yaml.snakeyaml.Yaml().load(file("${outputDir}/pipeline_info/software_versions.yml").text)
+            assert !versions.containsKey('REPORT')
+            // REPORT got the run's published tables, staged at their published paths
+            def lines = file("${metaDir}/trace.csv").readLines()
+            def fields = lines[0].split('\t') as List
+            def task = lines.drop(1).collect { [fields, it.split('\t') as List].transpose().collectEntries { it } }
+                .find { it.name.startsWith('REPORT') }
+            def (prefix, rest) = task.hash.split('/')
+            def taskDir = new File("${metaDir}/../work/${prefix}").listFiles().find { it.name.startsWith(rest) }
+            def staged = { d -> new File(taskDir, "results/${d}").list() as List }
+            assert staged('sample_outputs').any { it.endsWith('_rel-abundance.tsv') }
+            assert staged('consolidated_output').toSet() == ['otu_table_abundance.tsv', 'tax_table.tsv', 'sample_metadata.tsv'] as Set
+            assert staged('qc/fastplong').every { it.endsWith('_report.json.gz') }
+            assert staged('pipeline_info') == ['software_versions.yml']
         }
     }
 
@@ -756,6 +799,32 @@ nextflow_pipeline {
         }
     }
 
+    // The run report belongs to --cmd abundance; another command says it writes none (F60)
+    test("--report with combine-outputs warns that no report is written") {
+        tag "stub"
+        options "-profile test -stub-run --report true"
+
+        when {
+            def dir = new File("${outputDir}/tables")
+            dir.mkdirs()
+            new File(dir, 'S1_rel-abundance.tsv').text = 'species\tabundance\nEscherichia coli\t1.0\n'
+            params {
+                cmd           = "combine-outputs"
+                output_dir    = "${outputDir}"
+                input_dir     = "${outputDir}/tables"
+                rank          = "species"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().count { it.name.startsWith('REPORT') } == 0
+            def warning = "--report and --report_metadata apply to --cmd abundance only"
+            assert (workflow.stdout + workflow.stderr).any { it.contains(warning) } ||
+                file("${metaDir}/nextflow.log").text.contains(warning)
+        }
+    }
+
     test("combine-outputs fails with an invalid --rank") {
         tag "stub"
         options "-profile test -stub-run"
@@ -1245,6 +1314,67 @@ nextflow_pipeline {
             // The consolidated tables keep species rows
             def otu = readTsv("${outputDir}/consolidated_output/otu_table_abundance.tsv")
             assert otu*.species.toSet() == species*.species.toSet()
+        }
+    }
+
+    // The run report (F60, D42) on the e2e fixture with every optional table: the HTML site
+    // works offline, the PDF has its pages and Inter embedded (poppler's pdfinfo and pdffonts
+    // on PATH), and a second render of the same results writes the same bytes
+    test("--report renders the run report on the e2e fixture") {
+        tag "e2e"
+        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --report true --ambiguity_groups true --cell_abundance true --read_assignments true"
+
+        when {
+            params {
+                output_dir = "${outputDir}"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def report = file("${outputDir}/report")
+            ['index.html', 'composition.html', 'flagged.html', 'groups.html', 'cell.html', 'reads.html', 'methods.html',
+             'nanovi_report.pdf', 'versions.yml', 'assets/vega-bundle.js', 'assets/fonts/Inter-Regular.woff2'].each { f ->
+                assert file("${report}/${f}").exists()
+            }
+            ['read_fate', 'composition_species', 'composition_genus', 'flagged_species', 'groups_heatmap', 'cell_vs_read'].each { k ->
+                ['svg', 'pdf', 'png', 'csv'].each { ext -> assert file("${report}/figures/${k}.${ext}").size() > 0 }
+            }
+
+            // The PDF: its pages, and only Inter, embedded
+            def run = { List cmd -> def p = cmd.execute(); def out = p.text; assert p.waitFor() == 0; out }
+            def pdf = "${report}/nanovi_report.pdf"
+            assert (run(['pdfinfo', pdf]) =~ /Pages:\s+(\d+)/)[0][1] as int == 9
+            def fonts = run(['pdffonts', pdf]).readLines().drop(2)
+            assert fonts && fonts.every { it =~ /^[A-Z]{6}\+Inter-/ && it.split(/\s+/)[-5] == 'yes' }
+
+            // No page or style sheet makes a network request (a Vega-Lite spec's "$schema" URL is data)
+            def request = ~/(?i)(\b(src|href|action|poster|data)\s*=\s*["']?\s*(https?:)?\/\/)|(url\(\s*["']?\s*(https?:)?\/\/)|@import/
+            (report.listFiles().findAll { it.name.endsWith('.html') } + [file("${report}/assets/site.css")]).each { f ->
+                assert !(f.text =~ request).find()
+            }
+
+            // The species table's numbers reach the report: the read-fate CSV of the e2e sample
+            def fate = file("${report}/figures/read_fate.csv").readLines()
+            def rows = file("${outputDir}/sample_outputs/e2e_mock_rel-abundance.tsv").readLines().drop(1)*.split('\t')
+            def unassigned = rows.find { it[0] == 'Unassigned' }[8] as int
+            def total = rows.sum { it[8] as int }
+            def share = fate.find { it.startsWith('e2e_mock,Unassigned,') }.split(',')[2] as double
+            assert Math.abs(share - 100.0 * unassigned / total) < 1e-9
+
+            // A second render: the REPORT task run again writes the same files as the published report
+            def lines = file("${metaDir}/trace.csv").readLines()
+            def fields = lines[0].split('\t') as List
+            def task = lines.drop(1).collect { [fields, it.split('\t') as List].transpose().collectEntries { it } }
+                .find { it.name.startsWith('REPORT') }
+            def (prefix, rest) = task.hash.split('/')
+            def taskDir = new File("${metaDir}/../work/${prefix}").listFiles().find { it.name.startsWith(rest) }
+            new File(taskDir, 'report').deleteDir()
+            def again = ['bash', '.command.run'].execute(null, taskDir)
+            again.consumeProcessOutput(new StringBuilder(), new StringBuilder())
+            assert again.waitFor() == 0
+            def listing = { File root -> def out = [:]; root.eachFileRecurse(groovy.io.FileType.FILES) { f -> out[root.toPath().relativize(f.toPath()).toString()] = f.bytes.md5() }; out }
+            assert listing(new File(taskDir, 'report')) == listing(new File(report.toString()))
         }
     }
 

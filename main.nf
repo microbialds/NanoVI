@@ -43,6 +43,10 @@ params {
     ambiguity_groups: Boolean
     cell_abundance: Boolean
 
+    // Run report (F60, D42)
+    report: Boolean
+    report_metadata: String?
+
     // Build database
     db_name: String
     sequences: String?
@@ -69,6 +73,7 @@ include { ABUNDANCE }          from './subworkflows/local/abundance'
 include { BUILD_DATABASE }     from './subworkflows/local/build_database'
 include { COLLAPSE_TAXONOMY }  from './subworkflows/local/postprocessing'
 include { COMBINE_OUTPUTS }    from './subworkflows/local/postprocessing'
+include { REPORT }             from './modules/local/report'
 
 // ─── MAIN WORKFLOW ──────────────────────────────────────────────────────────
 workflow {
@@ -188,6 +193,22 @@ workflow {
 
         ABUNDANCE(input_reads, fasta_file, tax_file, db_index, identical_16s, copy_numbers)
         versions = ABUNDANCE.out.versions
+
+        // The run report (F60, D42) reads what the run publishes, collected here and
+        // rendered after software_versions.yml is written
+        if (params.report) {
+            def byName = { a, b -> a.name <=> b.name }
+            report_tables = ABUNDANCE.out.results
+                .mix(ABUNDANCE.out.groups, ABUNDANCE.out.cell, ABUNDANCE.out.read_assignments)
+                .toSortedList(byName)
+            report_consolidated = ABUNDANCE.out.otu_abundance
+                .mix(ABUNDANCE.out.tax_table, ABUNDANCE.out.sample_metadata)
+                .toSortedList(byName)
+            report_qc = ABUNDANCE.out.qc_json.flatten().toSortedList(byName)
+        }
+        else if (params.report_metadata) {
+            log.warn "--report_metadata is used only with --report"
+        }
     }
 
     // ─── SUBCOMMAND: BUILD-DATABASE ─────────────────────────────────────────
@@ -254,8 +275,35 @@ workflow {
     }
 
     // ─── SOFTWARE VERSIONS ──────────────────────────────────────────────────
-    softwareVersionsToYAML(versions)
+    software_versions = softwareVersionsToYAML(versions)
         .collectFile(storeDir: "${params.output_dir}/pipeline_info", name: 'software_versions.yml', sort: true, newLine: true)
+
+    // ─── RUN REPORT ─────────────────────────────────────────────────────────
+    // After software_versions.yml, which the report reads; its own versions go in
+    // report/versions.yml and its methods, not in that file (D42)
+    if (params.cmd != 'abundance' && (params.report || params.report_metadata)) {
+        log.warn "--report and --report_metadata apply to --cmd abundance only; --cmd ${params.cmd} writes no report"
+    }
+    if (params.cmd == 'abundance' && params.report) {
+        // assets/report goes in with a hash of its files' contents, so an edited template
+        // reruns the report on -resume (a directory is cached by its path, size and mtime)
+        def report_assets = file("${projectDir}/assets/report", checkIfExists: true)
+        def report_assets_hash = files("${report_assets}/**", type: 'file')
+            .collect { f -> "${report_assets.relativize(f)} ${f.bytes.md5()}" }
+            .sort()
+            .join('\n')
+            .md5()
+        REPORT(
+            report_tables,
+            report_consolidated,
+            report_qc,
+            software_versions,
+            params.report_metadata ? file(params.report_metadata, checkIfExists: true) : [],
+            [report_assets, report_assets_hash],
+            reportParamsJson(),
+            workflow.start.withOffsetSameInstant(java.time.ZoneOffset.UTC).toLocalDate().toString()
+        )
+    }
 }
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
@@ -275,6 +323,16 @@ def workflowVersionToYAML() {
         ${workflow.manifest.name}: ${workflow.manifest.version}
         Nextflow: ${workflow.nextflow.version}
     """.stripIndent().trim()
+}
+
+// The run parameters the report's methods list (F60), as one line of JSON
+def reportParamsJson() {
+    def keys = ['input', 'db', 'taxonomy_tsv', 'db_index', 'type', 'kmer_size', 'N', 'K', 'min_length', 'max_length',
+                'min_quality', 'estimator', 'min_abundance', 'vi_tolerance', 'vi_max_iterations', 'alpha_prior',
+                'vi_elbo_threshold', 'binomial_names', 'keep_counts', 'credible_intervals', 'read_assignments',
+                'ambiguity_groups', 'cell_abundance', 'report_metadata']
+    def values = keys.collectEntries { k -> [k, params[k] instanceof Number || params[k] instanceof Boolean || params[k] == null ? params[k] : params[k].toString()] }
+    return groovy.json.JsonOutput.toJson(values)
 }
 
 def softwareVersionsToYAML(ch_versions) {

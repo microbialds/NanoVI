@@ -1,0 +1,8 @@
+# The run report's Python packages (F60), for the unit tests on a runner without the report image:
+# the versions of containers/report/environment.yml. Typst and the Inter fonts are conda-forge
+# packages only, so the PDF test runs in the report image (CI's e2e job) or wherever typst is installed.
+matplotlib==3.11.2
+jinja2==3.1.6
+altair==6.3.0
+vl-convert-python==1.9.0.post1
+pyyaml==6.0.3

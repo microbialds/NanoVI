@@ -1,0 +1,10 @@
+{% extends "base.html" %}{% import "macros.html" as m %}
+{% set f = s.facts %}
+{% block body %}
+<h1>Composition</h1>
+<p>Read-level relative abundance of each sample's main species ({{ m.figref(s, "composition_species") }}) and genera ({{ m.figref(s, "composition_genus") }}): the union of each sample's top {{ f.top }}, at most {{ f.cap }}, the rest as Other{% if f.heatmap %}; {{ m.figref(s, "heatmap_species") }} shows the {{ f.heatmap_taxa }} species with the highest mean abundance in every sample{% endif %}. {{ m.tabref(s, "prevalence") }} lists the species detected in the most samples.</p>
+{{ m.figure(s, "composition_species", specs) }}
+{{ m.figure(s, "composition_genus", specs) }}
+{{ m.figure(s, "heatmap_species", specs) }}
+{{ m.table(s, "prevalence") }}
+{% endblock %}

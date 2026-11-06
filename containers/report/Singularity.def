@@ -1,0 +1,25 @@
+Bootstrap: docker
+From: mambaorg/micromamba:2.10.0-debian13-slim@sha256:e1476182cd40eb1f7c0cfae4adec9bfd78f3d7f05c61368306abfdc8939c1198
+
+# Build from the containers/report/ directory so that %files finds environment.yml:
+#   cd containers/report && singularity build nanovi-report.sif Singularity.def
+
+%labels
+    Author NanoVI developers
+    Description Run report environment for NanoVI (Typst, Jinja, matplotlib, Altair, Inter)
+    Version 1.1.1
+
+%files
+    environment.yml /tmp/environment.yml
+
+%post
+    micromamba install -y -n base -f /tmp/environment.yml
+    micromamba clean --all --yes
+    rm /tmp/environment.yml
+
+%environment
+    export PATH=/opt/conda/bin:$PATH
+    export LC_ALL=C.UTF-8
+
+%runscript
+    exec python3 "$@"
