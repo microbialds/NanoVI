@@ -226,7 +226,7 @@ Every Python step runs in one image, `ghcr.io/microbialds/nanovi-python:<version
 
 **Docker:**
 ```bash
-docker build -t ghcr.io/microbialds/nanovi-python:1.1.1 -f containers/Dockerfile containers/
+docker build -t ghcr.io/microbialds/nanovi-python:1.2.0 -f containers/Dockerfile containers/
 ```
 
 **Singularity** (from the `containers/` directory, so the build finds `requirements.txt`):
@@ -236,7 +236,7 @@ cd containers && singularity build nanovi-python.sif Singularity.def
 
 The run report (`--report`) has its own image, `ghcr.io/microbialds/nanovi-report:<version>`, which installs `containers/report/environment.yml` (conda-forge: Python 3.13, Typst, Jinja, matplotlib, Altair, vl-convert and the Inter fonts) with micromamba; build it the same way:
 ```bash
-docker build -t ghcr.io/microbialds/nanovi-report:1.1.1 containers/report/
+docker build -t ghcr.io/microbialds/nanovi-report:1.2.0 containers/report/
 cd containers/report && singularity build nanovi-report.sif Singularity.def
 ```
 
