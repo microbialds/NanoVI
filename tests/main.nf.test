@@ -35,6 +35,105 @@ nextflow_pipeline {
             // The per-read assignments only with --read_assignments (F55), the groups only with --ambiguity_groups (F57)
             assert !file("${outputDir}/sample_outputs").listFiles().any { it.name.endsWith('_read_assignments.tsv.gz') }
             assert !file("${outputDir}/sample_outputs").listFiles().any { it.name.endsWith('_groups.tsv') }
+            // The cell-level table only with --cell_abundance (F58)
+            assert !file("${outputDir}/sample_outputs").listFiles().any { it.name.endsWith('_cell-abundance.tsv') }
+        }
+    }
+
+    // WRITE_OUTPUT's stub emits the cell-level table when asked (F58); the e2e database has
+    // copy_numbers.tsv, and only the species tables reach GENERATE_PHYLOSEQ_TABLES
+    test("--cell_abundance publishes each sample's cell-level table in stub mode") {
+        tag "stub"
+        options "-profile test -stub-run --cell_abundance true"
+
+        when {
+            params {
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/e2e/db"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def samples = file("${projectDir}/tests/test_data/stub_reads").listFiles()
+                .findAll { it.name =~ /\.f(ast)?q(\.gz)?$/ }.collect { it.name.replaceFirst(/\.f(ast)?q(\.gz)?$/, '') }
+            assert samples
+            samples.each { sample ->
+                assert file("${outputDir}/sample_outputs/${sample}_cell-abundance.tsv").exists()
+                assert file("${outputDir}/sample_outputs/${sample}_rel-abundance.tsv").exists()
+            }
+            def lines = file("${metaDir}/trace.csv").readLines()
+            def fields = lines[0].split('\t') as List
+            def task = lines.drop(1).collect { [fields, it.split('\t') as List].transpose().collectEntries { it } }
+                .find { it.name.startsWith('ABUNDANCE:GENERATE_PHYLOSEQ_TABLES') }
+            def (prefix, rest) = task.hash.split('/')
+            def taskDir = new File("${metaDir}/../work/${prefix}").listFiles().find { it.name.startsWith(rest) }
+            def staged = taskDir.list() as List
+            assert staged.any { it.endsWith('_rel-abundance.tsv') } && !staged.any { it.endsWith('_cell-abundance.tsv') }
+        }
+    }
+
+    test("--cell_abundance refuses a --taxonomy_tsv other than the database's") {
+        tag "stub"
+        options "-profile test -stub-run --cell_abundance true"
+
+        when {
+            params {
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/e2e/db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert workflow.trace.tasks().size() == 0
+            assert (workflow.stdout + workflow.stderr).any { it.contains("it cannot be used with another --taxonomy_tsv") }
+        }
+    }
+
+    test("--copy_numbers in abundance mode is ignored with a warning") {
+        tag "stub"
+        options "-profile test -stub-run --cell_abundance true --copy_numbers ${projectDir}/tests/test_data/e2e/copy_number_sources.tsv"
+
+        when {
+            params {
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/e2e/db"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def warning = "--copy_numbers is a build-database option and is ignored by --cmd abundance"
+            assert (workflow.stdout + workflow.stderr).any { it.contains(warning) } ||
+                file("${metaDir}/nextflow.log").text.contains(warning)
+        }
+    }
+
+    test("--cell_abundance fails on a database without copy_numbers.tsv") {
+        tag "stub"
+        options "-profile test -stub-run --cell_abundance true"
+
+        when {
+            params {
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("--cell_abundance needs copy_numbers.tsv in the database directory") }
         }
     }
 
@@ -467,8 +566,69 @@ nextflow_pipeline {
             assert file("${outputDir}/db_custom/identical_16s.tsv").exists()
             assert file("${outputDir}/db_custom/cross_genus_identical.tsv").exists()
             assert !file("${outputDir}/db_custom/db_custom").exists()
-            // No cross-genus rule by default (F56)
+            // No cross-genus rule by default (F56), and no copy numbers without a source (F58)
             assert !file("${outputDir}/db_custom/cross_genus_removed.tsv").exists()
+            assert !file("${outputDir}/db_custom/copy_numbers.tsv").exists()
+        }
+    }
+
+    test("build-database with --copy_numbers writes copy_numbers.tsv") {
+        tag "stub"
+        options "-profile test -stub-run --copy_numbers ${projectDir}/tests/test_data/e2e/copy_number_sources.tsv"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                sequences     = "${projectDir}/tests/test_data/mock_db/species_taxid.fasta"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                ncbi_taxonomy = "${projectDir}/tests/test_data/mock_db"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/db_custom/copy_numbers.tsv").exists()
+        }
+    }
+
+    test("build-database refuses --rrndb_pantaxa without --ncbi_taxonomy") {
+        tag "stub"
+        options "-profile test -stub-run --rrndb_pantaxa ${projectDir}/tests/test_data/e2e/copy_number_sources.tsv"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                sequences     = "${projectDir}/tests/test_data/mock_db/species_taxid.fasta"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                taxonomy_list = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("--rrndb_pantaxa needs --ncbi_taxonomy") }
+        }
+    }
+
+    test("build-database refuses two copy-number sources") {
+        tag "stub"
+        options "-profile test -stub-run --copy_numbers ${projectDir}/tests/test_data/e2e/copy_number_sources.tsv --rrndb_pantaxa ${projectDir}/tests/test_data/e2e/copy_number_sources.tsv"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                sequences     = "${projectDir}/tests/test_data/mock_db/species_taxid.fasta"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                ncbi_taxonomy = "${projectDir}/tests/test_data/mock_db"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("provide at most one of --copy_numbers or --rrndb_pantaxa") }
         }
     }
 
@@ -890,6 +1050,7 @@ nextflow_pipeline {
             assert file(result).exists()
             assert !file("${outputDir}/sample_outputs/e2e_mock_read_assignments.tsv.gz").exists()
             assert !file("${outputDir}/sample_outputs/e2e_mock_groups.tsv").exists()
+            assert !file("${outputDir}/sample_outputs/e2e_mock_cell-abundance.tsv").exists()
             def rows = readTsv(result)
             def expected = readTsv("${projectDir}/tests/test_data/e2e/expected.tsv")
             // The fixture's 11 species share no identical 16S (D24): the column is there, empty
@@ -1087,13 +1248,76 @@ nextflow_pipeline {
         }
     }
 
+    // The cell-level table (F58, D40): each species' read-level abundance over the
+    // fixture's copy numbers (tests/test_data/e2e/copy_number_sources.tsv), renormalised;
+    // with the groups on, the E. coli / S. flexneri group gets both members' cells
+    test("--cell_abundance divides by the fixture's copy numbers") {
+        tag "e2e"
+        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --cell_abundance true --ambiguity_groups true"
+
+        when {
+            params {
+                output_dir = "${outputDir}"
+            }
+        }
+
+        then {
+            assert workflow.success
+            def readTsv = { f ->
+                def lines = file(f).readLines().findAll { it && !it.startsWith('#') }
+                def header = lines[0].split('\t', -1) as List
+                lines.drop(1).collect { line -> [header, line.split('\t', -1) as List].transpose().collectEntries { it } }
+            }
+            def cellFile = "${outputDir}/sample_outputs/e2e_mock_cell-abundance.tsv"
+            def text = file(cellFile).readLines()
+            assert text[0].startsWith('# Cell-level abundance')
+            def unassigned = readTsv("${outputDir}/sample_outputs/e2e_mock_rel-abundance.tsv").find { it.species == 'Unassigned' }
+            assert text[1].contains("Unassigned (${unassigned.estimated_counts} reads)")
+            assert text[1].contains('0 species without a copy number')
+            assert text[2].split('\t') as List == ['species', 'abundance', 'read_abundance', 'copy_number', 'copy_number_level',
+                                                   'genus', 'family', 'order', 'class', 'phylum', 'superkingdom']
+            def cell = readTsv(cellFile)
+            def species = readTsv("${outputDir}/sample_outputs/e2e_mock_rel-abundance.tsv")
+                .findAll { !(it.species in ['Below detection', 'Unassigned']) }
+            def copies = readTsv("${projectDir}/tests/test_data/e2e/db/copy_numbers.tsv").collectEntries { [(it.species): it.copy_number as double] }
+            // Every species row, in the species table's order, with its own copy number
+            assert cell*.species == species*.species
+            assert cell.every { (it.copy_number as double) == copies[it.species] && it.copy_number_level == 'species' }
+            def total = species.sum { (it.abundance as double) / copies[it.species] }
+            [cell, species].transpose().each { c, s ->
+                assert c.read_abundance == s.abundance
+                assert Math.abs((c.abundance as double) - (s.abundance as double) / copies[s.species] / total) < 1e-12
+            }
+            assert Math.abs(cell.sum { it.abundance as double } - 1.0) < 1e-9
+            // Against the cell-level truth of the design (expected read share / copy number), as the
+            // species table is checked against the read-level truth: within 5 points at 10% or more
+            def expected = readTsv("${projectDir}/tests/test_data/e2e/expected.tsv").findAll { it.tax_id != 'NA' }
+            def truthTotal = expected.sum { (it.expected_abundance as double) / copies[it.species] }
+            def observed = cell.collectEntries { [(it.species): it.abundance as double] }
+            expected.each { exp ->
+                def truth = (exp.expected_abundance as double) / copies[exp.species] / truthTotal
+                if (truth >= 0.10)
+                    assert Math.abs(observed[exp.species] - truth) <= 0.05
+            }
+            // The group of E. coli and S. flexneri: the sum of their cells, copy number 7
+            def groups = readTsv("${outputDir}/sample_outputs/e2e_mock_groups.tsv")
+            def pair = groups.find { it.members == 'Escherichia coli; Shigella flexneri' }
+            assert Math.abs((pair.cell_abundance as double) - observed['Escherichia coli'] - observed['Shigella flexneri']) < 1e-12
+            assert (pair.copy_number as double) == 7.0 && pair.copy_number_level == 'species'
+            groups.findAll { it.n_members == '1' }.each { g ->
+                assert (g.cell_abundance as double) == observed[g.members]
+            }
+            assert groups.findAll { it.group in ['Below detection', 'Unassigned'] }.every { it.cell_abundance == '' }
+        }
+    }
+
     // A sample with no read aligned to the database does not stop the run (F45): its
     // table has only the Below detection (0) and Unassigned rows, and the phyloseq
     // tables keep it with zero counts. non16s holds the fixture's 30 non-16S reads;
     // too_short holds 20 reads cut to 400 bp, below --min_length 500
     test("Samples with no aligned read get an all-Unassigned table beside a normal sample") {
         tag "e2e"
-        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --keep_files true --read_assignments true --ambiguity_groups true"
+        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --keep_files true --read_assignments true --ambiguity_groups true --cell_abundance true"
 
         when {
             def edge = "${projectDir}/tests/test_data/edge_samples"
@@ -1137,6 +1361,9 @@ nextflow_pipeline {
                 def groups = readTsv("${outputDir}/sample_outputs/${sample}_groups.tsv")
                 assert groups.collect { [it.group, it.members, it.estimated_counts as int] } ==
                     [['Below detection', 'Below detection', 0], ['Unassigned', 'Unassigned', unassigned]]
+                // Their cell-level tables (F58): no rows, and the left-out reads named
+                def cell = file("${outputDir}/sample_outputs/${sample}_cell-abundance.tsv").readLines()
+                assert cell.size() == 3 && cell[1].contains("Unassigned (${unassigned} reads)")
             }
             // fastplong leaves an empty file when no read passes; FILTER_READS makes it a gzip stream
             def filtered = new java.util.zip.GZIPInputStream(new FileInputStream("${outputDir}/filtered/too_short_filtered.fastq.gz"))

@@ -12,6 +12,7 @@ database, 30 that are not 16S). How the numbers are computed is in
 ├── sample_outputs/<sample>_rel-abundance.tsv
 ├── sample_outputs/<sample>_read_assignments.tsv.gz    (--read_assignments)
 ├── sample_outputs/<sample>_groups.tsv                 (--ambiguity_groups)
+├── sample_outputs/<sample>_cell-abundance.tsv         (--cell_abundance)
 ├── consolidated_output/
 │   ├── otu_table_abundance.tsv
 │   ├── otu_table_counts.tsv        (not written when no sample has counts)
@@ -158,6 +159,7 @@ other rows together take 0.01 of it.
 | `max_shared` | always | The largest max(f_a(b), f_b(a)) between two members: how strongly the group is held together. Empty for a group of one |
 | `shared_read_fraction` | always | As in the species table, judged between groups: the share of the group's expected reads whose responsibility is split with rows outside the group. For a group of one it equals the species row's value |
 | `ci_lower`, `ci_upper` | `--credible_intervals` (VB only) | From the group's summed Dirichlet parameter, Beta(Σ α, A − Σ α), as for a summed species row. For a group of one they equal the species row's |
+| `cell_abundance`, `copy_number`, `copy_number_level` | `--cell_abundance` | The sum of the members' cell-level shares (below), the cell-weighted mean of their copy numbers and the coarsest level any member's came from, over the members that have one. Empty for a group none of whose members has a copy number, and on the placeholder rows |
 
 The 0.25 and the family rule come from the 2026 benchmark ([NanoVI-paper `ambiguity_2026.md`](https://github.com/microbialds/NanoVI-paper/blob/main/docs/benchmarks/ambiguity_2026.md)): on simulated communities the group table's L1 against the truth summed over the same groups was 0.075, against the species table's 0.132 (0.010 when the listed relatives count towards their group), and 0.326 against 0.352 on 13 real mock communities. The cost: about 1.5 of the 12 species that the species table had within 25% of the truth went into a group per simulated sample. Without the family rule, 7 of the 18 groups on the real mocks joined a false-positive species to a mock species of another phylum or class; the rule removes them, with L1 within 0.001, and leaves those false positives as rows of their own (3.5 per real mock against 2.8 without the rule and 5.2 in the species table).
 
@@ -184,6 +186,73 @@ left out, the latter is empty since the fixture's 11 sequences are all distinct)
 0.05); the group's lowest common rank is the family Enterobacteriaceae. *S. pneumoniae* and
 *S. mitis*, which the fixture splits correctly, share 0.101 of *S. pneumoniae*'s reads and
 stay apart.
+
+### Cell-level abundance: `sample_outputs/<sample>_cell-abundance.tsv`
+
+Only with `--cell_abundance`, which needs `copy_numbers.tsv` in `--db` and the database's
+own `taxonomy.tsv` (a database built without copy numbers, or another `--taxonomy_tsv`,
+stops the run before any task starts; `--copy_numbers` and `--rrndb_pantaxa` are
+build-database options and are ignored here, with a warning). The species table gives each species'
+share of 16S reads, which follows its share of 16S genes; this table divides each species
+row's abundance by its 16S copy number and renormalises, so that a species with ten copies
+per genome no longer weighs ten times one with a single copy. The species table does not
+change.
+
+The file starts with two comment lines (`#`; read it with `comment="#"` in pandas, or
+`comment.char = "#"` in R): what the table is, and what it leaves out. The `Below
+detection` and `Unassigned` reads have no species and so no copy number, and a species row
+none of whose tax IDs has a copy number in `copy_numbers.tsv` has none either; they are
+left out, and the second line gives their reads and the read-level abundance of those
+species. The shares are therefore of the cells of the species listed.
+
+| Column | Meaning |
+|---|---|
+| `species` | As in the species table, in the same order |
+| `abundance` | Cell-level share: the row's abundance / its copy number, renormalised over the rows listed (sums to 1) |
+| `read_abundance` | The row's abundance in the species table (all its tax IDs; a tax ID without a copy number in a row that has one is named in the second comment line) |
+| `copy_number` | 16S copies per genome. A row that sums several tax IDs (`--binomial_names`, or a name repeated in a custom taxonomy) takes the cell-weighted mean of their copy numbers, Σ abundance / Σ (abundance / copy number), so its cell share is the sum of theirs; its tax IDs without a copy number are left out of it (and counted in the second comment line) |
+| `copy_number_level` | Where the copy number comes from: `species` (the species' own value in `copy_numbers.tsv`), or the `genus` or `family` median it was filled from; for a summed row, the coarsest level among its tax IDs |
+| `genus` … `superkingdom` | Lineage, as in the species table |
+
+Copy numbers from a genus or family median carry an error the species value does not
+(in GTDB r226, filling a species' known value from the others' median is off by 0.45
+copies on average at genus level, 0.81 at family level, and within one copy for 91% and
+82% of species). Strains of a species also differ: *E. coli*'s complete genomes mostly
+have 7 copies, but some 1 or 17.
+
+e2e fixture (`--cell_abundance true`, copy numbers from
+`tests/test_data/e2e/copy_number_sources.tsv`; lineage left out):
+
+```
+# Cell-level abundance: read-level abundance / 16S copy number (the database's copy_numbers.tsv), renormalised over the rows listed; ...
+# Not included: Below detection (0 reads) and Unassigned (30 reads), and 0 species without a copy number (read-level abundance 0).
+```
+
+| species | abundance | read_abundance | copy_number | copy_number_level |
+|---|---|---|---|---|
+| Escherichia coli | 0.203986 | 0.263519 | 7.0 | species |
+| Pseudomonas aeruginosa | 0.135615 | 0.100111 | 4.0 | species |
+| Shigella flexneri | 0.028282 | 0.036536 | 7.0 | species |
+| Staphylococcus aureus | 0.360888 | 0.399612 | 6.0 | species |
+| Streptococcus mitis | 0.067923 | 0.050141 | 4.0 | species |
+| Streptococcus pneumoniae | 0.203306 | 0.150081 | 4.0 | species |
+
+The fixture's reads are drawn in fixed read-level proportions, so the cell shares they
+imply are those proportions over the copy numbers: *S. aureus* 0.361, *S. pneumoniae*
+0.203, *E. coli* 0.194, *P. aeruginosa* 0.136, *S. mitis* 0.068, *S. flexneri* 0.039.
+With `--ambiguity_groups` the *E. coli* + *S. flexneri* group gets 0.232 (the sum of its
+members) and copy number 7.
+
+The table is per sample, like the group table: the consolidated tables,
+`collapse-taxonomy` and `combine-outputs` use the species tables.
+
+In the 2026 benchmark ([NanoVI-paper `copy_number_2026.md`](https://github.com/microbialds/NanoVI-paper/blob/main/docs/benchmarks/copy_number_2026.md)) the cell table's species L1 against the cell-level
+composition was 0.130 on 40 simulated communities whose reads were drawn in proportion
+to cells × copies (the read-level table: 0.343; 0.116 with each simulated genome's own
+copy number), and 0.367 on 12 Zymo mocks against the cell numbers of their manuals'
+Table 1 (read-level table 0.438). On the mocks this only confirms the copy numbers: Zymo
+derives its cell shares from the same 16S shares and copy numbers. Replacing the
+community species' own values with their genus medians raised L1 by 0.106 and 0.033.
 
 ### Consolidated tables: `consolidated_output/`
 
@@ -226,6 +295,7 @@ Writes `<output_dir>/<db_name>/`, the directory to pass as `--db`:
 | `identical_16s.tsv` | As written by `bin/build_gtdb_db.py` (below) |
 | `cross_genus_identical.tsv` | As written by `bin/build_gtdb_db.py` (below) |
 | `cross_genus_removed.tsv`, `cross_genus_emptied.tsv` | With a `--cross_genus_rule` other than `keep`: as written by `bin/build_gtdb_db.py` (below). For `most-copies`, a sequence's copies are the input sequences its entry stands for (identical sequences and reverse complements of a species in `--sequences`) |
+| `copy_numbers.tsv` | With `--copy_numbers` (a TSV with `species` and `copy_number` columns, matched on the species names of `taxonomy.tsv`; other columns are ignored) or `--rrndb_pantaxa` (rrnDB's pan-taxa statistics for NCBI taxonomy, the `median` of the species row whose `taxid` is the tax ID; needs `--ncbi_taxonomy`, whose tax IDs are NCBI's): the columns below (`bin/build_gtdb_db.py`). `n_genomes` is empty for a table and rrnDB's `childcount` for rrnDB. Without either, no file, and `--cell_abundance` cannot use the database |
 
 ## `bin/build_gtdb_db.py`
 
@@ -240,6 +310,7 @@ README for the options. It writes:
 | `cross_genus_identical.tsv` | One row per sequence found in species of more than one genus. Columns: `md5` (of the uppercase sequence), `species_count`, `sequence_ids` and `tax_ids` of the carriers, and the `species`, `genera`, `families` and `phyla` they span (`;`-separated). In GTDB most are contaminant contigs in an assembly, but real strains carry some of them (below). With the default `--cross-genus-rule keep` they stay in the database: on the exact database at `-N 3` they carried no false-positive abundance in the benchmark. With another rule the file still lists the sequences as built, since they are what the rule acted on |
 | `cross_genus_removed.tsv` | Only with a `--cross-genus-rule` other than `keep`: one row per entry the rule removed from `species_taxid.fasta`. Columns: `sequence_id`, `tax_id`, `species`, `genus`, `md5` (as in `cross_genus_identical.tsv`), `rule`, `kept_in` (the genus, as in `taxonomy.tsv` with GTDB's suffixes stripped, in which the sequence was kept; empty when the rule removed every copy). `remove` removes every copy; `best-genus` keeps the sequence only in the genus with the most entries carrying it; `most-copies` keeps it only in the genus whose entries stand for the most input sequences of at least `--min-length` (about one per genome), the genus with the most entries in the database breaking a tie. A tie the rule cannot break removes every copy. Genera are compared with GTDB's suffixes stripped |
 | `cross_genus_emptied.tsv` | Only with a `--cross-genus-rule` other than `keep`: one row per species left with no sequence. Columns: `tax_id`, `species`, `genus`, `sequences_removed`. The species stay in `taxonomy.tsv`, as species with no sequence of `--min-length` do, but no read can be assigned to them |
+| `copy_numbers.tsv` | Only with `--gtdb-metadata` (or `--copy-numbers`, a table as for `--cmd build-database`): one row per species of `taxonomy.tsv`. Columns: `tax_id`, `species`; `copy_number` (16S copies per genome, empty when none); `level` (`species`: the median `ssu_count` over the species' `Complete Genome` assemblies with at least one 16S gene; `genus` or `family`: the median of the species values of its genus, or else of its family, ranks compared with the ranks above them; `none`); `n_genomes` (the complete genomes behind a species value); `source` (`gtdb_complete_genomes:` and the metadata files, or `table:` and the table). `ssu_count` is the number of 16S genes GTDB finds in the genome (HMMER with Barrnap's models), the genome's records in `ssu_all`; draft assemblies are not used because their rRNA operons collapse (in r226, 72% of drafts count 0 or 1; complete genomes 5.3 on average). A blank genus or family fills nothing. `--cell_abundance` reads it. A rebuild without a source removes an earlier `copy_numbers.tsv` |
 | `merged_species.tsv` | Only with `--merge-gtdb-suffixes`: one row per merged name that joins two or more GTDB species with a sequence in the database. Columns: `tax_id`, `species` (the merged name), `gtdb_species_merged` (how many), `gtdb_species` and `gtdb_genera` (suffixes kept, `;`-separated), `ranks_in_conflict` (ranks at which their lineages still differ after stripping, `,`-separated), `lineage_from` (the GTDB species, first in the input, whose lineage `taxonomy.tsv` keeps) |
 
 GTDB r226 (`ssu_all_r226`): with `--merge-gtdb-suffixes`, 232,447 sequences over 59,037
@@ -251,6 +322,16 @@ kept), 233,611 sequences over 62,295 species with a sequence (84,596 species in
 siblings such as *Listeria monocytogenes* and *L. monocytogenes_B* are separate species
 of one genus there. `cross_genus_identical.tsv` lists the same 1,360 sequences in both
 builds.
+
+With `--gtdb-metadata` (`bac120_metadata_r226.tsv.gz`, `ar53_metadata_r226.tsv.gz`),
+`copy_numbers.tsv` gives the default build's 84,596 species: 11,971 (14.2%) their own
+value, 31,049 a genus median, 21,629 a family median, 19,947 none (merged build: 11,124,
+29,664, 20,469, 19,916 of 81,173). The species values agree with rrnDB 5.10 (99.1% of the
+43,167 genomes in both are equal) and give Zymo's copy numbers for 19 of the 20 species of
+its D6300 and D6331 mock communities (*Bifidobacterium adolescentis*: 4, where Zymo's
+Table 1 implies 5). Abundance-weighted, the species with their own value held 98.6% of the
+assigned abundance of 13 real mocks and 59% of 117 stool samples (25% genus, 15% family,
+0.8% none).
 
 With a `--cross-genus-rule`, `identical_16s.tsv` is built from the cleaned sequences, so
 it loses the links that a removed sequence made; `taxonomy.tsv` and the tax IDs do not

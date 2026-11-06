@@ -41,6 +41,7 @@ params {
     credible_intervals: Boolean
     read_assignments: Boolean
     ambiguity_groups: Boolean
+    cell_abundance: Boolean
 
     // Build database
     db_name: String
@@ -49,6 +50,8 @@ params {
     ncbi_taxonomy: String?
     taxonomy_list: String?
     cross_genus_rule: String
+    copy_numbers: String?
+    rrndb_pantaxa: String?
 
     // Post-processing
     input_tsv: String?
@@ -161,7 +164,29 @@ workflow {
         def identical_file = file("${params.db}/identical_16s.tsv")
         def identical_16s = identical_file.exists() && tax_file == file("${params.db}/taxonomy.tsv") ? identical_file : null
 
-        ABUNDANCE(input_reads, fasta_file, tax_file, db_index, identical_16s)
+        // The database's 16S copy numbers (F58, D40), only with --cell_abundance
+        def copy_numbers = null
+        if (params.cell_abundance) {
+            copy_numbers = file("${params.db}/copy_numbers.tsv")
+            if (!copy_numbers.exists())
+                error "--cell_abundance needs copy_numbers.tsv in the database directory (${params.db}). " +
+                    "Build the database with copy numbers: bin/build_gtdb_db.py --gtdb-metadata (GTDB), or " +
+                    "--cmd build-database --copy_numbers <table> or --rrndb_pantaxa <file>"
+            // Its tax IDs are those of the database's own taxonomy.tsv
+            def db_tax = file("${params.db}/taxonomy.tsv")
+            def same_tax = tax_file == db_tax ||
+                (db_tax.exists() && (tax_file.toRealPath() == db_tax.toRealPath() || tax_file.bytes == db_tax.bytes))
+            if (!same_tax)
+                error "--cell_abundance uses ${params.db}/copy_numbers.tsv, which matches the database's own taxonomy.tsv; " +
+                    "it cannot be used with another --taxonomy_tsv (${taxonomy_tsv})"
+        }
+        // The copy-number sources are build-database options (F58)
+        ['copy_numbers', 'rrndb_pantaxa'].findAll { params[it] }.each {
+            log.warn "--${it} is a build-database option and is ignored by --cmd abundance; " +
+                "--cell_abundance reads copy_numbers.tsv from --db"
+        }
+
+        ABUNDANCE(input_reads, fasta_file, tax_file, db_index, identical_16s, copy_numbers)
         versions = ABUNDANCE.out.versions
     }
 
@@ -171,16 +196,25 @@ workflow {
             error "For build-database you must provide --sequences and --seq2tax"
         if (!params.taxonomy_list == !params.ncbi_taxonomy)
             error "For build-database provide exactly one of --taxonomy_list or --ncbi_taxonomy"
+        if (params.copy_numbers && params.rrndb_pantaxa)
+            error "For build-database provide at most one of --copy_numbers or --rrndb_pantaxa"
+        if (params.rrndb_pantaxa && !params.ncbi_taxonomy)
+            error "--rrndb_pantaxa needs --ncbi_taxonomy: rrnDB is looked up by NCBI taxid"
 
         // main.py takes the taxonomy source as --taxonomy-list <file> or --ncbi-taxonomy <dir>
         def taxonomy_flag = params.taxonomy_list ? '--taxonomy-list' : '--ncbi-taxonomy'
         def taxonomy_path = params.taxonomy_list ?: params.ncbi_taxonomy
+        // 16S copy numbers (F58): a table or rrnDB's pan-taxa statistics, or none
+        def copy_flag = params.copy_numbers ? '--copy-numbers' : (params.rrndb_pantaxa ? '--rrndb-pantaxa' : '')
+        def copy_source = params.copy_numbers ?: params.rrndb_pantaxa
 
         BUILD_DATABASE(
             channel.value(file(params.sequences)),
             channel.value(file(params.seq2tax)),
             channel.value(file(taxonomy_path)),
-            taxonomy_flag
+            taxonomy_flag,
+            copy_source ? channel.value(file(copy_source)) : channel.value([]),
+            copy_flag
         )
         versions = BUILD_DATABASE.out.versions
     }

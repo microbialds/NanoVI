@@ -13,6 +13,10 @@ ci_lower and ci_upper columns (sampling intervals of the Bayesian VI's
 mean-field posterior, which ignore how shared reads are split; D7, D27).
 With --groups-output it also writes <prefix>.tsv of the ambiguity groups that
 estimate_abundance.py --groups put into the JSON (ambiguity_groups.py, F57, D39).
+With --copy-numbers (the database's copy_numbers.tsv) and --cell-output it writes
+<prefix>.tsv of cell-level abundances, each row's abundance divided by its 16S copy
+number and renormalised (copy_numbers.py, F58, D40), and adds the groups' cell
+abundance and copy number to the group table. The species table never changes.
 """
 import argparse
 import json
@@ -21,7 +25,8 @@ import sys
 import pandas as pd
 
 from ambiguity_groups import write_groups_table
-from taxonomy import IDENTICAL_COLUMN, freq_to_lineage_df
+from copy_numbers import read_copy_numbers, row_cells, tax_id_copy_numbers, write_cell_table
+from taxonomy import IDENTICAL_COLUMN, freq_to_lineage_df, table_row_of_ids
 
 
 def read_identical(path):
@@ -60,7 +65,14 @@ def main():
     parser.add_argument("--groups-output", metavar="PREFIX",
                         help="also write the ambiguity groups to PREFIX.tsv (<sample>_groups; needs abundances "
                              "from estimate_abundance.py --groups)")
+    parser.add_argument("--copy-numbers", metavar="FILE",
+                        help="copy_numbers.tsv of the database (needs --cell-output)")
+    parser.add_argument("--cell-output", metavar="PREFIX",
+                        help="also write cell-level abundances to PREFIX.tsv (<sample>_cell-abundance; "
+                             "needs --copy-numbers); with --groups-output the group table gets their sums")
     args = parser.parse_args()
+    if bool(args.copy_numbers) != bool(args.cell_output):
+        parser.error("--copy-numbers and --cell-output go together")
 
     with open(args.abundance) as f:
         abundance_data = json.load(f)
@@ -95,10 +107,20 @@ def main():
         identical=read_identical(args.identical_16s) if args.identical_16s is not None else None,
         binomial=args.binomial_names,
     )
+    cells = row_of_id = None
+    if args.cell_output:
+        cn_of_id = tax_id_copy_numbers(freq, read_copy_numbers(args.copy_numbers, set(map(str, freq))), taxonomy_df)
+        # The species table row of every tax ID, as the group table finds it
+        row_of_id = table_row_of_ids(freq, species_df, taxonomy_df, args.binomial_names)
+        cells = row_cells(freq, row_of_id, cn_of_id)
+        out_file = f"{args.cell_output}.tsv"
+        write_cell_table(species_df, cells, out_file, below_detection_count, unassigned_count)
+        print(f"Cell-level abundances saved as {out_file}")
     if args.groups_output:
         out_file = f"{args.groups_output}.tsv"
         write_groups_table(abundance_data["groups"], read_summary, species_df, taxonomy_df, out_file,
-                           binomial=args.binomial_names, intervals=args.credible_intervals)
+                           binomial=args.binomial_names, intervals=args.credible_intervals, cells=cells,
+                           row_of_id=row_of_id)
         print(f"Ambiguity groups saved as {out_file}")
 
 

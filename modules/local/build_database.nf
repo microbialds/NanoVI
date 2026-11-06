@@ -8,6 +8,8 @@ process BUILD_DB {
     path seq2tax         // staged from seq2tax_ch
     path taxonomy        // --taxonomy_list file or --ncbi_taxonomy directory
     val  taxonomy_flag   // '--taxonomy-list' or '--ncbi-taxonomy', matching taxonomy
+    path copy_source, stageAs: 'copy_source/*'  // copy-number table or rrnDB pan-taxa file, or [] (F58); own directory, so its name cannot collide
+    val  copy_flag       // '--copy-numbers', '--rrndb-pantaxa' or ''
 
     output:
     path "${params.db_name}/**"
@@ -20,6 +22,7 @@ process BUILD_DB {
         --seq2tax        ${seq2tax} \\
         ${taxonomy_flag} ${taxonomy} \\
         --cross-genus-rule ${params.cross_genus_rule} \\
+        ${copy_flag ? "${copy_flag} ${copy_source}" : ''} \\
         ${params.db_name}
     python_versions.py "${task.process}" > versions.yml
     """
@@ -29,6 +32,7 @@ process BUILD_DB {
     mkdir -p ${params.db_name}
     touch ${params.db_name}/species_taxid.fasta ${params.db_name}/taxonomy.tsv
     touch ${params.db_name}/identical_16s.tsv ${params.db_name}/cross_genus_identical.tsv
+    ${copy_flag ? "touch ${params.db_name}/copy_numbers.tsv" : ''}
     if [ "${params.cross_genus_rule}" != keep ]; then
         touch ${params.db_name}/cross_genus_removed.tsv ${params.db_name}/cross_genus_emptied.tsv
     fi

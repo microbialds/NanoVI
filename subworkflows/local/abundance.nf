@@ -17,6 +17,7 @@ workflow ABUNDANCE {
     taxonomy_tsv    // path: taxonomy TSV
     db_index        // path: prebuilt minimap2 index (--db_index), or null to build it
     identical_16s   // path: the database's identical_16s.tsv, or null to build it from the FASTA
+    copy_numbers    // path: the database's copy_numbers.tsv with --cell_abundance, or null (F58)
 
     main:
     // Step 1: Filter reads by length
@@ -84,7 +85,7 @@ workflow ABUNDANCE {
 
     // Step 6: Join abundance with the read counts and write final output
     vi_with_counts = freq_output.join(LIKELIHOOD.out.counts)
-    WRITE_OUTPUT(vi_with_counts, taxonomy_tsv, identical_table)
+    WRITE_OUTPUT(vi_with_counts, taxonomy_tsv, identical_table, copy_numbers ? channel.value(copy_numbers) : channel.value([]))
 
     // Step 7: Consolidate per-sample outputs into phyloseq-compatible tables
     collected_tsvs = WRITE_OUTPUT.out.result_tsv.collect()
