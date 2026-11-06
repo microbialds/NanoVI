@@ -142,6 +142,15 @@ Parameters are checked against `nextflow_schema.json` at the start of every run 
 
 **Cell-level abundance.** The abundance table gives each species' share of 16S reads, which follows its share of 16S genes, not of cells: a species with ten copies of the gene per genome gives about ten times the reads per cell of a species with one. With `--cell_abundance` each sample also gets `<sample>_cell-abundance.tsv`, where each species' abundance is divided by its copy number from the database's `copy_numbers.tsv` and the result renormalised. A copy number is the median count over the species' complete genomes in GTDB; a species without one takes the median of its genus, or else of its family, and the `copy_number_level` column says which (`species`, `genus` or `family`). Species with none of the three, and the `Below detection` and `Unassigned` reads, have no cell-level share and are left out; the file's first two lines (starting with `#`) say how many reads and how much of the abundance that is. A row that sums several tax IDs (`--binomial_names`), and with `--ambiguity_groups` a group, takes the cell-weighted mean of its members' copy numbers, so its cell share is the sum of theirs. A database built without copy numbers stops the run with an error, as does a `--taxonomy_tsv` other than the database's own (the copy numbers are keyed by its tax IDs); build it with `bin/build_gtdb_db.py --gtdb-metadata` or `--cmd build-database --copy_numbers` / `--rrndb_pantaxa` (below). The consolidated tables, `collapse-taxonomy` and `combine-outputs` use the species tables ([docs/output.md](docs/output.md)). In the 2026 benchmark ([NanoVI-paper `copy_number_2026.md`](https://github.com/microbialds/NanoVI-paper/blob/main/docs/benchmarks/copy_number_2026.md)), on simulated communities whose reads follow cells × copies, the cell table's species L1 against the cell composition was 0.130 where the read-level table's was 0.343; on 12 Zymo mocks 0.367 against 0.438. A copy number filled from the genus median instead of the species' own value added 0.106 and 0.033. The correction cannot fix species the read-level estimate misses or splits wrongly.
 
+### Run report
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--report` | `false` | Also writes `report/`: an HTML site that works offline (`report/index.html`), `nanovi_report.pdf` and the figures as SVG, PDF, 600 dpi PNG and CSV (below). The other outputs do not change |
+| `--report_metadata` | none | Sample metadata for the report, TSV or CSV with a `sample_id` column and optionally `group`: samples are drawn by group (in the order the file first names each group), then in natural order (S2 before S10); other columns are listed in the report |
+
+**Run report.** With `--report` a last step reads what the run published (the species tables, the consolidated tables, fastplong's reports, `software_versions.yml`, and the group, cell-level and per-read tables when their options ran) and writes `report/`. Its sections are the read fate of each sample (raw reads, reads that passed the length filter, and how many of those went to reported species, `Below detection` and `Unassigned`), the composition at species and genus (the union of each sample's top 5, at most 20, the rest as Other; a heatmap of the top 30 species above 14 samples), the flagged species (a `shared_read_fraction` of 0.5 or more in a sample, or a non-empty `identical_16s_species`; the cutoff is a display rule, not a test), the ambiguity groups and the cell-level table when present, a summary of the per-read file, and the methods: the run's parameters, every tool and version with its reference (Emu credited) and how to read the tables. The HTML pages load nothing from the network: the fonts and the Vega libraries of the interactive read-fate and composition figures are in `report/assets/`. The figures follow journal widths (89 or 183 mm) with Inter embedded; a figure of more than 60 samples is split into parts. The report runs in its own image, `ghcr.io/microbialds/nanovi-report:<version>` (Typst, Jinja, matplotlib, Altair; `containers/report/`), so the Python image does not change. If Typst fails, the run warns and writes the site without the PDF. The report carries the day the run started, and two renders of the same results give the same files. `bin/nanovi_report.py --results <output_dir>` renders one from a finished run's directory in that image. [docs/output.md](docs/output.md) lists its files.
+
 ### Resources
 
 The Python steps ask for one CPU each and run on one core (`nextflow.config` sets `OMP_NUM_THREADS`, `OPENBLAS_NUM_THREADS` and `MKL_NUM_THREADS` to 1). minimap2 asks for 8 CPUs; when a task is killed for memory or time it is retried (twice) with more memory and time but the same CPUs. No request goes above these caps (`process.resourceLimits`):
@@ -199,6 +208,7 @@ Give the caps on the command line or in a `-params-file`. In a custom `-c` confi
 | `index_cache/` | The minimap2 index and, for a database without `identical_16s.tsv`, the identical-16S table the pipeline builds, each with a `.versions.yml`; reused by later runs (elsewhere with `--index_cache_dir`; no index with `--db_index`) |
 | `pipeline_info/timeline.html`, `report.html`, `trace.txt` | Nextflow's timeline, report and trace (with each task's requested CPUs, memory and time) |
 | `pipeline_info/software_versions.yml` | Versions of fastplong, minimap2, samtools, Python and its packages, NanoVI and Nextflow used in the run |
+| `report/` | Only with `--report`: the run report, `index.html` (an offline site), `nanovi_report.pdf`, `figures/` and the report's own `versions.yml` (above) |
 
 Every column, the consolidated tables and the database files are described in [docs/output.md](docs/output.md); the model behind the numbers is in [docs/methods.md](docs/methods.md).
 
@@ -210,7 +220,7 @@ Every column, the consolidated tables and the database files are described in [d
 |---------|-------------|
 | `docker` | Run with Docker containers (default if no profile specified) |
 | `singularity` | Run with Singularity containers |
-| `conda` | Run with Conda environments: fastplong 0.7.0 and minimap2 2.31 (with samtools 1.24) from bioconda, and `containers/environment.yml` (the image's Python and package versions) for the Python steps. Creating the environments with conda's classic solver can take a long time; a recent conda (libmamba solver) or `-c` with `conda.useMicromamba = true` is much faster |
+| `conda` | Run with Conda environments: fastplong 0.7.0 and minimap2 2.31 (with samtools 1.24) from bioconda, and `containers/environment.yml` (the image's Python and package versions) for the Python steps; with `--report`, `containers/report/environment.yml`. Creating the environments with conda's classic solver can take a long time; a recent conda (libmamba solver) or `-c` with `conda.useMicromamba = true` is much faster |
 | `slurm` | Submit jobs to SLURM scheduler (uses Singularity) |
 | `sge` | Submit jobs to SGE scheduler (uses Singularity) |
 | `test` | The bundled e2e fixture (`tests/test_data/e2e`) with reduced resources; it sets no container engine, so combine it with one |
@@ -229,6 +239,12 @@ docker build -t ghcr.io/microbialds/nanovi-python:1.1.1 -f containers/Dockerfile
 **Singularity** (from the `containers/` directory, so the build finds `requirements.txt`):
 ```bash
 cd containers && singularity build nanovi-python.sif Singularity.def
+```
+
+The run report (`--report`) has its own image, `ghcr.io/microbialds/nanovi-report:<version>`, which installs `containers/report/environment.yml` (conda-forge: Python 3.13, Typst, Jinja, matplotlib, Altair, vl-convert and the Inter fonts) with micromamba; build it the same way:
+```bash
+docker build -t ghcr.io/microbialds/nanovi-report:1.1.1 containers/report/
+cd containers/report && singularity build nanovi-report.sif Singularity.def
 ```
 
 ## Building a GTDB Reference Database
@@ -317,23 +333,23 @@ NANOVI_E2E_PROFILE=conda nf-test test tests/main.nf.test --tag e2e    # the same
 
 The `e2e` tests run fastplong, minimap2 and the Python steps on a small real 16S database (11 sequences, including the near neighbours *E. coli* / *S. flexneri* and *S. pneumoniae* / *S. mitis*) with 600 simulated reads in known proportions plus 30 non-16S reads, and check the result against `tests/test_data/e2e/expected.tsv` (every present species reported, those at 10% or more within 5 percentage points, absent species below 1%), the `Below detection` and `Unassigned` rows, the four consolidated tables and the tool versions, and that samples with no aligned read (only non-16S reads, or every read below `--min_length`) get an all-Unassigned table beside a normal sample; see [tests/test_data/e2e/README.md](tests/test_data/e2e/README.md). `-profile test,docker` runs the pipeline on the same fixture (`-profile test` on its own sets no container engine).
 
-Continuous integration (GitHub Actions) runs on every push to `main`, `dev`, `feat/**`, `fix/**` and `roadmap/**`, on `v*` tags and on every pull request into `main` or `dev`: the unit tests on Python 3.11 and 3.13, a check that the version strings agree, the `stub` tests, and the `e2e` tests with Docker (on the Python image built from the commit) and with conda. The Docker image is built on every run; it is published to `ghcr.io/microbialds/nanovi-python` only from `main` (as `:main` and `:sha-<commit>`) and from release tags (see Releasing).
+Continuous integration (GitHub Actions) runs on every push to `main`, `dev`, `feat/**`, `fix/**` and `roadmap/**`, on `v*` tags and on every pull request into `main` or `dev`: the unit tests on Python 3.11 and 3.13, a check that the version strings agree, the `stub` tests, and the `e2e` tests with Docker (on the Python and report images built from the commit, then the report's tests inside its image, where Typst is) and with conda. Both Docker images are built on every run; they are published to `ghcr.io/microbialds/nanovi-python` and `ghcr.io/microbialds/nanovi-report` only from `main` (as `:main` and `:sha-<commit>`) and from release tags (see Releasing).
 
 ## Releasing
 
 Image tags of the form `X.Y.Z` come only from `vX.Y.Z` git tags and are never overwritten: to change a released image, release a new version.
 
-1. On `dev`, rename `## [Unreleased]` in `CHANGELOG.md` to `## [X.Y.Z] - YYYY-MM-DD` (and start a new empty `[Unreleased]` section), and set the same version in `nextflow.config` (`manifest.version`), `containers/Dockerfile` (`LABEL version`), `containers/Singularity.def` (`Version`), `bin/_version.py` and the `nanovi-python` image tags in `conf/base.config`. The `Version strings agree` CI job fails if any of them differ.
+1. On `dev`, rename `## [Unreleased]` in `CHANGELOG.md` to `## [X.Y.Z] - YYYY-MM-DD` (and start a new empty `[Unreleased]` section), and set the same version in `nextflow.config` (`manifest.version`), `containers/Dockerfile` (`LABEL version`), `containers/Singularity.def` (`Version`), `bin/_version.py`, the `nanovi-python` image tags in `conf/base.config`, and for the report image `containers/report/Dockerfile` (`LABEL version`), `containers/report/Singularity.def` (`Version`) and its `nanovi-report` tag in `conf/base.config`. The `Version strings agree` CI job fails if any of them differ.
 2. Merge `dev` into `main` through a pull request. CI publishes `:main` and `:sha-<commit>`.
 3. Tag the merge commit on `main` and push the tag:
    ```bash
    git tag -a vX.Y.Z -m "NanoVI X.Y.Z"
    git push origin vX.Y.Z
    ```
-   CI runs the tests and publishes `:X.Y.Z` and `:latest`. It stops without publishing if the tag does not match the top release in `CHANGELOG.md` or if `:X.Y.Z` already exists.
+   CI runs the tests and publishes `:X.Y.Z` and `:latest` of both images. It stops without publishing if the tag does not match the top release in `CHANGELOG.md` or if `:X.Y.Z` already exists.
 4. Create the GitHub release from the tag, with that version's CHANGELOG section as its notes.
 
-Until step 3 has published `:X.Y.Z`, `-profile docker` and `-profile singularity` cannot pull the image that `conf/base.config` names, so tag soon after merging.
+Until step 3 has published `:X.Y.Z`, `-profile docker` and `-profile singularity` cannot pull the images that `conf/base.config` names, so tag soon after merging. A new GHCR package is private: after its first publish, make `nanovi-report` public in its package settings, as `nanovi-python` is.
 
 ## Credits
 

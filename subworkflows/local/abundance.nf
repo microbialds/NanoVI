@@ -99,6 +99,10 @@ workflow ABUNDANCE {
 
     emit:
     results        = WRITE_OUTPUT.out.result_tsv
+    groups         = WRITE_OUTPUT.out.groups
+    cell           = WRITE_OUTPUT.out.cell
+    read_assignments = RUN_VI.out.read_assignments.map { sample_id, f -> f }
+    qc_json        = FILTER_READS.out.qc_json
     otu_abundance  = GENERATE_PHYLOSEQ_TABLES.out.otu_abundance
     otu_counts     = GENERATE_PHYLOSEQ_TABLES.out.otu_counts
     tax_table      = GENERATE_PHYLOSEQ_TABLES.out.tax_table

@@ -286,6 +286,24 @@
         }
       }
     },
+    "report_options": {
+      "title": "Run report options",
+      "type": "object",
+      "properties": {
+        "report": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also write <output_dir>/report/: an offline HTML site (index.html), nanovi_report.pdf and figures/ (SVG, PDF, 600 dpi PNG and a CSV of the plotted values) with the read fate, composition, flagged species, the group, cell-level and per-read tables when their options ran, and the methods with references. Runs in its own image (nanovi-report); the other outputs do not change"
+        },
+        "report_metadata": {
+          "type": "string",
+          "description": "Sample metadata for the report, TSV or CSV with a sample_id column and optionally group (samples are drawn by group, then in natural order); other columns are listed",
+          "format": "file-path",
+          "exists": true,
+          "pattern": "^\\S+\\.(tsv|csv|txt)$"
+        }
+      }
+    },
     "resource_options": {
       "title": "Resource limits",
       "type": "object",
@@ -335,6 +353,9 @@
     },
     {
       "$ref": "#/$defs/postprocessing_options"
+    },
+    {
+      "$ref": "#/$defs/report_options"
     },
     {
       "$ref": "#/$defs/resource_options"

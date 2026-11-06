@@ -23,6 +23,7 @@ SCRIPTS = {
     'generate_phyloseq_tables.py': '--output-dir',
     'main.py': 'build-database',
     'identical_16s.py': '--cross-genus',
+    'nanovi_report.py': '--results',
 }
 
 

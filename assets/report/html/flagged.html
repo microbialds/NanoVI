@@ -1,0 +1,8 @@
+{% extends "base.html" %}{% import "macros.html" as m %}
+{% set f = s.facts %}
+{% block body %}
+<h1>Flagged species</h1>
+<p>A species is flagged in a sample when its <code>shared_read_fraction</code> is at least {{ f.cutoff }} (most of its expected reads are split with another reported species) or when it shares an identical 16S with other species of its genus (<code>identical_16s_species</code>). {{ f.n_flagged }} species are flagged in at least one sample: {{ f.n_shared }} by <code>shared_read_fraction</code> and {{ f.n_identical }} by an identical 16S ({{ m.figref(s, "flagged_species") }}, {{ m.tabref(s, "flagged") }}). Their abundance rests on reads that 16S does not assign to them alone.</p>
+{{ m.figure(s, "flagged_species", specs) }}
+{{ m.table(s, "flagged") }}
+{% endblock %}

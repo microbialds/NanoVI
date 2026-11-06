@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ s.title }} · {{ run.title }}</title>
+<link rel="stylesheet" href="assets/site.css">
+{% if bundle %}<script src="assets/vega-bundle.js"></script>
+{% endif %}
+</head><body>
+<header class="top"><nav><a class="brand" href="index.html">{{ run.title }}</a>
+{% for page, title in nav %}<a href="{{ page }}"{% if page == s.page %} class="on"{% endif %}>{{ title }}</a>
+{% endfor %}
+</nav></header>
+<main>
+{% block body %}{% endblock %}
+</main>
+<footer>Generated {{ run.generated }}{% if run.nanovi_version %} from a NanoVI {{ run.nanovi_version }} run{% endif %} · {{ run.n_samples }} sample{{ "" if run.n_samples == 1 else "s" }} · the figures are in <code>figures/</code>{% if run.pdf %} and the PDF is <a href="{{ run.pdf }}">{{ run.pdf }}</a>{% endif %}, in this folder; the tables in <code>sample_outputs/</code> and <code>consolidated_output/</code> next to it.</footer>
+<script src="assets/tables.js"></script>
+</body></html>

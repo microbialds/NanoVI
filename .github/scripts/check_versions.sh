@@ -8,6 +8,10 @@ dockerfile=$(sed -n 's/^LABEL version="\([^"]*\)".*/\1/p' containers/Dockerfile)
 singularity=$(sed -n 's/^ *Version \(.*\)$/\1/p' containers/Singularity.def)
 python=$(sed -n 's/^__version__ = "\([^"]*\)".*/\1/p' bin/_version.py)
 images=$(grep -o "ghcr.io/microbialds/nanovi-python:[A-Za-z0-9._-]*" conf/base.config | sed 's/.*://' | sort -u || true)
+# The run report's image (F60, D42), versioned with the pipeline
+report_dockerfile=$(sed -n 's/^LABEL version="\([^"]*\)".*/\1/p' containers/report/Dockerfile)
+report_singularity=$(sed -n 's/^ *Version \(.*\)$/\1/p' containers/report/Singularity.def)
+report_images=$(grep -o "ghcr.io/microbialds/nanovi-report:[A-Za-z0-9._-]*" conf/base.config | sed 's/.*://' | sort -u || true)
 
 status=0
 printf '%-48s %s\n' \
@@ -16,8 +20,11 @@ printf '%-48s %s\n' \
     "LABEL version (containers/Dockerfile)" "${dockerfile:-MISSING}" \
     "Version (containers/Singularity.def)" "${singularity:-MISSING}" \
     "__version__ (bin/_version.py)" "${python:-MISSING}" \
-    "nanovi-python tag (conf/base.config)" "$(echo ${images:-MISSING})"
-for v in "$changelog" "$dockerfile" "$singularity" "$python" "$images"; do
+    "nanovi-python tag (conf/base.config)" "$(echo ${images:-MISSING})" \
+    "LABEL version (containers/report/Dockerfile)" "${report_dockerfile:-MISSING}" \
+    "Version (containers/report/Singularity.def)" "${report_singularity:-MISSING}" \
+    "nanovi-report tag (conf/base.config)" "$(echo ${report_images:-MISSING})"
+for v in "$changelog" "$dockerfile" "$singularity" "$python" "$images" "$report_dockerfile" "$report_singularity" "$report_images"; do
     if [ "$v" != "$manifest" ] || [ -z "$manifest" ]; then status=1; fi
 done
 if [ "$status" -ne 0 ]; then

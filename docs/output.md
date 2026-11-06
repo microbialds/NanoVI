@@ -22,7 +22,8 @@ database, 30 that are not 16S). How the numbers are computed is in
 ├── filtered/<sample>_filtered.fastq.gz        (--keep_files)
 ├── bam/<sample>_vi_alignments.bam             (--keep_files)
 ├── index_cache/                               (unless --index_cache_dir points elsewhere)
-└── pipeline_info/timeline.html, report.html, trace.txt, software_versions.yml
+├── pipeline_info/timeline.html, report.html, trace.txt, software_versions.yml
+└── report/                                    (--report)
 ```
 
 ### Per-sample table: `sample_outputs/<sample>_rel-abundance.tsv`
@@ -283,6 +284,45 @@ e2e fixture: `sample_metadata.tsv` reads `e2e_mock  1.0  6  600  30`.
 | `index_cache/md5_cache.tsv` | The MD5 of the database FASTA (and of `taxonomy.tsv` when the identical-16S table is built), with each file's path, size, modification time in milliseconds and, for a local file, inode and status-change time: a later launch reads the MD5 from here instead of the file while those match (a file replaced in place, even with its size and date kept, gets a new inode or status-change time). Deleting it only makes the next launch read the files again |
 | `pipeline_info/timeline.html`, `report.html`, `trace.txt` | Nextflow's timeline, report and trace; the trace also records each task's requested `cpus`, `memory` and `time` |
 | `pipeline_info/software_versions.yml` | Per process, the tool versions it ran (fastplong; minimap2 and samtools; Python and numpy, pandas, scipy, pysam, biopython), plus NanoVI and Nextflow |
+
+### Run report: `report/`
+
+With `--report` (F60), the REPORT step reads what the run published (the files above: the
+species tables, the consolidated tables, fastplong's JSON reports, `software_versions.yml`, and the
+group, cell-level and per-read tables when their options ran) and writes:
+
+```
+report/
+├── index.html, composition.html, flagged.html, methods.html   (always)
+├── groups.html, cell.html, reads.html     (with --ambiguity_groups, --cell_abundance, --read_assignments)
+├── nanovi_report.pdf                      (not written when Typst fails: the run warns)
+├── figures/<figure>[_<part>].svg, .pdf, .png, .csv
+├── assets/                                (Inter, the Vega libraries, the style sheet and table script)
+└── versions.yml                           (the report's own software)
+```
+
+Open `report/index.html` in a browser; the pages load nothing from the network, so the folder can
+be copied or sent as it is. Tables in the HTML can be sorted (click a header) and filtered; the PDF
+shows at most 60 rows and 14 columns of a table and says where the rest is.
+
+| Section | Figures | Tables |
+|---|---|---|
+| Overview | `read_fate`: per sample, the share of the reads that passed fastplong that went to reported species, `Below detection` and `Unassigned` (from `estimated_counts`), and raw and passed reads on a log scale | Reads per sample: `raw_reads`, `passed_reads`, fastplong's `too_short`, `too_long`, `low_quality` and `chimeric` (split, so passed reads can exceed raw reads less the removed ones), `species_reads`, `below_detection_reads`, `unassigned_reads`, `pct_species`, `n_species`; the `--report_metadata` columns |
+| Composition | `composition_species`, `composition_genus`: read-level abundance of the union of each sample's top 5 taxa, at most 20 by mean abundance, the rest as Other; `heatmap_species` above 14 samples: the 30 species with the highest mean, log10, grey where not detected | The 100 species detected in the most samples, with their mean and largest abundance |
+| Flagged species | `flagged_species`: every species in every sample, abundance against `shared_read_fraction`, coloured by flag | Species flagged in at least one sample: `shared_read_fraction` of 0.5 or more, or a non-empty `identical_16s_species`; the samples of each flag, median and largest abundance, largest `shared_read_fraction`, the relatives |
+| Ambiguity groups (`--ambiguity_groups`) | `groups_heatmap`: the groups of two or more members per sample | Every multi-member group of every sample, with the columns of `<sample>_groups.tsv` (the cell-level ones when `--cell_abundance` ran too) |
+| Cell-level abundance (`--cell_abundance`) | `cell_vs_read`: cell-level against read-level abundance per species and sample, coloured by `copy_number_level` | Each sample's `#` lines (what its table leaves out); the cell-level rows |
+| Per-read assignments (`--read_assignments`) | | Per sample: reads listed, reads by their highest probability on a species row (≥ 0.99, 0.5-0.99, < 0.5), reads whose highest row is `Below detection` or `Unassigned`, reads listed with two or more species; the species pairs sharing the most reads |
+| Methods | | The run's parameters; every tool and version from `software_versions.yml` and the report's own, with references (Emu, whose likelihood NanoVI adapts, and NanoVI's preprint as methods); how to read the tables |
+
+Each figure is written at a journal width (89 or 183 mm) with Inter embedded (TrueType in the
+PDF, WOFF2 in the SVG), as a 600 dpi PNG, and with a CSV of the values it plots. A figure with a
+sample axis and more than 60 samples is split into parts of equal size (`<figure>_1`, `_2`; a
+and b in the documents); the interactive HTML versions of `read_fate` and the composition figures
+keep every sample in one chart, and offer a group menu when `--report_metadata` gives two or more
+groups. The report carries the day the run started (UTC), and two renders of the same results
+give byte-identical files. On the e2e fixture with every option the PDF has 9 pages; on a
+117-sample run, 16.
 
 ## `--cmd build-database`
 

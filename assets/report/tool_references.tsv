@@ -1,0 +1,22 @@
+# software_versions.yml tool name (and the report's own) -> display name, kind (pipeline | tool | library: listed in
+# Methods; helper: left out; method: listed without a version, no process reports it) and the citekeys of
+# references.yml (";"-separated). evidence: where each reference was checked (2026-11-06).
+tool	name	kind	references	evidence
+microbialds/NanoVI	NanoVI	pipeline	curiqueo2026	Crossref (bioRxiv posted content); CITATION.cff preferred-citation
+Nextflow	Nextflow	pipeline	ditommaso2017	PMID 28398311
+fastplong	fastplong	tool	chen2023;chen2018	PMID 38868435; PMID 30423086 (fastplong README cites both fastp papers; no fastplong paper)
+minimap2	minimap2	tool	li2018;li2021	PMID 29750242; PMID 34623391 (minimap2 >= 2.22)
+samtools	SAMtools	tool	danecek2021	PMID 33590861
+numpy	NumPy	library	harris2020	PMID 32939066
+scipy	SciPy	library	virtanen2020	PMID 32015543
+pandas	pandas	library	mckinney2010	Crossref (SciPy 2010 proceedings)
+pysam	pysam	library	bonfield2021	PMID 33594436 (pysam has no paper; it wraps HTSlib)
+biopython	Biopython	library	cock2009	PMID 19304878
+matplotlib	Matplotlib	library	hunter2007	Crossref
+altair	Altair	library	vanderplas2018;satyanarayan2017	Crossref (JOSS); Crossref (Vega-Lite, which Altair writes)
+vl-convert-python	vl-convert	library	satyanarayan2017	Crossref (renders Vega-Lite); no paper of its own
+jinja2	Jinja	library		no paper
+typst	Typst	tool		no paper
+python	Python	helper		helper
+pyyaml	PyYAML	helper		helper
+emu	Emu (read likelihood and EM estimator)	method	curry2022	PMID 35773532; NanoVI adapts Emu's code (THIRD_PARTY_LICENSES, F21)
