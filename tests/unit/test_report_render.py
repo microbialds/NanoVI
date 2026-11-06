@@ -99,7 +99,9 @@ def test_pdf_is_written_with_inter_embedded(rendered):
     assert data.startswith(b'%PDF')
     if shutil.which('pdffonts'):
         fonts = subprocess.run(['pdffonts', str(pdf)], capture_output=True, text=True).stdout
-        assert 'Inter-Regular' in fonts and all(line.split()[-5] == 'yes' for line in fonts.splitlines()[2:])
+        lines = fonts.splitlines()[2:]
+        assert 'Inter-Regular' in fonts and all(line.split()[-5] == 'yes' for line in lines)
+        assert all('+Inter-' in line.split()[0] for line in lines), fonts  # no other font, e.g. Typst's raw font
     if shutil.which('pdfinfo'):
         pages = int(re.search(r'Pages:\s+(\d+)', subprocess.run(['pdfinfo', str(pdf)], capture_output=True,
                                                                   text=True).stdout).group(1))

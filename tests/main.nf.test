@@ -799,6 +799,32 @@ nextflow_pipeline {
         }
     }
 
+    // The run report belongs to --cmd abundance; another command says it writes none (F60)
+    test("--report with combine-outputs warns that no report is written") {
+        tag "stub"
+        options "-profile test -stub-run --report true"
+
+        when {
+            def dir = new File("${outputDir}/tables")
+            dir.mkdirs()
+            new File(dir, 'S1_rel-abundance.tsv').text = 'species\tabundance\nEscherichia coli\t1.0\n'
+            params {
+                cmd           = "combine-outputs"
+                output_dir    = "${outputDir}"
+                input_dir     = "${outputDir}/tables"
+                rank          = "species"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.tasks().count { it.name.startsWith('REPORT') } == 0
+            def warning = "--report and --report_metadata apply to --cmd abundance only"
+            assert (workflow.stdout + workflow.stderr).any { it.contains(warning) } ||
+                file("${metaDir}/nextflow.log").text.contains(warning)
+        }
+    }
+
     test("combine-outputs fails with an invalid --rank") {
         tag "stub"
         options "-profile test -stub-run"

@@ -3,7 +3,7 @@
 #let f = s.facts
 
 = Overview
-This report covers #f.n_samples sample#if f.n_samples != 1 [s]#if f.raw_reads != "" [ with #f.raw_reads raw reads, of which #f.passed_reads (#f.pct_passed %) passed fastplong's length filter]#if f.has_counts [; #f.species_reads of the passed reads (#f.pct_species %) are on reported species, #f.below_reads below detection and #f.unassigned_reads unassigned]. #f.n_species species are reported in at least one sample (median #f.median_species per sample).
+This report covers #f.n_samples sample#if f.n_samples != 1 [s]#if f.raw_reads != "" [ with #f.raw_reads raw reads, of which #f.passed_reads (#f.pct_passed %) passed fastplong's length filter]#if f.has_counts [; #f.species_reads of the #f.counted_reads reads in the species tables (#f.pct_species %) are on reported species, #f.below_reads below detection and #f.unassigned_reads unassigned]. #f.n_species species are reported in at least one sample (median #f.median_species per sample).
 
 #if s.lists.attention.len() > 0 [
   == Attention

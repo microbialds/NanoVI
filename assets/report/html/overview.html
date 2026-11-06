@@ -2,7 +2,7 @@
 {% set f = s.facts %}
 {% block body %}
 <h1>{{ run.title }}</h1>
-<p class="lede">{{ f.n_samples }} sample{{ "" if f.n_samples == 1 else "s" }}{% if f.raw_reads %} with {{ f.raw_reads }} raw reads, of which {{ f.passed_reads }} ({{ f.pct_passed }} %) passed fastplong's length filter{% endif %}{% if f.has_counts %}; {{ f.species_reads }} of the passed reads ({{ f.pct_species }} %) are on reported species, {{ f.below_reads }} below detection and {{ f.unassigned_reads }} unassigned{% endif %}. {{ f.n_species }} species are reported in at least one sample (median {{ f.median_species }} per sample).</p>
+<p class="lede">{{ f.n_samples }} sample{{ "" if f.n_samples == 1 else "s" }}{% if f.raw_reads %} with {{ f.raw_reads }} raw reads, of which {{ f.passed_reads }} ({{ f.pct_passed }} %) passed fastplong's length filter{% endif %}{% if f.has_counts %}; {{ f.species_reads }} of the {{ f.counted_reads }} reads in the species tables ({{ f.pct_species }} %) are on reported species, {{ f.below_reads }} below detection and {{ f.unassigned_reads }} unassigned{% endif %}. {{ f.n_species }} species are reported in at least one sample (median {{ f.median_species }} per sample).</p>
 <div class="cards">{% for c in s.lists.cards %}<div class="card"><b>{{ c.value }}</b><span>{{ c.label }}</span></div>{% endfor %}</div>
 {% if s.lists.attention %}
 <ul class="attention">{% for a in s.lists.attention %}<li>{{ a }}</li>{% endfor %}</ul>

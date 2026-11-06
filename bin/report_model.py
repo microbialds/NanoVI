@@ -241,6 +241,14 @@ def read_fate(run):
 
 
 def rank_abundance(run, rank):
+    """Cached per run (composition, heatmap, overview and prevalence read the same table)."""
+    cache = run.setdefault("_rank_abundance", {})
+    if rank not in cache:
+        cache[rank] = _rank_abundance(run, rank)
+    return cache[rank]
+
+
+def _rank_abundance(run, rank):
     """taxon x sample read-level abundance at `rank` from the consolidated tables (species rows only; a genus is
     the sum of its species), samples in report order."""
     otu = run["otu_table_abundance"].set_index("species")
@@ -303,10 +311,14 @@ def flagged_long(run):
     return out
 
 
+FLAGGED_COLUMNS = ["species", "samples_detected", "samples_shared", "samples_identical_16s", "median_abundance",
+                   "max_abundance", "max_shared_read_fraction", "identical_16s_species"]
+
+
 def flagged_summary(long):
-    """One row per species flagged in at least one sample."""
+    """One row per species flagged in at least one sample (none: an empty table with the columns)."""
     if long.empty:
-        return long
+        return pd.DataFrame(columns=FLAGGED_COLUMNS)
     f = long[long["flag_shared"] | long["flag_identical"]]
     rows = []
     for sp, g in f.groupby("species", sort=False):
@@ -319,7 +331,7 @@ def flagged_summary(long):
                      "max_abundance": float(allr["abundance"].max()),
                      "max_shared_read_fraction": float(allr["shared_read_fraction"].max()),
                      "identical_16s_species": "; ".join(idents)})
-    out = pd.DataFrame(rows)
+    out = pd.DataFrame(rows, columns=FLAGGED_COLUMNS)
     return out.sort_values(["max_abundance", "species"], ascending=[False, True]).reset_index(drop=True)
 
 
@@ -358,31 +370,54 @@ def cell_long(run):
     return out[["sample"] + [c for c in out.columns if c != "sample"]]
 
 
+def read_groups(path):
+    """(read_id, [(species, probability), ...]) per read of a <sample>_read_assignments.tsv.gz, streamed: the file
+    lists each read's lines together (read_assignments.py), so no read is held longer than its own lines."""
+    with gzip.open(path, "rt", encoding="utf-8", newline="") as fh:
+        rows = csv.reader(fh, delimiter="\t")
+        next(rows, None)
+        current, lines = None, []
+        for r in rows:
+            if len(r) < 3:
+                continue
+            if r[0] != current:
+                if current is not None:
+                    yield current, lines
+                current, lines = r[0], []
+            lines.append((r[1], float(r[2])))
+        if current is not None:
+            yield current, lines
+
+
 def read_assignment_summary(run, max_pairs=30):
     """Per sample: reads listed, reads by their highest probability on a species row, reads whose highest row is
     Below detection or Unassigned; and the species pairs that share the most reads (a read's two highest species
-    rows, both at 0.01 or more as the file lists them, D37)."""
+    rows, both at 0.01 or more as the file lists them, D37). One pass over each file, without loading it."""
     per, pairs = [], {}
     for s in run["samples"]:
         p = run["reads"].get(s)
         if p is None:
             continue
-        d = pd.read_csv(p, sep="\t", dtype={"read_id": str, "species": str, "probability": float},
-                        keep_default_na=False)
-        d = d.sort_values(["read_id", "probability", "species"], ascending=[True, False, True], kind="mergesort")
-        top = d.drop_duplicates("read_id")
-        row = {"sample": s, "reads": int(top.shape[0])}
-        sp = top[~top["species"].isin(PLACEHOLDERS)]
-        for label, lo, hi in TOP_PROB_CLASSES:
-            row[label] = int(((sp["probability"] >= lo) & (sp["probability"] < hi)).sum())
-        row["top: Below detection"] = int((top["species"] == BELOW).sum())
-        row["top: Unassigned"] = int((top["species"] == UNASSIGNED).sum())
-        two = d[~d["species"].isin(PLACEHOLDERS)].groupby("read_id", sort=False).head(2)
-        multi = two.groupby("read_id", sort=False)["species"].agg(list)
-        row["reads on 2+ species"] = int((multi.str.len() >= 2).sum())
-        for lst in multi:
-            if len(lst) >= 2:
-                a, b = sorted(lst[:2])
+        row = {"sample": s, "reads": 0}
+        for label, _, _ in TOP_PROB_CLASSES:
+            row[label] = 0
+        row.update({"top: Below detection": 0, "top: Unassigned": 0, "reads on 2+ species": 0})
+        for _, lines in read_groups(p):
+            row["reads"] += 1
+            ranked = sorted(lines, key=lambda x: (-x[1], x[0]))
+            top_sp, top_p = ranked[0]
+            if top_sp == BELOW:
+                row["top: Below detection"] += 1
+            elif top_sp == UNASSIGNED:
+                row["top: Unassigned"] += 1
+            else:
+                for label, lo, hi in TOP_PROB_CLASSES:
+                    if lo <= top_p < hi:
+                        row[label] += 1
+            species = [sp for sp, _ in ranked if sp not in PLACEHOLDERS]
+            if len(species) >= 2:
+                row["reads on 2+ species"] += 1
+                a, b = sorted(species[:2])
                 pairs[(s, a, b)] = pairs.get((s, a, b), 0) + 1
         per.append(row)
     pair_df = pd.DataFrame([{"sample": s, "species_a": a, "species_b": b, "reads": n}
@@ -415,8 +450,8 @@ def compute(run):
 # ---- formatting: tables as text for both documents (BugBuster's summary_report.py)
 
 def fmt(v):
-    """A cell as text: floats to 3 significant digits (thousands separated from 1,000), large ints separated,
-    missing as blank."""
+    """A cell as text: floats to 3 significant digits, whole numbers of 1,000 or more with thousands separators
+    (int or float, so a count reads the same whatever its column's dtype), missing as blank."""
     if v is None:
         return ""
     if isinstance(v, (bool, np.bool_)):
@@ -430,7 +465,7 @@ def fmt(v):
             return f"{v:,.0f}"
         return f"{v:.3g}" if abs(v) < 1000 else f"{v:,.0f}"
     if isinstance(v, (int, np.integer)):
-        return f"{v:,}" if abs(v) >= 10000 else str(v)
+        return f"{v:,}" if abs(v) >= 1000 else str(v)
     if v is pd.NA or v is pd.NaT:
         return ""
     return str(v)
@@ -658,15 +693,17 @@ def build(run, data, records, assets, params=None, report_versions=None, date=""
 
     # overview
     ov = Section("overview", nums, records)
-    sm = run.get("sample_metadata")
     tot = lambda c: int(fate[c].sum()) if c in fate and fate[c].notna().all() else None
     raw, passed = tot("raw_reads"), tot("passed_reads")
     sp_reads, bd, un = tot("species_reads"), tot("below_detection_reads"), tot("unassigned_reads")
     n_species = int((rank_abundance(run, "species").sum(axis=1) > 0).sum())
+    # the species tables' own total, as read fate's shares use (it equals fastplong's passed reads, F06)
+    counted = sp_reads + bd + un if sp_reads is not None else None
     ov.facts = {"n_samples": n, "raw_reads": fmt(raw), "passed_reads": fmt(passed),
                 "pct_passed": f"{100 * passed / raw:.1f}" if raw and passed is not None else "",
                 "species_reads": fmt(sp_reads),
-                "pct_species": f"{100 * sp_reads / passed:.1f}" if passed and sp_reads is not None else "",
+                "counted_reads": fmt(counted),
+                "pct_species": f"{100 * sp_reads / counted:.1f}" if counted else "",
                 "below_reads": fmt(bd), "unassigned_reads": fmt(un), "n_species": n_species,
                 "median_species": fmt(float(fate["n_species"].median())) if n else "",
                 "has_counts": sp_reads is not None, "has_group": has_group}
@@ -677,7 +714,7 @@ def build(run, data, records, assets, params=None, report_versions=None, date=""
         cards.append((passed, f"reads passed the length filter ({ov.facts['pct_passed']} %)" if raw else
                       "reads passed the length filter"))
     if sp_reads is not None:
-        cards.append((sp_reads, f"reads on reported species ({ov.facts['pct_species']} %)" if passed else
+        cards.append((sp_reads, f"reads on reported species ({ov.facts['pct_species']} %)" if counted else
                       "reads on reported species"))
     cards += [(n_species, "species reported (any sample)"),
               (len(data["flagged"]), "flagged species (any sample)")]

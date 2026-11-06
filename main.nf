@@ -281,6 +281,9 @@ workflow {
     // ─── RUN REPORT ─────────────────────────────────────────────────────────
     // After software_versions.yml, which the report reads; its own versions go in
     // report/versions.yml and its methods, not in that file (D42)
+    if (params.cmd != 'abundance' && (params.report || params.report_metadata)) {
+        log.warn "--report and --report_metadata apply to --cmd abundance only; --cmd ${params.cmd} writes no report"
+    }
     if (params.cmd == 'abundance' && params.report) {
         // assets/report goes in with a hash of its files' contents, so an edited template
         // reruns the report on -resume (a directory is cached by its path, size and mtime)

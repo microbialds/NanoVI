@@ -199,3 +199,37 @@ def test_pdf_tables_are_capped_with_a_note():
     t = rm.table_entry(nums, df, 'x', 'caption', tsv='x.tsv')
     assert len(t['rows']) == 100 and len(t['pdf']['rows']) == rm.PDF_MAX_ROWS
     assert 'first 60 of 100 rows' in t['pdf']['note'] and 'x.tsv' in t['pdf']['note']
+
+
+def test_a_run_with_no_flagged_species_gives_an_empty_flag_table(tmp_path, monkeypatch):
+    from . import report_fixture as fx
+    monkeypatch.setitem(fx.SPECIES, 'S1', [('Alpha one', 0.6, 60, '', 0.1), ('Alpha two', 0.4, 40, '', 0.2)])
+    monkeypatch.setitem(fx.SPECIES, 'S10', [('Gamma five', 1.0, 100, '', 0.0)])
+    _, data, model = model_of(tmp_path)
+    assert data['flagged'].empty and list(data['flagged'].columns) == rm.FLAGGED_COLUMNS
+    sec = section(model, 'flagged')
+    assert sec['facts']['n_flagged'] == 0 and sec['tables']['flagged']['rows'] == []
+
+
+def test_overview_share_uses_the_tables_total_without_fastplong(tmp_path):
+    results = make_results(tmp_path / 'results')
+    for f in (results / 'qc' / 'fastplong').iterdir():
+        f.unlink()
+    run = rm.load_results(results)
+    data = rm.compute(run)
+    f = section(rm.build(run, data, [], ASSETS), 'overview')['facts']
+    assert f['passed_reads'] == '' and f['counted_reads'] == '240'
+    assert f['pct_species'] == f'{100 * 200 / 240:.1f}'
+
+
+def test_counts_read_the_same_as_int_or_float():
+    assert rm.fmt(5000) == rm.fmt(5000.0) == '5,000'
+    assert rm.fmt(999) == rm.fmt(999.0) == '999'
+
+
+def test_read_assignment_summary_streams_the_file(tmp_path):
+    _, data, _ = model_of(tmp_path, reads=True)
+    run = rm.load_results(tmp_path / 'results')
+    lines = list(rm.read_groups(run['reads']['S1']))
+    assert [r for r, _ in lines] == ['r1', 'r2', 'r3', 'r4', 'r5']
+    assert lines[2][1] == [('Alpha two', 0.3), ('Alpha one', 0.3), ('Beta three', 0.4)]
