@@ -7,7 +7,7 @@ From: mambaorg/micromamba:2.10.0-debian13-slim@sha256:e1476182cd40eb1f7c0cfae4ad
 %labels
     Author NanoVI developers
     Description Run report environment for NanoVI (Typst, Jinja, matplotlib, Altair, Inter)
-    Version 1.1.1
+    Version 1.2.0
 
 %files
     environment.yml /tmp/environment.yml
