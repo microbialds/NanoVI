@@ -20,6 +20,10 @@ Every new option is off by default: with the defaults the outputs are those of 1
 
 - `--report` (off by default) writes `report/`, a run report: an HTML site that works offline (`report/index.html`), `nanovi_report.pdf` and paper-ready figures (SVG, PDF, 600 dpi PNG, each with a CSV of the plotted values) showing each sample's read fate, the composition at species and genus, the species flagged by `shared_read_fraction` (0.5 or more) or `identical_16s_species`, the ambiguity groups, cell-level table and per-read file when their options ran, and the methods with every tool's version and reference (F60, D42). `--report_metadata` (a `sample_id`, `group` table) groups the samples. The report runs in a new image, `ghcr.io/microbialds/nanovi-report` (Typst, Jinja, matplotlib, Altair, Inter; `containers/report/`), so `nanovi-python` is unchanged; a Typst failure gives a warning and no PDF, and two renders of the same results give identical files. `bin/nanovi_report.py --results <output_dir>` renders one for a finished run. The other outputs do not change.
 
+### Fixed
+
+- A second run into the same `--output_dir` (or a `-resume` run) no longer warns "Failed to create trace file … already exists" and "Failed to render execution report/timeline", or keeps the first run's `pipeline_info/trace.txt`, `report.html` and `timeline.html`: they are now replaced by the new run's (F63, D46).
+
 ### Documentation
 
 - An overview figure at the top of the README, `docs/images/nanovi_overview.svg` (Inter and the run report's Okabe-Ito colours; solid boxes run by default, dashed ones name the parameter they need) with its PNG; `docs/images/render_overview.sh` embeds the Inter subset and renders the PNG in pinned containers (F59).
