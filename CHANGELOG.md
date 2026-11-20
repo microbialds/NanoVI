@@ -30,7 +30,7 @@ Every new option is off by default: with the defaults the outputs are those of 1
 
 ### Documentation
 
-- An overview figure at the top of the README, `docs/images/nanovi_overview.svg` (Inter and the run report's Okabe-Ito colours; solid boxes run by default, dashed ones name the parameter they need) with its PNG; `docs/images/render_overview.sh` embeds the Inter subset and renders the PNG in pinned containers (F59).
+- Two figures in the run report's style (Inter, Okabe-Ito colours), each with its PNG: at the top of the README, `docs/images/nanovi_overview.svg` shows in plain words what NanoVI does with a user's reads (filter, align to the reference database, estimate, results, and the optional extras), with no process or parameter names (F65, D45); `docs/images/nanovi_workflow.svg`, in `docs/workflow.md`, shows every process and the parameter that switches each step on (F59). `docs/images/render_overview.sh` embeds the Inter subsets and renders both PNGs in pinned containers.
 
 - `docs/workflow.md`: a Mermaid diagram of each `--cmd`, with the parameter that switches each step or output on, and a table of every process with its label, image and published files. CI checks that the page names every process and subworkflow the code includes, and no other (`tests/check_workflow_diagram.sh`) (F59).
 

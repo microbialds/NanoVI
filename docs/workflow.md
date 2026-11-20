@@ -1,8 +1,12 @@
 # NanoVI workflow
 
 How the processes of each `--cmd` connect and which parameter switches each step or output
-on. The one-figure overview is [`images/nanovi_overview.svg`](images/nanovi_overview.svg);
-the parameters are in the [README](../README.md#parameters), the files in
+on. The README's figure, [`images/nanovi_overview.svg`](images/nanovi_overview.svg), shows
+the same steps in plain words; this one names every process and option:
+
+[![NanoVI workflow: for each sample, reads are length-filtered with fastplong (FILTER_READS), aligned with minimap2 against the database's cached index (INDEX_DB, ALIGN_READS), scored with Emu's read score (LIKELIHOOD) and fitted by Bayesian variational inference with pruning (RUN_VI), then written as a species table (WRITE_OUTPUT); the run writes the consolidated phyloseq tables (GENERATE_PHYLOSEQ_TABLES) and, with --report, an HTML and PDF report (REPORT). Green boxes run by default; dashed boxes need the parameter they name. The build-database, collapse-taxonomy and combine-outputs commands are shown below.](images/nanovi_workflow.svg)](images/nanovi_workflow.png)
+
+The parameters are in the [README](../README.md#parameters), the files in
 [output.md](output.md) and the model in [methods.md](methods.md).
 
 **How to read the diagrams.** Every box with an upper-case name is a process or subworkflow

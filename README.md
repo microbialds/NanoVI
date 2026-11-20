@@ -6,9 +6,9 @@ Taxonomic classification of full-length 16S rRNA Oxford Nanopore reads using var
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/microbialds/NanoVI/actions/workflows/ci.yml/badge.svg)](https://github.com/microbialds/NanoVI/actions/workflows/ci.yml)
 
-[![NanoVI overview: for each sample, reads are length-filtered with fastplong, aligned with minimap2 against the database's cached index, scored with Emu's read score and fitted by Bayesian variational inference with pruning, then written as a species table; the run writes the consolidated phyloseq tables and, with --report, an HTML and PDF report. Green boxes run by default; dashed boxes need the parameter they name. The build-database, collapse-taxonomy and combine-outputs commands are shown below.](docs/images/nanovi_overview.svg)](docs/images/nanovi_overview.png)
+[![What NanoVI does: your FASTQ files of full-length 16S Nanopore reads, one per sample, are filtered to reads of 500 to 2,000 bases (fastplong), matched to the 16S sequences of a GTDB reference database built once (minimap2), and scored to estimate each species' share of the reads (NanoVI's Bayesian model, with Emu's read score); the results are a species table per sample and one for the whole run, ready for R and phyloseq. Optional extras: groups of species that 16S cannot tell apart, abundances corrected for 16S copies per genome, the species each read was assigned to, and an HTML and PDF report.](docs/images/nanovi_overview.svg)](docs/images/nanovi_overview.png)
 
-Green boxes run by default; dashed boxes are switched on by the parameter they name. Every process, its switch and its image: [docs/workflow.md](docs/workflow.md).
+The process-level view, with every step and the parameter that switches it on: [docs/workflow.md](docs/workflow.md).
 
 ## Overview
 
