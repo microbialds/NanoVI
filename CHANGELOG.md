@@ -4,7 +4,7 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 
 ## [Unreleased]
 
-## [1.2.0] - 2026-11-06
+## [1.2.0] - 2026-11-20
 
 Every new option is off by default: with the defaults the outputs are those of 1.1.1, apart from the version recorded in `software_versions.yml`. The run report uses a new image, `ghcr.io/microbialds/nanovi-report`; the Python image, `nanovi-python`, is built from the same files and package versions as 1.1.1, with only its version label changed.
 
@@ -29,6 +29,10 @@ Every new option is off by default: with the defaults the outputs are those of 1
 - `bin/build_gtdb_db.py` also takes its options with underscores, as the pipeline spells its parameters (`--output_dir` for `--output-dir`, `--db_name`, `--min_length`, `--merge_gtdb_suffixes`, `--cross_genus_rule`, `--gtdb_metadata`, `--copy_numbers`); its `--min-length` (reference sequences, 900 bp) is not the pipeline's `--min_length` (reads), and its help now says so. The script is executable, so it can be called by name (F64).
 
 ### Documentation
+
+- The README is written for a first-time user (F61, from a new user's evaluation of the pipeline): what NanoVI is, what goes in and comes out and what you need; a numbered Getting started (installing Java, Nextflow and Docker; a first run on the bundled test data; building the GTDB database with the new command, with exact download links, sizes and checksums; a samplesheet; the run; reading the results); a table of each step with its tool and whether it is NanoVI's own or adapted from Emu; when to use a samplesheet or a folder; the parameters split into Required, Common options and Advanced, with a "Default (used when you don't set it)" column; what the numbers mean (abundances are shares of 16S reads; the `Below detection` and `Unassigned` rows are 0 in `otu_table_abundance.tsv` and their reads are in the counts); GTDB as the recommended database (r226, the benchmarked release; r232 builds and runs but splits *E. coli*'s reads with a new genus); and Troubleshooting. Every example pins the release with `-r v1.2.0`. Building the containers, the tests and the release steps moved to `docs/development.md`.
+
+- `-profile test` writes to `test_results/` in the launch directory (it wrote into the pipeline's own directory, which for `nextflow run microbialds/NanoVI` is under `~/.nextflow/assets/`) (F61).
 
 - Two figures in the run report's style (Inter, Okabe-Ito colours), each with its PNG: at the top of the README, `docs/images/nanovi_overview.svg` shows in plain words what NanoVI does with a user's reads (filter, align to the reference database, estimate, results, and the optional extras), with no process or parameter names (F65, D45); `docs/images/nanovi_workflow.svg`, in `docs/workflow.md`, shows every process and the parameter that switches each step on (F59). `docs/images/render_overview.sh` embeds the Inter subsets and renders both PNGs in pinned containers.
 
