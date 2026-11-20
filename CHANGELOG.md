@@ -24,6 +24,8 @@ Every new option is off by default: with the defaults the outputs are those of 1
 
 - A second run into the same `--output_dir` (or a `-resume` run) no longer warns "Failed to create trace file … already exists" and "Failed to render execution report/timeline", or keeps the first run's `pipeline_info/trace.txt`, `report.html` and `timeline.html`: they are now replaced by the new run's (F63, D46).
 
+- `bin/build_gtdb_db.py` also takes its options with underscores, as the pipeline spells its parameters (`--output_dir` for `--output-dir`, `--db_name`, `--min_length`, `--merge_gtdb_suffixes`, `--cross_genus_rule`, `--gtdb_metadata`, `--copy_numbers`); its `--min-length` (reference sequences, 900 bp) is not the pipeline's `--min_length` (reads), and its help now says so. The script is executable, so it can be called by name (F64).
+
 ### Documentation
 
 - An overview figure at the top of the README, `docs/images/nanovi_overview.svg` (Inter and the run report's Okabe-Ito colours; solid boxes run by default, dashed ones name the parameter they need) with its PNG; `docs/images/render_overview.sh` embeds the Inter subset and renders the PNG in pinned containers (F59).
