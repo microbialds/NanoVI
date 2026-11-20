@@ -29,6 +29,9 @@ ssu_count of its complete genomes, filled from the genus or family median where
 it has none (copy_numbers.py). --copy-numbers takes a table of species and copy
 numbers instead. Without either, no copy_numbers.tsv is written.
 
+Every option also takes the underscore spelling the pipeline's parameters use
+(--output_dir for --output-dir, F64).
+
 """
 
 import os
@@ -347,25 +350,26 @@ def main():
              "Download from https://data.gtdb.ecogenomic.org/releases/latest/",
     )
     parser.add_argument(
-        "--db-name", default="db_gtdb",
+        "--db-name", "--db_name", default="db_gtdb",
         help="Short label embedded in FASTA headers (e.g. db_gtdb_r226). [db_gtdb]",
     )
     parser.add_argument(
-        "--output-dir", default="./db",
+        "--output-dir", "--output_dir", default="./db",
         help="Directory where species_taxid.fasta and taxonomy.tsv are written. [./db]",
     )
     parser.add_argument(
-        "--min-length", type=int, default=900,
-        help="Minimum 16S sequence length in bp to include. [900]",
+        "--min-length", "--min_length", type=int, default=900,
+        help="Minimum 16S sequence length in bp to include (reference sequences; not the pipeline's "
+             "--min_length, which filters reads). [900]",
     )
     parser.add_argument(
-        "--merge-gtdb-suffixes", action="store_true",
+        "--merge-gtdb-suffixes", "--merge_gtdb_suffixes", action="store_true",
         help="Strip GTDB clade suffixes ('Listeria monocytogenes_B' -> 'Listeria monocytogenes'), "
              "merging the species and genera they separate, and write merged_species.tsv. "
              "Off by default: names are kept as GTDB writes them.",
     )
     parser.add_argument(
-        "--cross-genus-rule", choices=identical_16s.CROSS_GENUS_RULES, default="keep",
+        "--cross-genus-rule", "--cross_genus_rule", choices=identical_16s.CROSS_GENUS_RULES, default="keep",
         help="What to do with sequences found in more than one genus (cross_genus_identical.tsv): "
              "keep them (default); remove every copy; keep each only in the genus with the most species "
              "carrying it (best-genus); or in the genus whose entries stand for the most input copies "
@@ -374,13 +378,13 @@ def main():
     )
     copy_source = parser.add_mutually_exclusive_group()
     copy_source.add_argument(
-        "--gtdb-metadata", nargs="+", metavar="FILE",
+        "--gtdb-metadata", "--gtdb_metadata", nargs="+", metavar="FILE",
         help="GTDB bac120_metadata and ar53_metadata files of the release (.tsv or .tsv.gz): write "
              "copy_numbers.tsv, each species' 16S copy number as the median ssu_count of its "
              "'Complete Genome' assemblies, filled from the genus or else family median.",
     )
     copy_source.add_argument(
-        "--copy-numbers", metavar="FILE",
+        "--copy-numbers", "--copy_numbers", metavar="FILE",
         help="A TSV with 'species' and 'copy_number' columns to write copy_numbers.tsv from instead "
              "(same fill rule).",
     )

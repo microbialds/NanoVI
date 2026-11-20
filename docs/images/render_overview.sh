@@ -1,8 +1,9 @@
 #!/bin/bash
 #
-# Refreshes docs/images/nanovi_overview.svg's embedded fonts and renders
-# nanovi_overview.png from it, in two pinned containers (nothing installed on
-# the host; needs docker). Run it after editing the SVG. Adapted from
+# Refreshes the embedded fonts of docs/images/nanovi_overview.svg (the README's
+# figure, F65) and nanovi_workflow.svg (every step and option, docs/workflow.md)
+# and renders a PNG of each, in two pinned containers (nothing installed on the
+# host; needs docker). Run it after editing either SVG. Adapted from
 # gene2dis/BugBuster's docs/images/render_overview.sh (dev @ de57f34).
 #
 #  1. The run report's image, ghcr.io/microbialds/nanovi-report under the tag
@@ -27,14 +28,16 @@ REPO_DIR="$( cd "${SCRIPT_DIR}/../.." && pwd )"
 BIN_DIR="${REPO_DIR}/bin"
 REPORT_IMAGE=$(grep -oE "ghcr.io/microbialds/nanovi-report:[0-9.]+" "${REPO_DIR}/conf/base.config" | head -n 1)
 RSVG_IMAGE="community.wave.seqera.io/library/librsvg_font-inter_fontconfig@sha256:d5ea0d6797046ae4dab9a7a5fba9d1293fce013e98029a5672687aa6ef36b03b"
-SVG="nanovi_overview.svg"
-PNG="nanovi_overview.png"
+FIGURES="nanovi_overview nanovi_workflow"
 
 if [ -z "${REPORT_IMAGE}" ]; then
     echo "no nanovi-report image tag in conf/base.config" >&2
     exit 1
 fi
 
+for FIG in ${FIGURES}; do
+SVG="${FIG}.svg"
+PNG="${FIG}.png"
 docker run --rm -i -u "$(id -u):$(id -g)" -v "${SCRIPT_DIR}:/work" -v "${BIN_DIR}:/nv_bin:ro" -w /work \
     -e MPLCONFIGDIR=/tmp -e SOURCE_DATE_EPOCH=1767225600 "${REPORT_IMAGE}" python -I - "${SVG}" <<'EOF'
 import base64, html, io, re, sys
@@ -79,3 +82,4 @@ EOF
 docker run --rm -u "$(id -u):$(id -g)" -v "${SCRIPT_DIR}:/work" -w /work "${RSVG_IMAGE}" \
     rsvg-convert --zoom 1.75 --format png --output "${PNG}" "${SVG}"
 echo "${PNG}: $(( $(wc -c < "${SCRIPT_DIR}/${PNG}") / 1024 )) KB"
+done

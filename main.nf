@@ -49,6 +49,10 @@ params {
 
     // Build database
     db_name: String
+    gtdb_ssu: String?
+    gtdb_metadata: String?
+    merge_gtdb_suffixes: Boolean
+    gtdb_min_length: Integer
     sequences: String?
     seq2tax: String?
     ncbi_taxonomy: String?
@@ -71,6 +75,7 @@ params {
 // ─── SUBWORKFLOW INCLUDES ───────────────────────────────────────────────────
 include { ABUNDANCE }          from './subworkflows/local/abundance'
 include { BUILD_DATABASE }     from './subworkflows/local/build_database'
+include { BUILD_GTDB_DATABASE } from './subworkflows/local/build_database'
 include { COLLAPSE_TAXONOMY }  from './subworkflows/local/postprocessing'
 include { COMBINE_OUTPUTS }    from './subworkflows/local/postprocessing'
 include { REPORT }             from './modules/local/report'
@@ -190,6 +195,9 @@ workflow {
             log.warn "--${it} is a build-database option and is ignored by --cmd abundance; " +
                 "--cell_abundance reads copy_numbers.tsv from --db"
         }
+        ['gtdb_ssu', 'gtdb_metadata', 'merge_gtdb_suffixes'].findAll { params[it] }.each {
+            log.warn "--${it} is a build-database option and is ignored by --cmd abundance"
+        }
 
         ABUNDANCE(input_reads, fasta_file, tax_file, db_index, identical_16s, copy_numbers)
         versions = ABUNDANCE.out.versions
@@ -212,9 +220,39 @@ workflow {
     }
 
     // ─── SUBCOMMAND: BUILD-DATABASE ─────────────────────────────────────────
+    else if (params.cmd == 'build-database' && params.gtdb_ssu) {
+        // From a GTDB SSU file (F62, D44): the lineages are in its FASTA headers
+        def other = ['sequences', 'seq2tax', 'taxonomy_list', 'ncbi_taxonomy', 'rrndb_pantaxa'].findAll { params[it] }
+        if (other)
+            error "--gtdb_ssu builds the database from a GTDB SSU file; leave out " + other.collect { "--${it}" }.join(', ')
+        if (params.gtdb_metadata && params.copy_numbers)
+            error "For build-database provide at most one of --gtdb_metadata or --copy_numbers"
+        // --gtdb_metadata: comma-separated files or globs; a comma inside {} belongs to the glob
+        def metadata = []
+        params.gtdb_metadata?.split(/,(?![^{]*\})/)*.trim()?.findAll()?.each { entry ->
+            def found = files(entry)
+            if (!found)
+                error "--gtdb_metadata: ${entry} matches no file"
+            found.findAll { !it.exists() }.each { error "--gtdb_metadata: file not found: ${it}" }
+            metadata.addAll(found)
+        }
+        // A file named twice (by a glob and by its name) is read once
+        metadata = metadata.unique { it.toAbsolutePath().normalize() }
+
+        BUILD_GTDB_DATABASE(
+            channel.value(file(params.gtdb_ssu)),
+            channel.value(metadata),
+            params.copy_numbers ? channel.value(file(params.copy_numbers)) : channel.value([])
+        )
+        versions = BUILD_GTDB_DATABASE.out.versions
+    }
+
     else if (params.cmd == 'build-database') {
+        def gtdb_only = ['gtdb_metadata', 'merge_gtdb_suffixes'].findAll { params[it] }
+        if (gtdb_only)
+            error gtdb_only.collect { "--${it}" }.join(' and ') + " needs --gtdb_ssu (a GTDB SSU file)"
         if (!params.sequences || !params.seq2tax)
-            error "For build-database you must provide --sequences and --seq2tax"
+            error "For build-database you must provide --sequences and --seq2tax, or --gtdb_ssu (a GTDB SSU file)"
         if (!params.taxonomy_list == !params.ncbi_taxonomy)
             error "For build-database provide exactly one of --taxonomy_list or --ncbi_taxonomy"
         if (params.copy_numbers && params.rrndb_pantaxa)
