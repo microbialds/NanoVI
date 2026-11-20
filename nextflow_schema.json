@@ -214,7 +214,7 @@
         },
         "gtdb_metadata": {
           "type": "string",
-          "description": "With gtdb_ssu: the release's bac120_metadata and ar53_metadata files, comma-separated (a glob also works): write copy_numbers.tsv, each species' 16S copy number as the median ssu_count of its complete genomes, filled from the genus or else family median. At most one of gtdb_metadata or copy_numbers"
+          "description": "With gtdb_ssu: the release's bac120_metadata and ar53_metadata files, comma-separated or as a glob, such as {bac120,ar53}_metadata_r226.tsv.gz: write copy_numbers.tsv, each species' 16S copy number as the median ssu_count of its complete genomes, filled from the genus or else family median. At most one of gtdb_metadata or copy_numbers"
         },
         "merge_gtdb_suffixes": {
           "type": "boolean",

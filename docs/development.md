@@ -34,7 +34,7 @@ pip install -r containers/requirements.txt -r tests/requirements-report.txt pyte
 pytest tests/unit/ -v
 ```
 
-**Pipeline tests** (nf-test; 46 tests tagged `stub`, 8 tagged `e2e`):
+**Pipeline tests** (nf-test; 47 tests tagged `stub`, 8 tagged `e2e`):
 ```bash
 nf-test test tests/main.nf.test --tag stub   # stub mode: channel wiring and parameter errors, no tools or database needed
 nf-test test tests/main.nf.test --tag e2e    # real tools with Docker on the fixture in tests/test_data/e2e

@@ -195,6 +195,9 @@ workflow {
             log.warn "--${it} is a build-database option and is ignored by --cmd abundance; " +
                 "--cell_abundance reads copy_numbers.tsv from --db"
         }
+        ['gtdb_ssu', 'gtdb_metadata', 'merge_gtdb_suffixes'].findAll { params[it] }.each {
+            log.warn "--${it} is a build-database option and is ignored by --cmd abundance"
+        }
 
         ABUNDANCE(input_reads, fasta_file, tax_file, db_index, identical_16s, copy_numbers)
         versions = ABUNDANCE.out.versions
@@ -224,11 +227,17 @@ workflow {
             error "--gtdb_ssu builds the database from a GTDB SSU file; leave out " + other.collect { "--${it}" }.join(', ')
         if (params.gtdb_metadata && params.copy_numbers)
             error "For build-database provide at most one of --gtdb_metadata or --copy_numbers"
-        // --gtdb_metadata: comma-separated files or globs
-        def metadata = params.gtdb_metadata ? params.gtdb_metadata.tokenize(',')*.trim().collectMany { files(it) } : []
-        if (params.gtdb_metadata && !metadata)
-            error "--gtdb_metadata matches no file: ${params.gtdb_metadata}"
-        metadata.findAll { !it.exists() }.each { error "--gtdb_metadata: file not found: ${it}" }
+        // --gtdb_metadata: comma-separated files or globs; a comma inside {} belongs to the glob
+        def metadata = []
+        params.gtdb_metadata?.split(/,(?![^{]*\})/)*.trim()?.findAll()?.each { entry ->
+            def found = files(entry)
+            if (!found)
+                error "--gtdb_metadata: ${entry} matches no file"
+            found.findAll { !it.exists() }.each { error "--gtdb_metadata: file not found: ${it}" }
+            metadata.addAll(found)
+        }
+        // A file named twice (by a glob and by its name) is read once
+        metadata = metadata.unique { it.toAbsolutePath().normalize() }
 
         BUILD_GTDB_DATABASE(
             channel.value(file(params.gtdb_ssu)),
