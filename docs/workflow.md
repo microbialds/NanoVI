@@ -103,12 +103,25 @@ flowchart LR
     BUILD_DB -->|"always"| DbDir(["#lt;db_name#gt;/: species_taxid.fasta, taxonomy.tsv,<br/>identical_16s.tsv, cross_genus_identical.tsv"])
     BUILD_DB -->|"params.cross_genus_rule != 'keep'"| Removed(["cross_genus_removed.tsv,<br/>cross_genus_emptied.tsv"])
     BUILD_DB -->|"params.copy_numbers or params.rrndb_pantaxa"| Cn(["copy_numbers.tsv"])
+    Ssu(["--gtdb_ssu GTDB SSU FASTA"]) -->|"params.gtdb_ssu"| BUILD_GTDB_DATABASE
+    GtdbMeta(["--gtdb_metadata files"]) -->|"params.gtdb_metadata"| BUILD_GTDB_DATABASE
+    CopyTable -->|"params.copy_numbers"| BUILD_GTDB_DATABASE
+    BUILD_GTDB_DATABASE["BUILD_GTDB_DATABASE<br/>subworkflows/local/build_database.nf"] -->|"always"| BUILD_GTDB_DB["BUILD_GTDB_DB<br/>bin/build_gtdb_db.py"]
+    BUILD_GTDB_DB -->|"always"| DbDir
+    BUILD_GTDB_DB -->|"params.cross_genus_rule != 'keep'"| Removed
+    BUILD_GTDB_DB -->|"params.gtdb_metadata or params.copy_numbers"| Cn
+    BUILD_GTDB_DB -->|"params.merge_gtdb_suffixes"| Merged(["merged_species.tsv"])
 
     classDef cmd fill:#FFFFFF,stroke:#6E7781,stroke-width:1.5px,color:#111
     classDef opt fill:#F7F7F7,stroke:#777,stroke-width:1.5px,stroke-dasharray:5 4,color:#111
-    class BUILD_DATABASE,BUILD_DB cmd
-    class CopyTable,Rrndb,Removed,Cn opt
+    class BUILD_DATABASE,BUILD_DB,BUILD_GTDB_DATABASE,BUILD_GTDB_DB cmd
+    class CopyTable,Rrndb,Removed,Cn,GtdbMeta,Merged opt
 ```
+
+With `--gtdb_ssu`, the database is built from a GTDB SSU file by `bin/build_gtdb_db.py`
+(the lineages are in its FASTA headers), and `--sequences`, `--seq2tax`, `--taxonomy_list`,
+`--ncbi_taxonomy` and `--rrndb_pantaxa` are refused; without it, `bin/main.py build-database`
+builds it from those files.
 
 `main.nf` needs `--sequences`, `--seq2tax` and exactly one of `--taxonomy_list` or
 `--ncbi_taxonomy`, and at most one of `--copy_numbers` or `--rrndb_pantaxa`.
@@ -166,9 +179,12 @@ Each step or output and the condition under which it runs, as the code tests it.
 | `WRITE_OUTPUT`: `estimated_counts`; `GENERATE_PHYLOSEQ_TABLES`: `otu_table_counts.tsv` | `params.keep_counts` (default `true`) | `modules/local/write_output.nf` |
 | `ALIGN_READS`, `FILTER_READS`: publish `bam/`, `filtered/` | `params.keep_files` | `conf/modules.config` |
 | `REPORT` | `params.cmd == 'abundance' && params.report` | `main.nf` |
-| `BUILD_DATABASE`, `BUILD_DB` | `params.cmd == 'build-database'` | `main.nf` |
+| `BUILD_DATABASE`, `BUILD_DB` | `params.cmd == 'build-database'` without `params.gtdb_ssu` | `main.nf` |
+| `BUILD_GTDB_DATABASE`, `BUILD_GTDB_DB` | `params.cmd == 'build-database' && params.gtdb_ssu` | `main.nf` |
+| `BUILD_GTDB_DB`: `copy_numbers.tsv` | `params.gtdb_metadata` or `params.copy_numbers` | `main.nf` |
+| `BUILD_GTDB_DB`: `merged_species.tsv` | `params.merge_gtdb_suffixes` | `modules/local/build_database.nf` |
 | `BUILD_DB`: `copy_numbers.tsv` | `params.copy_numbers` or `params.rrndb_pantaxa` | `main.nf` |
-| `BUILD_DB`: `cross_genus_removed.tsv`, `cross_genus_emptied.tsv` | `params.cross_genus_rule != 'keep'` | `modules/local/build_database.nf` |
+| `BUILD_DB`, `BUILD_GTDB_DB`: `cross_genus_removed.tsv`, `cross_genus_emptied.tsv` | `params.cross_genus_rule != 'keep'` | `modules/local/build_database.nf` |
 | `COLLAPSE_TAXONOMY`, `COLLAPSE` | `params.cmd == 'collapse-taxonomy'` | `main.nf` |
 | `COMBINE_OUTPUTS`, `COMBINE` | `params.cmd == 'combine-outputs'` | `main.nf` |
 
@@ -182,6 +198,7 @@ Each step or output and the condition under which it runs, as the code tests it.
 |---|---|---|
 | `ABUNDANCE` | `abundance` | `FILTER_READS`, `INDEX_DB`, `IDENTICAL_16S`, `ALIGN_READS`, `LIKELIHOOD`, `RUN_VI`, `WRITE_OUTPUT`, `GENERATE_PHYLOSEQ_TABLES` |
 | `BUILD_DATABASE` | `build-database` | `BUILD_DB` |
+| `BUILD_GTDB_DATABASE` | `build-database` with `--gtdb_ssu` | `BUILD_GTDB_DB` |
 | `COLLAPSE_TAXONOMY` | `collapse-taxonomy` | `COLLAPSE` |
 | `COMBINE_OUTPUTS` | `combine-outputs` | `COMBINE` |
 
@@ -205,6 +222,7 @@ and not published beside the results.
 | `GENERATE_PHYLOSEQ_TABLES` | `vi_output` | `ghcr.io/microbialds/nanovi-python:<version>` | `consolidated_output/`: `otu_table_abundance.tsv`, `otu_table_counts.tsv` (with counts), `tax_table.tsv`, `sample_metadata.tsv` |
 | `REPORT` | `report` | `ghcr.io/microbialds/nanovi-report:<version>` | `report/` with `--report` |
 | `BUILD_DB` | `vi_database` | `ghcr.io/microbialds/nanovi-python:<version>` | `<output_dir>/<db_name>/` |
+| `BUILD_GTDB_DB` | `vi_database` | `ghcr.io/microbialds/nanovi-python:<version>` | `<output_dir>/<db_name>/` |
 | `COLLAPSE` | `vi_collapse` | `ghcr.io/microbialds/nanovi-python:<version>` | `<output_dir>/<input name>-<rank>.tsv` |
 | `COMBINE` | `vi_combine` | `ghcr.io/microbialds/nanovi-python:<version>` | `<output_dir>/vi-combined-<rank>.tsv` |
 

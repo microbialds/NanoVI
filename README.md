@@ -165,6 +165,10 @@ Give the caps on the command line or in a `-params-file`. In a custom `-c` confi
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `--db_name` | `db_custom` | Name for the custom database |
+| `--gtdb_ssu` | none | A GTDB SSU FASTA (`ssu_all_r226.fna.gz`): build the database from it with `bin/build_gtdb_db.py`, which reads the lineages from its headers. Replaces `--sequences`, `--seq2tax` and the taxonomy (below) |
+| `--gtdb_metadata` | none | With `--gtdb_ssu`: the release's `bac120_metadata` and `ar53_metadata` files, comma-separated, to write `copy_numbers.tsv` (as `bin/build_gtdb_db.py --gtdb-metadata`) |
+| `--merge_gtdb_suffixes` | `false` | With `--gtdb_ssu`: strip GTDB's clade suffixes and merge the species they separate (as `--merge-gtdb-suffixes`) |
+| `--gtdb_min_length` | `900` | With `--gtdb_ssu`: shortest 16S sequence taken into the database, in bp (not `--min_length`, which filters reads) |
 | `--sequences` | required | Input FASTA with reference sequences |
 | `--seq2tax` | required | Sequence-to-taxonomy mapping TSV |
 | `--taxonomy_list` | one of these two | Taxonomy TSV with a `tax_id` column and one column per rank |

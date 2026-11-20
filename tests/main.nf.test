@@ -716,6 +716,64 @@ nextflow_pipeline {
         }
     }
 
+    test("build-database with --gtdb_ssu builds from a GTDB SSU file") {
+        tag "stub"
+        options "-profile test -stub-run --gtdb_ssu ${projectDir}/tests/test_data/e2e/gtdb_style_ssu.fna --gtdb_metadata ${projectDir}/tests/test_data/e2e/copy_number_sources.tsv --merge_gtdb_suffixes true --db_name db_gtdb"
+
+        when {
+            params {
+                cmd        = "build-database"
+                output_dir = "${outputDir}"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.trace.succeeded()*.name == ["BUILD_GTDB_DATABASE:BUILD_GTDB_DB"]
+            ['species_taxid.fasta', 'taxonomy.tsv', 'identical_16s.tsv', 'cross_genus_identical.tsv',
+             'copy_numbers.tsv', 'merged_species.tsv'].each { assert file("${outputDir}/db_gtdb/${it}").exists() }
+            assert !file("${outputDir}/db_gtdb/cross_genus_removed.tsv").exists()
+        }
+    }
+
+    test("build-database refuses --gtdb_ssu with --sequences") {
+        tag "stub"
+        options "-profile test -stub-run --gtdb_ssu ${projectDir}/tests/test_data/e2e/gtdb_style_ssu.fna"
+
+        when {
+            params {
+                cmd        = "build-database"
+                output_dir = "${outputDir}"
+                sequences  = "${projectDir}/tests/test_data/mock_db/species_taxid.fasta"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("--gtdb_ssu builds the database from a GTDB SSU file; leave out --sequences") }
+        }
+    }
+
+    test("build-database refuses --gtdb_metadata without --gtdb_ssu") {
+        tag "stub"
+        options "-profile test -stub-run --gtdb_metadata ${projectDir}/tests/test_data/e2e/copy_number_sources.tsv"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                sequences     = "${projectDir}/tests/test_data/mock_db/species_taxid.fasta"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                ncbi_taxonomy = "${projectDir}/tests/test_data/mock_db"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("--gtdb_metadata needs --gtdb_ssu") }
+        }
+    }
+
     test("collapse-taxonomy fails without --rank") {
         tag "stub"
         options "-profile test -stub-run"
@@ -1506,6 +1564,28 @@ nextflow_pipeline {
             def counts = readTsv("${outputDir}/consolidated_output/otu_table_counts.tsv")
             assert counts.every { it.too_short == '0' }
             assert counts.find { it.species == 'Unassigned' }.non16s == '30'
+        }
+    }
+
+    test("build-database --gtdb_ssu rebuilds the e2e database from its GTDB-format FASTA") {
+        tag "e2e"
+        options "-profile test,${System.getenv('NANOVI_E2E_PROFILE') ?: 'docker'} --gtdb_ssu ${projectDir}/tests/test_data/e2e/gtdb_style_ssu.fna --db_name e2e --gtdb_min_length 1000 --copy_numbers ${projectDir}/tests/test_data/e2e/copy_number_sources.tsv"
+
+        when {
+            params {
+                cmd        = "build-database"
+                output_dir = "${outputDir}"
+            }
+        }
+
+        then {
+            assert workflow.success
+            // The fixture's database was built from the same records with build_gtdb_db.py (its README)
+            ['species_taxid.fasta', 'taxonomy.tsv', 'copy_numbers.tsv'].each {
+                assert file("${outputDir}/e2e/${it}").text == file("${projectDir}/tests/test_data/e2e/db/${it}").text
+            }
+            assert file("${outputDir}/e2e/identical_16s.tsv").exists()
+            assert file("${outputDir}/e2e/cross_genus_identical.tsv").exists()
         }
     }
 }

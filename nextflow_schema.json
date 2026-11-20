@@ -206,6 +206,27 @@
           "description": "Name for the custom database to build",
           "pattern": "^[A-Za-z0-9._-]+$"
         },
+        "gtdb_ssu": {
+          "type": "string",
+          "description": "GTDB SSU FASTA (ssu_all_r<release>.fna.gz, or ssu_all.fna.gz from GTDB's latest release): build the database from it with bin/build_gtdb_db.py, which reads the lineages from the FASTA headers. Takes the place of sequences, seq2tax, taxonomy_list and ncbi_taxonomy",
+          "format": "file-path",
+          "exists": true
+        },
+        "gtdb_metadata": {
+          "type": "string",
+          "description": "With gtdb_ssu: the release's bac120_metadata and ar53_metadata files, comma-separated (a glob also works): write copy_numbers.tsv, each species' 16S copy number as the median ssu_count of its complete genomes, filled from the genus or else family median. At most one of gtdb_metadata or copy_numbers"
+        },
+        "merge_gtdb_suffixes": {
+          "type": "boolean",
+          "default": false,
+          "description": "With gtdb_ssu: strip GTDB's clade suffixes (Listeria monocytogenes_B -> Listeria monocytogenes), merging the species and genera GTDB separates with them, and write merged_species.tsv"
+        },
+        "gtdb_min_length": {
+          "type": "integer",
+          "default": 900,
+          "minimum": 1,
+          "description": "With gtdb_ssu: shortest 16S sequence (bp) taken into the database. Not min_length, which filters reads"
+        },
         "sequences": {
           "type": "string",
           "description": "Path to input FASTA file with reference sequences",
@@ -243,7 +264,7 @@
         },
         "copy_numbers": {
           "type": "string",
-          "description": "TSV with 'species' and 'copy_number' columns (16S copies per genome): write copy_numbers.tsv into the database, species without a value taking the median of their genus or else family. At most one of copy_numbers or rrndb_pantaxa",
+          "description": "TSV with 'species' and 'copy_number' columns (16S copies per genome): write copy_numbers.tsv into the database, species without a value taking the median of their genus or else family. At most one of copy_numbers, rrndb_pantaxa or gtdb_metadata",
           "format": "file-path",
           "exists": true
         },
