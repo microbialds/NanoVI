@@ -327,7 +327,10 @@ give byte-identical files. On the e2e fixture with every option the PDF has 9 pa
 
 ## `--cmd build-database`
 
-Writes `<output_dir>/<db_name>/`, the directory to pass as `--db`:
+Writes `<output_dir>/<db_name>/`, the directory to pass as `--db`. With `--gtdb_ssu` it runs
+`bin/build_gtdb_db.py` on a GTDB SSU file and writes the files of the next section (with
+`--gtdb_metadata` or `--copy_numbers`, `copy_numbers.tsv`; with `--merge_gtdb_suffixes`,
+`merged_species.tsv`). Otherwise, from `--sequences`, `--seq2tax` and a taxonomy:
 
 | File | Content |
 |---|---|
@@ -340,8 +343,9 @@ Writes `<output_dir>/<db_name>/`, the directory to pass as `--db`:
 
 ## `bin/build_gtdb_db.py`
 
-Builds a database directory from a GTDB SSU FASTA (`ssu_all_<release>.fna.gz`); see the
-README for the options. It writes:
+Builds a database directory from a GTDB SSU FASTA (`ssu_all_<release>.fna.gz`, or
+`ssu_all.fna.gz` in GTDB's `latest` folder); `--cmd build-database --gtdb_ssu` runs it in the
+pipeline's image. See the README for the options. It writes:
 
 | File | Content |
 |---|---|

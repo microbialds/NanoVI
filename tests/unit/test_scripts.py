@@ -22,6 +22,7 @@ SCRIPTS = {
     'write_abundance_table.py': '--read-counts',
     'generate_phyloseq_tables.py': '--output-dir',
     'main.py': 'build-database',
+    'build_gtdb_db.py': '--ssu',
     'identical_16s.py': '--cross-genus',
     'nanovi_report.py': '--results',
 }
@@ -510,3 +511,28 @@ def test_build_database_applies_the_cross_genus_rule(tmp_path, rule, kept):
     assert (db / 'cross_genus_removed.tsv').exists() == (rule != 'keep')
     if rule == 'remove':
         assert 'Alpha one' in (db / 'cross_genus_emptied.tsv').read_text()
+
+
+# ─── build_gtdb_db.py (F64) ──────────────────────────────────────────────────
+
+def test_build_gtdb_db_takes_the_pipelines_underscore_spellings(tmp_path):
+    lin = 'd__Bacteria;p__P;c__C;o__O;f__F;g__{g};s__{s}'
+    seq_a, seq_b = 'ACGT' * 300, 'TTGCA' * 240
+    (tmp_path / 'ssu.fna').write_text(
+        f'>RS_GCF_1~c1 {lin.format(g="Alpha_A", s="Alpha_A one")} [ssu_len=1200]\n{seq_a}\n'
+        f'>RS_GCF_4~c4 {lin.format(g="Alpha", s="Alpha one")} [ssu_len=1200]\n{seq_b}\n'
+        f'>RS_GCF_6~c6 {lin.format(g="Beta", s="Beta one")} [ssu_len=950]\n{seq_b[:950]}\n')
+    outputs = {}
+    for name, opts in [('dash', ['--db-name', 'mydb', '--output-dir', 'dash', '--min-length', '1000',
+                                 '--merge-gtdb-suffixes', '--cross-genus-rule', 'remove']),
+                       ('underscore', ['--db_name', 'mydb', '--output_dir', 'underscore', '--min_length', '1000',
+                                       '--merge_gtdb_suffixes', '--cross_genus_rule', 'remove'])]:
+        result = subprocess.run([sys.executable, os.path.join(BIN, 'build_gtdb_db.py'), '--ssu', 'ssu.fna'] + opts,
+                                cwd=tmp_path, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        outputs[name] = {f.name: f.read_text() for f in sorted((tmp_path / name).iterdir())}
+    assert outputs['dash'] == outputs['underscore']
+    # --min_length 1000 drops Beta one's 950 bp sequence; merging the suffix puts both others under Alpha one
+    headers = [line for line in outputs['dash']['species_taxid.fasta'].splitlines() if line.startswith('>')]
+    assert len(headers) == 2 and len({h.split(':')[0] for h in headers}) == 1
+    assert 'Alpha one' in outputs['dash']['merged_species.tsv']
