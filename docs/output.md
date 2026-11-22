@@ -326,6 +326,40 @@ groups. The report carries the day the run started (UTC), and two renders of the
 give byte-identical files. On the e2e fixture with every option the PDF has 9 pages; on a
 117-sample run, 16.
 
+#### Rendering a report from a finished run
+
+`bin/nanovi_report.py` renders the report from a results folder, for a run made without
+`--report` or to group the samples afterwards. It runs in the report image, which holds the
+software but not the script or its templates: mount a copy of NanoVI at the run's release (a
+clone, or the copy `nextflow run microbialds/NanoVI` keeps in
+`~/.nextflow/assets/microbialds/NanoVI`) and the results folder. From the folder that holds
+`results/`:
+
+```bash
+git clone --branch v1.2.0 https://github.com/microbialds/NanoVI.git
+docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+    -v "$PWD/NanoVI:/nanovi:ro" -v "$PWD/results:/results" \
+    ghcr.io/microbialds/nanovi-report:1.2.0 \
+    python /nanovi/bin/nanovi_report.py --results /results --outdir /results/report \
+        --assets /nanovi/assets/report
+```
+
+With Singularity or Apptainer, which mount the current folder:
+
+```bash
+singularity exec docker://ghcr.io/microbialds/nanovi-report:1.2.0 \
+    python NanoVI/bin/nanovi_report.py --results results --outdir results/report \
+        --assets NanoVI/assets/report
+```
+
+Add `--metadata <file>` (as `--report_metadata`) to group the samples, `--params <file>` (a
+JSON of the run's parameters, such as its `-params-file`) for the parameters table in the
+methods, which is left out without it, and `--date YYYY-MM-DD` for the date the report carries
+(today by default). The script reads every table in the folder, so tables an earlier run
+left there with other options or samples are reported too
+([Troubleshooting](../README.md#troubleshooting)); the pipeline's own REPORT step reads only
+its run's tables.
+
 ## `--cmd build-database`
 
 Writes `<output_dir>/<db_name>/`, the directory to pass as `--db`. With `--gtdb_ssu` it runs
