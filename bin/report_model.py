@@ -519,7 +519,10 @@ def table_entry(nums, df, name, caption, html_rows=500, pdf=True, pdf_columns=No
         if total > pdf_rows:
             notes.append(f"first {pdf_rows} of {total:,} rows")
             p = p.head(pdf_rows)
-        note = ("Shown: " + " and ".join(notes) + (where or "") + "; every row is in the HTML report.") if notes else ""
+        # the HTML has every row only up to html_rows (F75: the note said so for any table)
+        html = ("every row is in the HTML report" if total <= html_rows
+                else f"the HTML report shows the first {html_rows:,}")
+        note = ("Shown: " + " and ".join(notes) + where + "; " + html + ".") if notes else ""
         rows = [[fmt(v) for v in r] for r in p.itertuples(index=False)]
         header = [str(c) for c in p.columns]
         out["pdf"] = {"header": header, "rows": rows, "note": note,

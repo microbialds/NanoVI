@@ -221,6 +221,15 @@ def test_pdf_tables_are_capped_with_a_note():
     t = rm.table_entry(nums, df, 'x', 'caption', tsv='x.tsv')
     assert len(t['rows']) == 100 and len(t['pdf']['rows']) == rm.PDF_MAX_ROWS
     assert 'first 60 of 100 rows' in t['pdf']['note'] and 'x.tsv' in t['pdf']['note']
+    assert t['pdf']['note'].endswith('; every row is in the HTML report.')
+
+
+def test_the_pdf_note_says_when_the_html_shows_only_some_rows():
+    # It said every row was in the HTML even when the HTML stopped at html_rows (F75)
+    t = rm.table_entry(rm.Numbering(), pd.DataFrame({'a': range(700)}), 'x', 'caption', tsv='x.tsv')
+    assert len(t['rows']) == 500 and t['html_note'] == 'First 500 of 700 rows; the full table is x.tsv.'
+    assert t['pdf']['note'] == ('Shown: first 60 of 700 rows; the full table is x.tsv; '
+                                'the HTML report shows the first 500.')
 
 
 def test_a_run_with_no_flagged_species_gives_an_empty_flag_table(tmp_path, monkeypatch):
