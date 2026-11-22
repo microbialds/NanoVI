@@ -43,6 +43,9 @@ nextflow_pipeline {
             // was included before the params block, so an unset value published both (F66)
             assert !file("${outputDir}/bam").exists()
             assert !file("${outputDir}/filtered").exists()
+            // The build-database options keep their defaults: no warning (F74 d)
+            assert !(workflow.stdout + workflow.stderr).any { it.contains('is a build-database option') }
+            assert !file("${metaDir}/nextflow.log").text.contains('is a build-database option')
         }
     }
 
@@ -190,9 +193,9 @@ nextflow_pipeline {
         }
     }
 
-    test("--copy_numbers and --gtdb_ssu in abundance mode are ignored with a warning") {
+    test("--copy_numbers, --gtdb_ssu, --gtdb_min_length and --cross_genus_rule in abundance mode are ignored with a warning") {
         tag "stub"
-        options "-profile test -stub-run --cell_abundance true --copy_numbers ${projectDir}/tests/test_data/e2e/copy_number_sources.tsv --gtdb_ssu ${projectDir}/tests/test_data/e2e/gtdb_style_ssu.fna"
+        options "-profile test -stub-run --cell_abundance true --copy_numbers ${projectDir}/tests/test_data/e2e/copy_number_sources.tsv --gtdb_ssu ${projectDir}/tests/test_data/e2e/gtdb_style_ssu.fna --gtdb_min_length 1000 --cross_genus_rule remove"
 
         when {
             params {
@@ -205,7 +208,8 @@ nextflow_pipeline {
 
         then {
             assert workflow.success
-            ["--copy_numbers", "--gtdb_ssu"].each { name ->
+            // --gtdb_min_length and --cross_genus_rule only when changed from their defaults (F74 d)
+            ["--copy_numbers", "--gtdb_ssu", "--gtdb_min_length", "--cross_genus_rule"].each { name ->
                 def warning = "${name} is a build-database option and is ignored by --cmd abundance"
                 assert (workflow.stdout + workflow.stderr).any { it.contains(warning) } ||
                     file("${metaDir}/nextflow.log").text.contains(warning)

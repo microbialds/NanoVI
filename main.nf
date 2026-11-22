@@ -199,6 +199,10 @@ workflow {
         ['gtdb_ssu', 'gtdb_metadata', 'merge_gtdb_suffixes'].findAll { params[it] }.each {
             log.warn "--${it} is a build-database option and is ignored by --cmd abundance"
         }
+        // These have defaults (nextflow.config), so only a changed value is warned about (F74 d)
+        [gtdb_min_length: 900, cross_genus_rule: 'keep'].findAll { name, value -> params[name] != value }.each { name, value ->
+            log.warn "--${name} is a build-database option and is ignored by --cmd abundance"
+        }
 
         ABUNDANCE(input_reads, fasta_file, tax_file, db_index, identical_16s, copy_numbers)
         versions = ABUNDANCE.out.versions
