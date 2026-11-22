@@ -789,6 +789,24 @@ nextflow_pipeline {
         }
     }
 
+    test("build-database stops on two --gtdb_metadata files of one name") {
+        tag "stub"
+        // They would be staged on top of each other (F74 b)
+        options "-profile test -stub-run --gtdb_ssu ${projectDir}/tests/test_data/e2e/gtdb_style_ssu.fna --gtdb_metadata ${projectDir}/tests/test_data/e2e/db/taxonomy.tsv,${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+
+        when {
+            params {
+                cmd        = "build-database"
+                output_dir = "${outputDir}"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("--gtdb_metadata: 2 files are named taxonomy.tsv") }
+        }
+    }
+
     test("build-database refuses --gtdb_ssu with --sequences") {
         tag "stub"
         options "-profile test -stub-run --gtdb_ssu ${projectDir}/tests/test_data/e2e/gtdb_style_ssu.fna"

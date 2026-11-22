@@ -238,6 +238,10 @@ workflow {
         }
         // A file named twice (by a glob and by its name) is read once
         metadata = metadata.unique { it.toAbsolutePath().normalize() }
+        // Two files of one name would be staged on top of each other (F74 b)
+        metadata.groupBy { it.name }.findAll { name, same -> same.size() > 1 }.each { name, same ->
+            error "--gtdb_metadata: ${same.size()} files are named ${name} (${same.join(', ')}); give each a distinct name"
+        }
 
         BUILD_GTDB_DATABASE(
             channel.value(file(params.gtdb_ssu)),
