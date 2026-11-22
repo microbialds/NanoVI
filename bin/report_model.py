@@ -191,6 +191,16 @@ def order_samples(samples, groups, metadata_order=None):
                                           natural_key(s)))
 
 
+def part_label(i):
+    """A figure part's label: a-z, then aa, ab, ... (F71: past 26 parts the templates had no letter)."""
+    out = ""
+    i += 1
+    while i:
+        i, r = divmod(i - 1, 26)
+        out = chr(97 + r) + out
+    return out
+
+
 def split_parts(samples, size=PART_MAX):
     """Consecutive parts of equal size (differing by at most one), none larger than `size`: 117 -> 59 + 58."""
     n = len(samples)
@@ -530,8 +540,10 @@ class Section:
         if r is None:
             return None
         self.nums.fig += 1
+        # each part's label, for both documents; a figure of one part has none
+        parts = [dict(p, label=part_label(i) if len(r["parts"]) > 1 else "") for i, p in enumerate(r["parts"])]
         self.figures[key] = {"no": self.nums.fig, "key": key, "title": r["title"], "caption": r["caption"],
-                             "parts": r["parts"], "interactive": r.get("interactive")}
+                             "parts": parts, "interactive": r.get("interactive")}
         return self.figures[key]
 
     def table(self, slot, df, name, caption, **kw):

@@ -90,6 +90,12 @@ def test_top_taxa_is_the_union_of_each_samples_top_capped_by_mean():
     assert rm.top_taxa(wide, per_sample=2, cap=2) == ['t4', 't1']
 
 
+def test_part_labels_go_on_past_z():
+    # The templates indexed a 26-letter string, so a figure of more than 26 parts stopped the render (F71)
+    assert [rm.part_label(i) for i in (0, 25, 26, 27, 51, 52, 701, 702)] == ['a', 'z', 'aa', 'ab', 'az', 'ba', 'zz',
+                                                                              'aaa']
+
+
 def test_split_parts_gives_equal_parts_of_at_most_60():
     assert [len(p) for p in rm.split_parts(list(range(117)))] == [59, 58]
     assert [len(p) for p in rm.split_parts(list(range(60)))] == [60]

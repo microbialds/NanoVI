@@ -319,8 +319,8 @@ shows at most 60 rows and 14 columns of a table and says where the rest is.
 
 Each figure is written at a journal width (89 or 183 mm) with Inter embedded (TrueType in the
 PDF, WOFF2 in the SVG), as a 600 dpi PNG, and with a CSV of the values it plots. A figure with a
-sample axis and more than 60 samples is split into parts of equal size (`<figure>_1`, `_2`; a
-and b in the documents); the interactive HTML versions of `read_fate` and the composition figures
+sample axis and more than 60 samples is split into parts of equal size (`<figure>_1`, `_2`; a,
+b, … z, aa, ab in the documents); the interactive HTML versions of `read_fate` and the composition figures
 keep every sample in one chart, and offer a group menu when `--report_metadata` gives two or more
 groups. The report carries the day the run started (UTC), and two renders of the same results
 give byte-identical files. On the e2e fixture with every option the PDF has 9 pages; on a
