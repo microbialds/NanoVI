@@ -17,6 +17,7 @@ taxonomic ranks, and combining per-sample results into matrices.
 # taxonomy.py
 
 import os
+import re
 import sys
 import math
 import numpy as np
@@ -45,6 +46,11 @@ SHARED_COLUMN = "shared_read_fraction"
 INTERVAL_COLUMNS = ["ci_lower", "ci_upper"]
 # Species of the same genus that share an identical 16S with the row's species (D24)
 IDENTICAL_COLUMN = "identical_16s_species"
+
+def natural_key(text):
+    """V2 before V10: digits compare as numbers (the run report's and the consolidated tables' sample order)."""
+    return [(0, int(t), "") if t.isdigit() else (1, 0, t.lower()) for t in re.split(r"(\d+)", str(text)) if t]
+
 
 def lineage_dict_from_tid(taxid, nodes_dict, names_dict):
     """

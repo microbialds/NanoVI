@@ -26,7 +26,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from taxonomy import BELOW_DETECTION_LABEL as BELOW, UNASSIGNED_LABEL as UNASSIGNED
+from taxonomy import BELOW_DETECTION_LABEL as BELOW, UNASSIGNED_LABEL as UNASSIGNED, natural_key
 
 PLACEHOLDERS = (BELOW, UNASSIGNED)
 FLAG_SHARED = 0.5      # shared_read_fraction at which a species is flagged in a sample (D42)
@@ -59,11 +59,6 @@ def warn(msg):
 
 def die(msg):
     sys.exit(f"ERROR: {msg}")
-
-
-def natural_key(text):
-    """V2 before V10: digits compare as numbers."""
-    return [(0, int(t), "") if t.isdigit() else (1, 0, t.lower()) for t in re.split(r"(\d+)", str(text)) if t]
 
 
 # ---- reading the results directory

@@ -300,6 +300,26 @@ def test_write_abundance_table_with_no_scored_read(tmp_path, options):
         assert metadata.loc['S1', 'assigned_counts'] == 0 and metadata.loc['S1', 'unassigned_counts'] == 30
 
 
+# ─── The consolidated tables' sample order (F72) ────────────────────────────
+
+def test_consolidated_tables_list_samples_in_natural_order(tmp_path):
+    # Nextflow passes the files in the order the tasks finished; the tables follow the run report's order
+    for s in ('S10', 'S2', 'B1', 's1'):
+        (tmp_path / f'{s}_rel-abundance.tsv').write_text(
+            'species\tabundance\tgenus\tfamily\torder\tclass\tphylum\tsuperkingdom\testimated_counts\n'
+            'Alpha one\t1.0\tAlpha\t\t\t\t\t\t10\nUnassigned\t0\t\t\t\t\t\t\t2\n')
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'generate_phyloseq_tables.py'), 'S10_rel-abundance.tsv',
+         'S2_rel-abundance.tsv', 'B1_rel-abundance.tsv', 's1_rel-abundance.tsv', '--output-dir', 'out'],
+        cwd=tmp_path, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+    import pandas as pd
+    for name in ('otu_table_abundance.tsv', 'otu_table_counts.tsv'):
+        assert list(pd.read_csv(tmp_path / 'out' / name, sep='\t', index_col=0).columns) == ['B1', 's1', 'S2', 'S10']
+    assert list(pd.read_csv(tmp_path / 'out' / 'sample_metadata.tsv', sep='\t', index_col=0).index) == [
+        'B1', 's1', 'S2', 'S10']
+
+
 # ─── shared_read_fraction per reported row (F46) ────────────────────────────
 
 @pytest.mark.parametrize('estimator', ['vb', 'em'])
