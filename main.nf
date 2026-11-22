@@ -182,10 +182,11 @@ workflow {
                 error "--cell_abundance needs copy_numbers.tsv in the database directory (${params.db}). " +
                     "Build the database with copy numbers: bin/build_gtdb_db.py --gtdb-metadata (GTDB), or " +
                     "--cmd build-database --copy_numbers <table> or --rrndb_pantaxa <file>"
-            // Its tax IDs are those of the database's own taxonomy.tsv
+            // Its tax IDs are those of the database's own taxonomy.tsv: the same path, or the same
+            // bytes (a link or a copy). Not toRealPath(), which a remote file system (S3) may not
+            // support (F74 c)
             def db_tax = file("${params.db}/taxonomy.tsv")
-            def same_tax = tax_file == db_tax ||
-                (db_tax.exists() && (tax_file.toRealPath() == db_tax.toRealPath() || tax_file.bytes == db_tax.bytes))
+            def same_tax = tax_file == db_tax || (db_tax.exists() && tax_file.bytes == db_tax.bytes)
             if (!same_tax)
                 error "--cell_abundance uses ${params.db}/copy_numbers.tsv, which matches the database's own taxonomy.tsv; " +
                     "it cannot be used with another --taxonomy_tsv (${taxonomy_tsv})"

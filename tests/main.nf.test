@@ -144,6 +144,31 @@ nextflow_pipeline {
         }
     }
 
+    // A link (or a copy) of the database's taxonomy.tsv is the same taxonomy, compared by its
+    // bytes (no toRealPath(), which S3 may not support, F74 c)
+    test("--cell_abundance takes a link to the database's taxonomy.tsv") {
+        tag "stub"
+        options "-profile test -stub-run --cell_abundance true"
+
+        when {
+            def dir = new File("${outputDir}/tax")
+            dir.mkdirs()
+            def db_tax = new File("${projectDir}/tests/test_data/e2e/db/taxonomy.tsv")
+            java.nio.file.Files.createSymbolicLink(new File(dir, 'link.tsv').toPath(), db_tax.toPath())
+            params {
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}/run"
+                db           = "${projectDir}/tests/test_data/e2e/db"
+                taxonomy_tsv = "${outputDir}/tax/link.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+        }
+    }
+
     test("--cell_abundance refuses a --taxonomy_tsv other than the database's") {
         tag "stub"
         options "-profile test -stub-run --cell_abundance true"
