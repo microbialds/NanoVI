@@ -264,6 +264,19 @@ def read_copy_numbers(path, tax_ids=None):
     return out
 
 
+def read_copy_number_sources(path, tax_ids):
+    """The distinct source labels of these tax IDs' rows in copy_numbers.tsv, sorted (F70).
+
+    Empty for a file without a source column or with the column blank.
+    """
+    with open(path, encoding="utf8", newline="") as fh:
+        reader = csv.DictReader(fh, delimiter="\t")
+        if "source" not in (reader.fieldnames or []):
+            return []
+        return sorted({(row["source"] or "").strip() for row in reader
+                       if (row["tax_id"] or "").strip() in tax_ids} - {""})
+
+
 def tax_id_copy_numbers(freq, copy_numbers, taxonomy_df):
     """tax_id -> (copy number, level) for the tax IDs of freq; None when it has none.
 
@@ -339,11 +352,13 @@ def cell_total(cells):
     return sum(cells[i][0] for i in sorted(cells) if cells[i])
 
 
-def write_cell_table(species_df, cells, path, below_detection_count, unassigned_count):
+def write_cell_table(species_df, cells, path, below_detection_count, unassigned_count, sources=()):
     """Write <sample>_cell-abundance.tsv from the species table and row_cells' values.
 
     species_df: freq_to_lineage_df's table, indexed by row; cells: row index -> the
-    row_cells tuple or None. Rows keep the species table's order.
+    row_cells tuple or None. Rows keep the species table's order. sources: the
+    copy_numbers.tsv source labels of the sample's tax IDs, named in the first line
+    (the run report reads them from there, F70).
     """
     import pandas as pd
     from taxonomy import BELOW_DETECTION_LABEL, TAXONOMY_RANKS, UNASSIGNED_LABEL
@@ -368,8 +383,9 @@ def write_cell_table(species_df, cells, path, below_detection_count, unassigned_
     in_rows = (f"; tax IDs without one in rows listed below: read-level abundance {partial:.6g}, left out of "
                f"their row's cell share and copy number" if partial > 1e-12 else "")
     with open(path, "w", encoding="utf8") as fh:
+        source = f"; source: {', '.join(sources)}" if sources else ""
         fh.write("# Cell-level abundance: read-level abundance / 16S copy number (the database's "
-                 "copy_numbers.tsv), renormalised over the rows listed; copy_number_level 'species' is "
+                 f"copy_numbers.tsv{source}), renormalised over the rows listed; copy_number_level 'species' is "
                  "the species' own value, 'genus' or 'family' the median it was filled from.\n")
         fh.write(f"# Not included: Below detection ({below_detection_count} reads) and Unassigned "
                  f"({unassigned_count} reads), and {len(left_out)} species without a copy number "

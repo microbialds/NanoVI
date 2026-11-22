@@ -651,6 +651,26 @@ def params_table(params):
 
 # ---- prose shared by both documents
 
+def copy_number_source(run):
+    """Where the cell tables' copy numbers come from, in words, or "" when no table names it (F70).
+
+    write_abundance_table.py names copy_numbers.tsv's source labels in each cell table's first
+    '#' line ("source: a, b"); a GTDB label lists its metadata files with commas but no space.
+    """
+    labels = set()
+    for lines in run["cell_comments"].values():
+        m = re.search(r"; source: ([^)]*)\)", lines[0]) if lines else None
+        if m:
+            labels.update(m.group(1).split(", "))
+    words = {"gtdb_complete_genomes": "GTDB ssu_count medians over complete genomes",
+             "table": "the copy-number table {}", "rrndb_pantaxa": "rrnDB pan-taxa medians ({})"}
+    out = []
+    for label in sorted(labels):
+        kind, _, name = label.partition(":")
+        out.append(words[kind].format(name) if kind in words else f"'{label}'")
+    return "; ".join(out)
+
+
 def caveats(data, run, params):
     out = [
         "Abundances are shares of 16S reads, not of cells: a species with more 16S copies per genome gives more "
@@ -671,10 +691,11 @@ def caveats(data, run, params):
         out.append("Ambiguity groups join reported species of one family whose reads are shared (f >= 0.25, D39); a "
                    "group's abundance is more robust than the split between its members.")
     if run["cell"]:
+        source = copy_number_source(run)
         out.append("Cell-level abundance divides each species' read-level abundance by its 16S copy number "
-                   "(copy_numbers.tsv of the database: GTDB ssu_count medians, filled from the genus or family "
-                   "median when the species has none, D40) and renormalises; species without a copy number are "
-                   "left out.")
+                   f"(copy_numbers.tsv of the database{': ' + source if source else ''}, filled from the genus or "
+                   "family median when the species has none, D40) and renormalises; species without a copy number "
+                   "are left out.")
     if run["reads"]:
         out.append("The per-read file lists each read's table rows at probability 0.01 or more (D37).")
     return out

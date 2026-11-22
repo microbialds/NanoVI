@@ -51,7 +51,7 @@ def species_table(sample, counts=True):
     return '\n'.join(lines) + '\n'
 
 
-def make_results(root, counts=True, groups=False, cell=False, reads=False, versions=True):
+def make_results(root, counts=True, groups=False, cell=False, reads=False, versions=True, cell_source=None):
     so = root / 'sample_outputs'
     so.mkdir(parents=True)
     for s in SPECIES:
@@ -98,7 +98,10 @@ def make_results(root, counts=True, groups=False, cell=False, reads=False, versi
             cell_share = {sp: ab / copies[sp][0] for sp, ab, *_ in rs}
             total = sum(cell_share.values())
             below, unassigned = PLACEHOLDER_COUNTS[s]
-            lines = ['# Cell-level abundance: read-level abundance / 16S copy number, renormalised.',
+            # cell_source: the copy_numbers.tsv source labels write_abundance_table.py names (F70)
+            source = f'; source: {cell_source}' if cell_source else ''
+            lines = [f'# Cell-level abundance: read-level abundance / 16S copy number (copy_numbers.tsv{source}), '
+                     'renormalised.',
                      f'# Not included: Below detection ({below} reads) and Unassigned ({unassigned} reads).',
                      '\t'.join(header)]
             for sp, ab, *_ in rs:

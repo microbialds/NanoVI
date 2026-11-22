@@ -201,7 +201,8 @@ per genome no longer weighs ten times one with a single copy. The species table 
 change.
 
 The file starts with two comment lines (`#`; read it with `comment="#"` in pandas, or
-`comment.char = "#"` in R): what the table is, and what it leaves out. The `Below
+`comment.char = "#"` in R): what the table is, with the `source` of its copy numbers
+in `copy_numbers.tsv` (which the run report names), and what it leaves out. The `Below
 detection` and `Unassigned` reads have no species and so no copy number, and a species row
 none of whose tax IDs has a copy number in `copy_numbers.tsv` has none either; they are
 left out, and the second line gives their reads and the read-level abundance of those
@@ -226,7 +227,7 @@ e2e fixture (`--cell_abundance true`, copy numbers from
 `tests/test_data/e2e/copy_number_sources.tsv`; lineage left out):
 
 ```
-# Cell-level abundance: read-level abundance / 16S copy number (the database's copy_numbers.tsv), renormalised over the rows listed; ...
+# Cell-level abundance: read-level abundance / 16S copy number (the database's copy_numbers.tsv; source: table:copy_number_sources.tsv), renormalised over the rows listed; ...
 # Not included: Below detection (0 reads) and Unassigned (30 reads), and 0 species without a copy number (read-level abundance 0).
 ```
 

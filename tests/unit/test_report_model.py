@@ -139,6 +139,22 @@ def test_cell_section_shows_the_comment_lines_and_the_values(tmp_path):
     assert s1.loc['Beta three', 'read_abundance'] == 0.1 and s1.loc['Beta three', 'copy_number'] == 2.0
 
 
+def test_cell_caveat_names_the_copy_number_source_from_the_cell_tables(tmp_path):
+    # It said GTDB ssu_count medians whatever built copy_numbers.tsv (F70)
+    caveat = lambda run: next(c for c in rm.caveats(None, run, None) if c.startswith('Cell-level'))
+    run, _, _ = model_of(tmp_path / 't', cell=True, cell_source='table:copy_number_sources.tsv')
+    assert 'copy_numbers.tsv of the database: the copy-number table copy_number_sources.tsv, filled' in caveat(run)
+    assert 'GTDB' not in caveat(run)
+    run, _, _ = model_of(tmp_path / 'g', cell=True,
+                         cell_source='gtdb_complete_genomes:bac120_metadata.tsv.gz,ar53_metadata.tsv.gz')
+    assert 'database: GTDB ssu_count medians over complete genomes, filled' in caveat(run)
+    run, _, _ = model_of(tmp_path / 'r', cell=True, cell_source='rrndb_pantaxa:pantaxa.tsv, custom')
+    assert "database: 'custom'; rrnDB pan-taxa medians (pantaxa.tsv), filled" in caveat(run)
+    # Cell tables that name no source: the caveat names none
+    run, _, _ = model_of(tmp_path / 'n', cell=True)
+    assert '(copy_numbers.tsv of the database, filled' in caveat(run)
+
+
 def test_read_assignment_summary_counts_reads_and_pairs(tmp_path):
     _, data, _ = model_of(tmp_path, reads=True)
     per = data['reads'].set_index('sample')
