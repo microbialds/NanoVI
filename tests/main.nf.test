@@ -39,6 +39,32 @@ nextflow_pipeline {
             assert !file("${outputDir}/sample_outputs").listFiles().any { it.name.endsWith('_cell-abundance.tsv') }
             assert !file("${outputDir}/report").exists()
             assert workflow.trace.tasks().count { it.name.startsWith('REPORT') } == 0
+            // The alignments and filtered reads only with --keep_files: conf/modules.config
+            // was included before the params block, so an unset value published both (F66)
+            assert !file("${outputDir}/bam").exists()
+            assert !file("${outputDir}/filtered").exists()
+        }
+    }
+
+    test("--keep_files true on the command line publishes bam/ and filtered/ in stub mode") {
+        tag "stub"
+        options "-profile test -stub-run --keep_files true"
+
+        when {
+            params {
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/bam/mock_run_vi_alignments.bam").exists()
+            assert file("${outputDir}/filtered/mock_run_filtered.fastq.gz").exists()
+            assert !file("${outputDir}/bam/versions.yml").exists()
         }
     }
 

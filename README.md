@@ -212,7 +212,7 @@ The Python steps ask for one CPU each and run on one core (`nextflow.config` set
 | `--max_memory` | `128.GB` | Most memory any task asks for |
 | `--max_time` | `240.h` | Most time any task asks for |
 
-Give the caps on the command line or in a `-params-file`. In a custom `-c` config, `params.max_*` comes too late to change them: set `process.resourceLimits = [cpus: 32, memory: 256.GB, time: 48.h]` there instead. On a cluster, also review the per-step requests in `conf/base.config` against your partitions.
+Give the caps on the command line or in a `-params-file`. In a custom `-c` config, `params.max_*` comes too late to change them: set `process.resourceLimits = [cpus: 32, memory: 256.GB, time: 48.h]` there instead. The same holds for `--keep_files`: a `params.keep_files` in a `-c` config is ignored. On a cluster, also review the per-step requests in `conf/base.config` against your partitions.
 
 The parameters of `--cmd build-database` are under [Reference databases](#reference-databases), and those of `collapse-taxonomy` and `combine-outputs` under [Other commands](#other-commands).
 
