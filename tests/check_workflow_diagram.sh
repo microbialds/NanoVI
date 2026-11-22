@@ -27,15 +27,23 @@ FAIL=0
 
 # Names included by the given Nextflow files (default: main.nf and the local
 # subworkflows): the alias after "as" when there is one, else the name; include blocks
-# may span lines and hold several names separated by ";". Comments are removed first
+# may span lines and hold several names separated by ";". An include starts its line,
+# and so does a /* comment (up to the line with */), so a "/*" or "//" inside a string,
+# such as a glob, does not hide the includes after it (F74 a); a // comment is cut from
+# an include's lines
 included_names() {
     if [ "$#" -eq 0 ]; then
         set -- "${REPO_DIR}/main.nf" "${REPO_DIR}"/subworkflows/local/*.nf
     fi
-    cat "$@" \
-        | sed -E 's#//.*$##' \
-        | tr '\n' ' ' \
-        | sed -E 's#/\*([^*]|\*+[^*/])*\*+/##g' \
+    awk '
+        blk { if (index($0, "*/")) blk = 0; next }
+        /^[[:space:]]*\/\*/ { if (!index($0, "*/")) blk = 1; next }
+        inc || /^[[:space:]]*include[[:space:]]*\{/ {
+            sub(/\/\/.*$/, "")
+            buf = buf " " $0
+            inc = !index($0, "}")
+            if (!inc) { print buf; buf = "" }
+        }' "$@" \
         | grep -oE 'include[[:space:]]*\{[^}]*\}' \
         | sed -E 's/^include[[:space:]]*\{//; s/\}$//' \
         | tr ';' '\n' \
@@ -79,8 +87,11 @@ n_names=$(wc -l < "${TMP_DIR}/included.txt")
 
 # A commented-out include is not an include
 printf '%s\n' "include { FILTER_READS } from './a'" "// include { OLD_LINE } from './b'" \
-    "/* include { OLD_BLOCK } from './c'" "   include { OLD_BLOCK2 } from './d' */" > "${TMP_DIR}/comments.nf"
-if [ "$(included_names "${TMP_DIR}/comments.nf" | tr '\n' ' ')" = "FILTER_READS " ]; then
+    "/* include { OLD_BLOCK } from './c'" "   include { OLD_BLOCK2 } from './d' */" \
+    "/* include { ONE_LINE } from './e' */" 'def g = "${dir}/**"  // a glob' \
+    "include { AFTER_GLOB as GLOB_ALIAS; // the alias" "    SECOND } from './f'" "x = 1 /* trailing */" \
+    > "${TMP_DIR}/comments.nf"
+if [ "$(included_names "${TMP_DIR}/comments.nf" | tr '\n' ' ')" = "FILTER_READS GLOB_ALIAS SECOND " ]; then
     echo "✓ includes inside // and /* */ comments are not counted"
     PASS=$((PASS + 1))
 else
