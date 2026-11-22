@@ -201,6 +201,8 @@ jobs:
       contents: read
       packages: write
     strategy:
+      # A failed build of one image does not cancel the other's push (F68)
+      fail-fast: false
       matrix:
         include:
           # scope: the build cache each image shares with its e2e build (buildkit is the default)
