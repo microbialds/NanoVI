@@ -911,6 +911,27 @@ nextflow_pipeline {
         }
     }
 
+    // BUILD_DB does not read it; only a changed value is refused, the default is not
+    test("build-database refuses a changed --gtdb_min_length without --gtdb_ssu") {
+        tag "stub"
+        options "-profile test -stub-run --gtdb_min_length 1200"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                sequences     = "${projectDir}/tests/test_data/mock_db/species_taxid.fasta"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                ncbi_taxonomy = "${projectDir}/tests/test_data/mock_db"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("--gtdb_min_length needs --gtdb_ssu") }
+        }
+    }
+
     test("collapse-taxonomy fails without --rank") {
         tag "stub"
         options "-profile test -stub-run"

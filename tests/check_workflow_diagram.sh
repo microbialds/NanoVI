@@ -28,16 +28,20 @@ FAIL=0
 # Names included by the given Nextflow files (default: main.nf and the local
 # subworkflows): the alias after "as" when there is one, else the name; include blocks
 # may span lines and hold several names separated by ";". An include starts its line,
-# and so does a /* comment (up to the line with */), so a "/*" or "//" inside a string,
-# such as a glob, does not hide the includes after it (F74 a); a // comment is cut from
-# an include's lines
+# and so does a /* comment (up to the line with */; code after a */ on its line is read),
+# so a "/*" or "//" inside a string, such as a glob, does not hide the includes after it
+# (F74 a); a // comment is cut from an include's lines. A /* that opens after code on its
+# line is not taken for a comment, as it may be in a string
 included_names() {
     if [ "$#" -eq 0 ]; then
         set -- "${REPO_DIR}/main.nf" "${REPO_DIR}"/subworkflows/local/*.nf
     fi
     awk '
         blk { if (index($0, "*/")) blk = 0; next }
-        /^[[:space:]]*\/\*/ { if (!index($0, "*/")) blk = 1; next }
+        /^[[:space:]]*\/\*/ {
+            if (!index($0, "*/")) { blk = 1; next }
+            $0 = substr($0, index($0, "*/") + 2)
+        }
         inc || /^[[:space:]]*include[[:space:]]*\{/ {
             sub(/\/\/.*$/, "")
             buf = buf " " $0
@@ -90,8 +94,8 @@ printf '%s\n' "include { FILTER_READS } from './a'" "// include { OLD_LINE } fro
     "/* include { OLD_BLOCK } from './c'" "   include { OLD_BLOCK2 } from './d' */" \
     "/* include { ONE_LINE } from './e' */" 'def g = "${dir}/**"  // a glob' \
     "include { AFTER_GLOB as GLOB_ALIAS; // the alias" "    SECOND } from './f'" "x = 1 /* trailing */" \
-    > "${TMP_DIR}/comments.nf"
-if [ "$(included_names "${TMP_DIR}/comments.nf" | tr '\n' ' ')" = "FILTER_READS GLOB_ALIAS SECOND " ]; then
+    "/* F62 */ include { AFTER_COMMENT } from './g'" > "${TMP_DIR}/comments.nf"
+if [ "$(included_names "${TMP_DIR}/comments.nf" | tr '\n' ' ')" = "AFTER_COMMENT FILTER_READS GLOB_ALIAS SECOND " ]; then
     echo "✓ includes inside // and /* */ comments are not counted"
     PASS=$((PASS + 1))
 else

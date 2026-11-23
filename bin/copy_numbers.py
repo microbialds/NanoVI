@@ -245,6 +245,16 @@ def read_copy_numbers(path, tax_ids=None):
 
     tax_ids: read and check only these rows (a sample's tax IDs, not the whole database).
     """
+    return read_copy_numbers_and_sources(path, tax_ids)[0]
+
+
+def read_copy_numbers_and_sources(path, tax_ids=None):
+    """read_copy_numbers' rows, and the distinct source labels of every row, sorted (F70).
+
+    The labels are the database's, not only those of tax_ids' rows, so every sample's cell
+    table names the same source; none for a file without a source column or with it blank.
+    """
+    sources = set()
     with open(path, encoding="utf8", newline="") as fh:
         reader = csv.DictReader(fh, delimiter="\t")
         missing = {"tax_id", "species", "copy_number", "level"} - set(reader.fieldnames or [])
@@ -253,6 +263,7 @@ def read_copy_numbers(path, tax_ids=None):
         out = {}
         for line, row in enumerate(reader, 2):
             field = lambda k: (row[k] or "").strip()
+            sources.add((row.get("source") or "").strip())
             if tax_ids is not None and field("tax_id") not in tax_ids:
                 continue
             cn, level = field("copy_number"), field("level")
@@ -261,20 +272,7 @@ def read_copy_numbers(path, tax_ids=None):
             # A tax ID listed twice keeps its first row, as taxonomy.label_lineages keeps its first lineage
             out.setdefault(field("tax_id"), (
                 field("species"), _positive(cn, f"{path} line {line}") if cn else None, level))
-    return out
-
-
-def read_copy_number_sources(path, tax_ids):
-    """The distinct source labels of these tax IDs' rows in copy_numbers.tsv, sorted (F70).
-
-    Empty for a file without a source column or with the column blank.
-    """
-    with open(path, encoding="utf8", newline="") as fh:
-        reader = csv.DictReader(fh, delimiter="\t")
-        if "source" not in (reader.fieldnames or []):
-            return []
-        return sorted({(row["source"] or "").strip() for row in reader
-                       if (row["tax_id"] or "").strip() in tax_ids} - {""})
+    return out, sorted(sources - {""})
 
 
 def tax_id_copy_numbers(freq, copy_numbers, taxonomy_df):
@@ -357,7 +355,7 @@ def write_cell_table(species_df, cells, path, below_detection_count, unassigned_
 
     species_df: freq_to_lineage_df's table, indexed by row; cells: row index -> the
     row_cells tuple or None. Rows keep the species table's order. sources: the
-    copy_numbers.tsv source labels of the sample's tax IDs, named in the first line
+    copy_numbers.tsv source labels of the database, named in the first line
     (the run report reads them from there, F70).
     """
     import pandas as pd

@@ -31,6 +31,9 @@ def section(model, sid):
 def test_samples_in_natural_order(tmp_path):
     run, _, _ = model_of(tmp_path)
     assert run['samples'] == ['S1', 'S2', 'S10']
+    # IDs equal in natural order go by their text, whatever order they come in (as the consolidated tables)
+    for order in (['s1', 'S1', 'S01'], ['S01', 'S1', 's1']):
+        assert rm.order_samples(order, {}) == ['S01', 'S1', 's1']
 
 
 def test_metadata_orders_samples_by_group_then_naturally(tmp_path):
@@ -154,8 +157,11 @@ def test_cell_caveat_names_the_copy_number_source_from_the_cell_tables(tmp_path)
     run, _, _ = model_of(tmp_path / 'g', cell=True,
                          cell_source='gtdb_complete_genomes:bac120_metadata.tsv.gz,ar53_metadata.tsv.gz')
     assert 'database: GTDB ssu_count medians over complete genomes, filled' in caveat(run)
-    run, _, _ = model_of(tmp_path / 'r', cell=True, cell_source='rrndb_pantaxa:pantaxa.tsv, custom')
-    assert "database: 'custom'; rrnDB pan-taxa medians (pantaxa.tsv), filled" in caveat(run)
+    run, _, _ = model_of(tmp_path / 'r', cell=True, cell_source='custom:x, rrndb_pantaxa:pantaxa.tsv')
+    assert "database: 'custom:x'; rrnDB pan-taxa medians (pantaxa.tsv), filled" in caveat(run)
+    # A table's name may hold ")" and ", "; the label is still one
+    run, _, _ = model_of(tmp_path / 'p', cell=True, cell_source='table:copies (v2), final.tsv')
+    assert 'database: the copy-number table copies (v2), final.tsv, filled' in caveat(run)
     # Cell tables that name no source: the caveat names none
     run, _, _ = model_of(tmp_path / 'n', cell=True)
     assert '(copy_numbers.tsv of the database, filled' in caveat(run)

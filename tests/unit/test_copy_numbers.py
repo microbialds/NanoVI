@@ -275,8 +275,9 @@ def test_cell_table_divides_by_copy_number_and_leaves_out_what_has_none(tmp_path
     assert cell['copy_number_level'].tolist() == ['species', 'genus']
 
 
-def test_cell_table_names_the_copy_number_source_of_the_samples_tax_ids(tmp_path):
-    # The run report names it in its caveat (F70); tax ID 3 is not in the sample
+def test_cell_table_names_the_copy_number_source_of_the_database(tmp_path):
+    # The run report names it in its caveat (F70). The database's labels, not only the sample's
+    # (tax ID 3 is not in it): a sample with no tax ID must name the same source as the others
     taxonomy = [tax_row(1, 'Alpha one', 'Alpha', 'F1'), tax_row(2, 'Beta one', 'Beta', 'F1'),
                 tax_row(3, 'Gamma one', 'Gamma', 'F2')]
     rows = [dict(cn_row(1, 'Alpha one', 3.0), source='table:mine.tsv'),
@@ -285,9 +286,13 @@ def test_cell_table_names_the_copy_number_source_of_the_samples_tax_ids(tmp_path
     write_inputs(tmp_path, {'1': 0.6, '2': 0.4}, taxonomy, rows)
     assert run_table(tmp_path).returncode == 0
     comments, _ = read_cell(tmp_path / 's_cell.tsv')
-    assert "(the database's copy_numbers.tsv; source: table:mine.tsv), renormalised" in comments[0]
-    assert copy_numbers.read_copy_number_sources(tmp_path / 'copy_numbers.tsv', {'1', '2', '3'}) == [
+    first = "(the database's copy_numbers.tsv; source: rrndb_pantaxa:pantaxa.tsv, table:mine.tsv), renormalised"
+    assert first in comments[0]
+    assert copy_numbers.read_copy_numbers_and_sources(tmp_path / 'copy_numbers.tsv', {'1'})[1] == [
         'rrndb_pantaxa:pantaxa.tsv', 'table:mine.tsv']
+    write_inputs(tmp_path, {}, taxonomy, rows)
+    assert run_table(tmp_path).returncode == 0
+    assert first in read_cell(tmp_path / 's_cell.tsv')[0][0]
     # A hand-made copy_numbers.tsv without the source column: the line names none
     pd.read_csv(tmp_path / 'copy_numbers.tsv', sep='\t', dtype=str).drop(columns='source').to_csv(
         tmp_path / 'copy_numbers.tsv', sep='\t', index=False)

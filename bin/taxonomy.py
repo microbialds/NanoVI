@@ -48,8 +48,13 @@ INTERVAL_COLUMNS = ["ci_lower", "ci_upper"]
 IDENTICAL_COLUMN = "identical_16s_species"
 
 def natural_key(text):
-    """V2 before V10: digits compare as numbers (the run report's and the consolidated tables' sample order)."""
-    return [(0, int(t), "") if t.isdigit() else (1, 0, t.lower()) for t in re.split(r"(\d+)", str(text)) if t]
+    """V2 before V10: digits compare as numbers (the run report's and the consolidated tables' sample order).
+
+    IDs that compare equal so (S1 and S01, s1 and S1) are ordered by the text itself, so the
+    order never depends on the order they came in.
+    """
+    text = str(text)
+    return [(0, int(t), "") if t.isdigit() else (1, 0, t.lower()) for t in re.split(r"(\d+)", text) if t], text
 
 
 def lineage_dict_from_tid(taxid, nodes_dict, names_dict):

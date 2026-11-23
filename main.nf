@@ -199,9 +199,9 @@ workflow {
         ['gtdb_ssu', 'gtdb_metadata', 'merge_gtdb_suffixes'].findAll { params[it] }.each {
             log.warn "--${it} is a build-database option and is ignored by --cmd abundance"
         }
-        // These have defaults (nextflow.config), so only a changed value is warned about (F74 d)
-        [gtdb_min_length: 900, cross_genus_rule: 'keep'].findAll { name, value -> params[name] != value }.each { name, value ->
-            log.warn "--${name} is a build-database option and is ignored by --cmd abundance"
+        // These have defaults, so only a changed value is warned about (F74 d)
+        changedFromDefault(['gtdb_min_length', 'cross_genus_rule']).each {
+            log.warn "--${it} is a build-database option and is ignored by --cmd abundance"
         }
 
         ABUNDANCE(input_reads, fasta_file, tax_file, db_index, identical_16s, copy_numbers)
@@ -257,7 +257,9 @@ workflow {
     }
 
     else if (params.cmd == 'build-database') {
-        def gtdb_only = ['gtdb_metadata', 'merge_gtdb_suffixes'].findAll { params[it] }
+        // BUILD_DB does not read --gtdb_min_length, so a changed value is refused too
+        def gtdb_only = ['gtdb_metadata', 'merge_gtdb_suffixes'].findAll { params[it] } +
+            changedFromDefault(['gtdb_min_length'])
         if (gtdb_only)
             error gtdb_only.collect { "--${it}" }.join(' and ') + " needs --gtdb_ssu (a GTDB SSU file)"
         if (!params.sequences || !params.seq2tax)
@@ -387,6 +389,14 @@ def softwareVersionsToYAML(ch_versions) {
         .map { yaml_file -> processVersionsFromYAML(yaml_file) }
         .unique()
         .mix(channel.of(workflowVersionToYAML()))
+}
+
+// The names whose value differs from its default in nextflow_schema.json (the same as
+// nextflow.config's), so that a default is kept in one place
+def changedFromDefault(names) {
+    def props = new groovy.json.JsonSlurper().parse(file("${projectDir}/nextflow_schema.json"))['$defs']
+        .values().collectEntries { it.properties ?: [:] }
+    return names.findAll { params[it] != props[it].default }
 }
 
 // --rank must name a column of the per-sample tables; validateParameters() checks

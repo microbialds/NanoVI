@@ -28,13 +28,13 @@ cd containers/report && singularity build nanovi-report.sif Singularity.def
 
 The unit tests cover the Python code the pipeline runs (likelihood, both estimators, output tables, database builds and reports, and the `bin/` scripts); the pipeline tests run `main.nf` with nf-test.
 
-**Unit tests** (pytest, no database needed; 384 tests, of which the PDF test needs Typst and is skipped without it):
+**Unit tests** (pytest, no database needed; the PDF test needs Typst and is skipped without it):
 ```bash
 pip install -r containers/requirements.txt -r tests/requirements-report.txt pytest
 pytest tests/unit/ -v
 ```
 
-**Pipeline tests** (nf-test; 47 tests tagged `stub`, 8 tagged `e2e`):
+**Pipeline tests** (nf-test; each test is tagged `stub` or `e2e`):
 ```bash
 nf-test test tests/main.nf.test --tag stub   # stub mode: channel wiring and parameter errors, no tools or database needed
 nf-test test tests/main.nf.test --tag e2e    # real tools with Docker on the fixture in tests/test_data/e2e

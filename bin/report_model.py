@@ -665,13 +665,15 @@ def copy_number_source(run):
     """Where the cell tables' copy numbers come from, in words, or "" when no table names it (F70).
 
     write_abundance_table.py names copy_numbers.tsv's source labels in each cell table's first
-    '#' line ("source: a, b"); a GTDB label lists its metadata files with commas but no space.
+    '#' line ("copy_numbers.tsv; source: a, b), renormalised"); a GTDB label lists its metadata
+    files with commas but no space. The labels are read up to the line's fixed text and split
+    only before a "kind:" prefix, so a table's file name may hold ")" or ", ".
     """
     labels = set()
     for lines in run["cell_comments"].values():
-        m = re.search(r"; source: ([^)]*)\)", lines[0]) if lines else None
+        m = re.search(r"; source: (.*)\), renormalised", lines[0]) if lines else None
         if m:
-            labels.update(m.group(1).split(", "))
+            labels.update(re.split(r", (?=[A-Za-z_]+:)", m.group(1)))
     words = {"gtdb_complete_genomes": "GTDB ssu_count medians over complete genomes",
              "table": "the copy-number table {}", "rrndb_pantaxa": "rrnDB pan-taxa medians ({})"}
     out = []
