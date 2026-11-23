@@ -73,6 +73,43 @@ nextflow_pipeline {
 
     // The run report (F60, D42) runs after software_versions.yml, which it reads, so its own
     // versions go in report/versions.yml and the collected file does not change
+    // No run deletes files (D47, F69): an earlier run's optional tables, report and tables of a
+    // sample no longer in the input stay, as the README says; the run's own tables are replaced
+    test("a run without options into an earlier run's --output_dir leaves that run's optional files") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            def earlier = [
+                'sample_outputs/mock_run_groups.tsv', 'sample_outputs/mock_run_cell-abundance.tsv',
+                'sample_outputs/mock_run_read_assignments.tsv.gz', 'sample_outputs/gone_rel-abundance.tsv',
+                'sample_outputs/mock_run_rel-abundance.tsv', 'report/index.html'
+            ]
+            earlier.each { path ->
+                def f = new File("${outputDir}/${path}")
+                f.parentFile.mkdirs()
+                f.text = "earlier run\n"
+            }
+            params {
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            ['sample_outputs/mock_run_groups.tsv', 'sample_outputs/mock_run_cell-abundance.tsv',
+             'sample_outputs/mock_run_read_assignments.tsv.gz', 'sample_outputs/gone_rel-abundance.tsv',
+             'report/index.html'].each { path ->
+                assert file("${outputDir}/${path}").text == "earlier run\n"
+            }
+            assert file("${outputDir}/sample_outputs/mock_run_rel-abundance.tsv").text != "earlier run\n"
+        }
+    }
+
     test("--report publishes the run report in stub mode") {
         tag "stub"
         options "-profile test -stub-run --report true"
