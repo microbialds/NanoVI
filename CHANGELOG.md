@@ -4,7 +4,7 @@ All notable changes to the NanoVI pipeline will be documented in this file.
 
 ## [Unreleased]
 
-## [1.2.0] - 2026-11-20
+## [1.2.0] - 2026-11-23
 
 Every new option is off by default: with the defaults the tables are those of 1.1.1, apart from the version recorded in `software_versions.yml` and the order of the samples in the consolidated tables (F72), and `bam/` and `filtered/` are no longer written without `--keep_files` (F66). The run report uses a new image, `ghcr.io/microbialds/nanovi-report`; the Python image, `nanovi-python`, is built from the same files and package versions as 1.1.1, with only its version label changed.
 
