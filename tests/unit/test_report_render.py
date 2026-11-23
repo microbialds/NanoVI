@@ -108,6 +108,39 @@ def test_pdf_is_written_with_inter_embedded(rendered):
         assert pages >= 7
 
 
+def test_a_figure_of_27_parts_is_labelled_in_both_documents(tmp_path):
+    # Above 26 parts (1,560 samples) the HTML stopped on an undefined letter and the PDF lost its figures (F71);
+    # the composition figure's one part stands in for 27
+    sys.path.insert(0, BIN)
+    import report_figures
+    import report_model as rm
+    import report_render
+    run = rm.load_results(make_results(tmp_path / 'results'))
+    data = rm.compute(run)
+    out, figs = tmp_path / 'out', tmp_path / 'out' / 'figures'
+    figs.mkdir(parents=True)
+    records = report_figures.draw_all(data, figs)
+    rec = next(r for r in records if r['key'] == 'composition_species')
+    part = rec['parts'][0]
+    rec['parts'] = []
+    for i in range(27):
+        shutil.copy(figs / f"{part['key']}.svg", figs / f'composition_species_p{i}.svg')
+        rec['parts'].append(dict(part, key=f'composition_species_p{i}'))
+    assets = os.path.join(BIN, '..', 'assets', 'report')
+    model = rm.build(run, data, records, assets, None, {}, '2026-11-06')
+    fig = next(s for s in model['sections'] if s['id'] == 'composition')['figures']['composition_species']
+    assert [p['label'] for p in fig['parts']][24:] == ['y', 'z', 'aa']
+    if TYPST:
+        assert report_render.write_pdf(out, model, assets, figs, 0) is not None
+    report_render.write_site(out, model, assets)
+    page = (out / fig_page(model, 'composition_species')).read_text(encoding='utf-8')
+    assert 'Static figure aa: <a href="figures/composition_species_p26.svg">' in page
+
+
+def fig_page(model, key):
+    return next(s['page'] for s in model['sections'] if key in s['figures'])
+
+
 def test_a_typst_failure_leaves_no_pdf_and_the_site(tmp_path):
     results = make_results(tmp_path / 'results')
     assets = tmp_path / 'assets'

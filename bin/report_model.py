@@ -26,7 +26,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from taxonomy import BELOW_DETECTION_LABEL as BELOW, UNASSIGNED_LABEL as UNASSIGNED
+from taxonomy import BELOW_DETECTION_LABEL as BELOW, UNASSIGNED_LABEL as UNASSIGNED, natural_key
 
 PLACEHOLDERS = (BELOW, UNASSIGNED)
 FLAG_SHARED = 0.5      # shared_read_fraction at which a species is flagged in a sample (D42)
@@ -59,11 +59,6 @@ def warn(msg):
 
 def die(msg):
     sys.exit(f"ERROR: {msg}")
-
-
-def natural_key(text):
-    """V2 before V10: digits compare as numbers."""
-    return [(0, int(t), "") if t.isdigit() else (1, 0, t.lower()) for t in re.split(r"(\d+)", str(text)) if t]
 
 
 # ---- reading the results directory
@@ -189,6 +184,16 @@ def order_samples(samples, groups, metadata_order=None):
             rank[g] = len(rank)
     return sorted(samples, key=lambda s: (groups.get(s, "") == "", rank.get(groups.get(s, ""), len(rank)),
                                           natural_key(s)))
+
+
+def part_label(i):
+    """A figure part's label: a-z, then aa, ab, ... (F71: past 26 parts the templates had no letter)."""
+    out = ""
+    i += 1
+    while i:
+        i, r = divmod(i - 1, 26)
+        out = chr(97 + r) + out
+    return out
 
 
 def split_parts(samples, size=PART_MAX):
@@ -509,7 +514,10 @@ def table_entry(nums, df, name, caption, html_rows=500, pdf=True, pdf_columns=No
         if total > pdf_rows:
             notes.append(f"first {pdf_rows} of {total:,} rows")
             p = p.head(pdf_rows)
-        note = ("Shown: " + " and ".join(notes) + (where or "") + "; every row is in the HTML report.") if notes else ""
+        # the HTML has every row only up to html_rows (F75: the note said so for any table)
+        html = ("every row is in the HTML report" if total <= html_rows
+                else f"the HTML report shows the first {html_rows:,}")
+        note = ("Shown: " + " and ".join(notes) + where + "; " + html + ".") if notes else ""
         rows = [[fmt(v) for v in r] for r in p.itertuples(index=False)]
         header = [str(c) for c in p.columns]
         out["pdf"] = {"header": header, "rows": rows, "note": note,
@@ -530,8 +538,10 @@ class Section:
         if r is None:
             return None
         self.nums.fig += 1
+        # each part's label, for both documents; a figure of one part has none
+        parts = [dict(p, label=part_label(i) if len(r["parts"]) > 1 else "") for i, p in enumerate(r["parts"])]
         self.figures[key] = {"no": self.nums.fig, "key": key, "title": r["title"], "caption": r["caption"],
-                             "parts": r["parts"], "interactive": r.get("interactive")}
+                             "parts": parts, "interactive": r.get("interactive")}
         return self.figures[key]
 
     def table(self, slot, df, name, caption, **kw):
@@ -651,6 +661,28 @@ def params_table(params):
 
 # ---- prose shared by both documents
 
+def copy_number_source(run):
+    """Where the cell tables' copy numbers come from, in words, or "" when no table names it (F70).
+
+    write_abundance_table.py names copy_numbers.tsv's source labels in each cell table's first
+    '#' line ("copy_numbers.tsv; source: a, b), renormalised"); a GTDB label lists its metadata
+    files with commas but no space. The labels are read up to the line's fixed text and split
+    only before a "kind:" prefix, so a table's file name may hold ")" or ", ".
+    """
+    labels = set()
+    for lines in run["cell_comments"].values():
+        m = re.search(r"; source: (.*)\), renormalised", lines[0]) if lines else None
+        if m:
+            labels.update(re.split(r", (?=[A-Za-z_]+:)", m.group(1)))
+    words = {"gtdb_complete_genomes": "GTDB ssu_count medians over complete genomes",
+             "table": "the copy-number table {}", "rrndb_pantaxa": "rrnDB pan-taxa medians ({})"}
+    out = []
+    for label in sorted(labels):
+        kind, _, name = label.partition(":")
+        out.append(words[kind].format(name) if kind in words else f"'{label}'")
+    return "; ".join(out)
+
+
 def caveats(data, run, params):
     out = [
         "Abundances are shares of 16S reads, not of cells: a species with more 16S copies per genome gives more "
@@ -671,10 +703,11 @@ def caveats(data, run, params):
         out.append("Ambiguity groups join reported species of one family whose reads are shared (f >= 0.25, D39); a "
                    "group's abundance is more robust than the split between its members.")
     if run["cell"]:
+        source = copy_number_source(run)
         out.append("Cell-level abundance divides each species' read-level abundance by its 16S copy number "
-                   "(copy_numbers.tsv of the database: GTDB ssu_count medians, filled from the genus or family "
-                   "median when the species has none, D40) and renormalises; species without a copy number are "
-                   "left out.")
+                   f"(copy_numbers.tsv of the database{': ' + source if source else ''}, filled from the genus or "
+                   "family median when the species has none, D40) and renormalises; species without a copy number "
+                   "are left out.")
     if run["reads"]:
         out.append("The per-read file lists each read's table rows at probability 0.01 or more (D37).")
     return out

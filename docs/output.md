@@ -201,7 +201,8 @@ per genome no longer weighs ten times one with a single copy. The species table 
 change.
 
 The file starts with two comment lines (`#`; read it with `comment="#"` in pandas, or
-`comment.char = "#"` in R): what the table is, and what it leaves out. The `Below
+`comment.char = "#"` in R): what the table is, with the `source` of its copy numbers
+in `copy_numbers.tsv` (which the run report names), and what it leaves out. The `Below
 detection` and `Unassigned` reads have no species and so no copy number, and a species row
 none of whose tax IDs has a copy number in `copy_numbers.tsv` has none either; they are
 left out, and the second line gives their reads and the read-level abundance of those
@@ -226,7 +227,7 @@ e2e fixture (`--cell_abundance true`, copy numbers from
 `tests/test_data/e2e/copy_number_sources.tsv`; lineage left out):
 
 ```
-# Cell-level abundance: read-level abundance / 16S copy number (the database's copy_numbers.tsv), renormalised over the rows listed; ...
+# Cell-level abundance: read-level abundance / 16S copy number (the database's copy_numbers.tsv; source: table:copy_number_sources.tsv), renormalised over the rows listed; ...
 # Not included: Below detection (0 reads) and Unassigned (30 reads), and 0 species without a copy number (read-level abundance 0).
 ```
 
@@ -318,12 +319,46 @@ shows at most 60 rows and 14 columns of a table and says where the rest is.
 
 Each figure is written at a journal width (89 or 183 mm) with Inter embedded (TrueType in the
 PDF, WOFF2 in the SVG), as a 600 dpi PNG, and with a CSV of the values it plots. A figure with a
-sample axis and more than 60 samples is split into parts of equal size (`<figure>_1`, `_2`; a
-and b in the documents); the interactive HTML versions of `read_fate` and the composition figures
+sample axis and more than 60 samples is split into parts of equal size (`<figure>_1`, `_2`; a,
+b, … z, aa, ab in the documents); the interactive HTML versions of `read_fate` and the composition figures
 keep every sample in one chart, and offer a group menu when `--report_metadata` gives two or more
 groups. The report carries the day the run started (UTC), and two renders of the same results
 give byte-identical files. On the e2e fixture with every option the PDF has 9 pages; on a
 117-sample run, 16.
+
+#### Rendering a report from a finished run
+
+`bin/nanovi_report.py` renders the report from a results folder, for a run made without
+`--report` or to group the samples afterwards. It runs in the report image, which holds the
+software but not the script or its templates: mount a copy of NanoVI at the run's release (a
+clone, or the copy `nextflow run microbialds/NanoVI` keeps in
+`~/.nextflow/assets/microbialds/NanoVI`) and the results folder. From the folder that holds
+`results/`:
+
+```bash
+git clone --branch v1.2.0 https://github.com/microbialds/NanoVI.git
+docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+    -v "$PWD/NanoVI:/nanovi:ro" -v "$PWD/results:/results" \
+    ghcr.io/microbialds/nanovi-report:1.2.0 \
+    python /nanovi/bin/nanovi_report.py --results /results --outdir /results/report \
+        --assets /nanovi/assets/report
+```
+
+With Singularity or Apptainer, which mount the current folder:
+
+```bash
+singularity exec docker://ghcr.io/microbialds/nanovi-report:1.2.0 \
+    python NanoVI/bin/nanovi_report.py --results results --outdir results/report \
+        --assets NanoVI/assets/report
+```
+
+Add `--metadata <file>` (as `--report_metadata`) to group the samples, `--params <file>` (a
+JSON of the run's parameters, such as its `-params-file`) for the parameters table in the
+methods, which is left out without it, and `--date YYYY-MM-DD` for the date the report carries
+(today by default). The script reads every table in the folder, so tables an earlier run
+left there with other options or samples are reported too
+([Troubleshooting](../README.md#troubleshooting)); the pipeline's own REPORT step reads only
+its run's tables.
 
 ## `--cmd build-database`
 

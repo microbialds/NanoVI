@@ -1,5 +1,7 @@
 Bootstrap: docker
-From: mambaorg/micromamba:2.10.0-debian13-slim@sha256:e1476182cd40eb1f7c0cfae4adec9bfd78f3d7f05c61368306abfdc8939c1198
+# The digest of mambaorg/micromamba:2.10.0-debian13-slim, the Dockerfile's base image:
+# Apptainer refuses a reference with both a tag and a digest (F67)
+From: mambaorg/micromamba@sha256:e1476182cd40eb1f7c0cfae4adec9bfd78f3d7f05c61368306abfdc8939c1198
 
 # Build from the containers/report/ directory so that %files finds environment.yml:
 #   cd containers/report && singularity build nanovi-report.sif Singularity.def
@@ -9,13 +11,14 @@ From: mambaorg/micromamba:2.10.0-debian13-slim@sha256:e1476182cd40eb1f7c0cfae4ad
     Description Run report environment for NanoVI (Typst, Jinja, matplotlib, Altair, Inter)
     Version 1.2.0
 
+# Not /tmp: under Apptainer 1.5 a file copied there by %files is not found by %post (F67)
 %files
-    environment.yml /tmp/environment.yml
+    environment.yml /opt/environment.yml
 
 %post
-    micromamba install -y -n base -f /tmp/environment.yml
+    micromamba install -y -n base -f /opt/environment.yml
     micromamba clean --all --yes
-    rm /tmp/environment.yml
+    rm /opt/environment.yml
 
 %environment
     export PATH=/opt/conda/bin:$PATH

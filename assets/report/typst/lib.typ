@@ -66,18 +66,17 @@
 }
 
 // a figure from its SVGs at the size they were drawn (89 or 183 mm); a figure split into parts shows each part
-// with its letter, the caption below the last; a part is never split
+// with its label (report_model.part_label), the caption below the last; a part is never split
 #let fig(s, key) = {
   if not has(s, "figures", key) { return }
   let f = s.figures.at(key)
   let n = f.parts.len()
-  let letters = "abcdefghijklmnopqrstuvwxyz"
   for (i, p) in f.parts.enumerate() {
     let img = if p.height_mm > 222 { image("figures/" + p.key + ".svg", height: 222mm) } else {
       image("figures/" + p.key + ".svg", width: calc.min(p.width_mm, 183) * 1mm) }
     let last = i == n - 1
     block(breakable: false, above: 10pt, below: if last { 12pt } else { 4pt }, {
-      if n > 1 { text(8pt, weight: "bold")[#letters.at(i)] }
+      if p.label != "" { text(8pt, weight: "bold")[#p.label] }
       align(center, img)
       if last {
         v(3pt)

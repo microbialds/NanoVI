@@ -39,11 +39,77 @@ nextflow_pipeline {
             assert !file("${outputDir}/sample_outputs").listFiles().any { it.name.endsWith('_cell-abundance.tsv') }
             assert !file("${outputDir}/report").exists()
             assert workflow.trace.tasks().count { it.name.startsWith('REPORT') } == 0
+            // The alignments and filtered reads only with --keep_files: conf/modules.config
+            // was included before the params block, so an unset value published both (F66)
+            assert !file("${outputDir}/bam").exists()
+            assert !file("${outputDir}/filtered").exists()
+            // The build-database options keep their defaults: no warning (F74 d)
+            assert !(workflow.stdout + workflow.stderr).any { it.contains('is a build-database option') }
+            assert !file("${metaDir}/nextflow.log").text.contains('is a build-database option')
+        }
+    }
+
+    test("--keep_files true on the command line publishes bam/ and filtered/ in stub mode") {
+        tag "stub"
+        options "-profile test -stub-run --keep_files true"
+
+        when {
+            params {
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert file("${outputDir}/bam/mock_run_vi_alignments.bam").exists()
+            assert file("${outputDir}/filtered/mock_run_filtered.fastq.gz").exists()
+            assert !file("${outputDir}/bam/versions.yml").exists()
         }
     }
 
     // The run report (F60, D42) runs after software_versions.yml, which it reads, so its own
     // versions go in report/versions.yml and the collected file does not change
+    // No run deletes files (D47, F69): an earlier run's optional tables, report and tables of a
+    // sample no longer in the input stay, as the README says; the run's own tables are replaced
+    test("a run without options into an earlier run's --output_dir leaves that run's optional files") {
+        tag "stub"
+        options "-profile test -stub-run"
+
+        when {
+            def earlier = [
+                'sample_outputs/mock_run_groups.tsv', 'sample_outputs/mock_run_cell-abundance.tsv',
+                'sample_outputs/mock_run_read_assignments.tsv.gz', 'sample_outputs/gone_rel-abundance.tsv',
+                'sample_outputs/mock_run_rel-abundance.tsv', 'report/index.html'
+            ]
+            earlier.each { path ->
+                def f = new File("${outputDir}/${path}")
+                f.parentFile.mkdirs()
+                f.text = "earlier run\n"
+            }
+            params {
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}"
+                db           = "${projectDir}/tests/test_data/mock_db"
+                taxonomy_tsv = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+            ['sample_outputs/mock_run_groups.tsv', 'sample_outputs/mock_run_cell-abundance.tsv',
+             'sample_outputs/mock_run_read_assignments.tsv.gz', 'sample_outputs/gone_rel-abundance.tsv',
+             'report/index.html'].each { path ->
+                assert file("${outputDir}/${path}").text == "earlier run\n"
+            }
+            assert file("${outputDir}/sample_outputs/mock_run_rel-abundance.tsv").text != "earlier run\n"
+        }
+    }
+
     test("--report publishes the run report in stub mode") {
         tag "stub"
         options "-profile test -stub-run --report true"
@@ -118,6 +184,31 @@ nextflow_pipeline {
         }
     }
 
+    // A link (or a copy) of the database's taxonomy.tsv is the same taxonomy, compared by its
+    // bytes (no toRealPath(), which S3 may not support, F74 c)
+    test("--cell_abundance takes a link to the database's taxonomy.tsv") {
+        tag "stub"
+        options "-profile test -stub-run --cell_abundance true"
+
+        when {
+            def dir = new File("${outputDir}/tax")
+            dir.mkdirs()
+            def db_tax = new File("${projectDir}/tests/test_data/e2e/db/taxonomy.tsv")
+            java.nio.file.Files.createSymbolicLink(new File(dir, 'link.tsv').toPath(), db_tax.toPath())
+            params {
+                cmd          = "abundance"
+                input        = "${projectDir}/tests/test_data/stub_reads"
+                output_dir   = "${outputDir}/run"
+                db           = "${projectDir}/tests/test_data/e2e/db"
+                taxonomy_tsv = "${outputDir}/tax/link.tsv"
+            }
+        }
+
+        then {
+            assert workflow.success
+        }
+    }
+
     test("--cell_abundance refuses a --taxonomy_tsv other than the database's") {
         tag "stub"
         options "-profile test -stub-run --cell_abundance true"
@@ -139,9 +230,9 @@ nextflow_pipeline {
         }
     }
 
-    test("--copy_numbers and --gtdb_ssu in abundance mode are ignored with a warning") {
+    test("--copy_numbers, --gtdb_ssu, --gtdb_min_length and --cross_genus_rule in abundance mode are ignored with a warning") {
         tag "stub"
-        options "-profile test -stub-run --cell_abundance true --copy_numbers ${projectDir}/tests/test_data/e2e/copy_number_sources.tsv --gtdb_ssu ${projectDir}/tests/test_data/e2e/gtdb_style_ssu.fna"
+        options "-profile test -stub-run --cell_abundance true --copy_numbers ${projectDir}/tests/test_data/e2e/copy_number_sources.tsv --gtdb_ssu ${projectDir}/tests/test_data/e2e/gtdb_style_ssu.fna --gtdb_min_length 1000 --cross_genus_rule remove"
 
         when {
             params {
@@ -154,7 +245,8 @@ nextflow_pipeline {
 
         then {
             assert workflow.success
-            ["--copy_numbers", "--gtdb_ssu"].each { name ->
+            // --gtdb_min_length and --cross_genus_rule only when changed from their defaults (F74 d)
+            ["--copy_numbers", "--gtdb_ssu", "--gtdb_min_length", "--cross_genus_rule"].each { name ->
                 def warning = "${name} is a build-database option and is ignored by --cmd abundance"
                 assert (workflow.stdout + workflow.stderr).any { it.contains(warning) } ||
                     file("${metaDir}/nextflow.log").text.contains(warning)
@@ -763,6 +855,24 @@ nextflow_pipeline {
         }
     }
 
+    test("build-database stops on two --gtdb_metadata files of one name") {
+        tag "stub"
+        // They would be staged on top of each other (F74 b)
+        options "-profile test -stub-run --gtdb_ssu ${projectDir}/tests/test_data/e2e/gtdb_style_ssu.fna --gtdb_metadata ${projectDir}/tests/test_data/e2e/db/taxonomy.tsv,${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+
+        when {
+            params {
+                cmd        = "build-database"
+                output_dir = "${outputDir}"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("--gtdb_metadata: 2 files are named taxonomy.tsv") }
+        }
+    }
+
     test("build-database refuses --gtdb_ssu with --sequences") {
         tag "stub"
         options "-profile test -stub-run --gtdb_ssu ${projectDir}/tests/test_data/e2e/gtdb_style_ssu.fna"
@@ -798,6 +908,27 @@ nextflow_pipeline {
         then {
             assert workflow.failed
             assert (workflow.stdout + workflow.stderr).any { it.contains("--gtdb_metadata needs --gtdb_ssu") }
+        }
+    }
+
+    // BUILD_DB does not read it; only a changed value is refused, the default is not
+    test("build-database refuses a changed --gtdb_min_length without --gtdb_ssu") {
+        tag "stub"
+        options "-profile test -stub-run --gtdb_min_length 1200"
+
+        when {
+            params {
+                cmd           = "build-database"
+                output_dir    = "${outputDir}"
+                sequences     = "${projectDir}/tests/test_data/mock_db/species_taxid.fasta"
+                seq2tax       = "${projectDir}/tests/test_data/mock_db/taxonomy.tsv"
+                ncbi_taxonomy = "${projectDir}/tests/test_data/mock_db"
+            }
+        }
+
+        then {
+            assert workflow.failed
+            assert (workflow.stdout + workflow.stderr).any { it.contains("--gtdb_min_length needs --gtdb_ssu") }
         }
     }
 

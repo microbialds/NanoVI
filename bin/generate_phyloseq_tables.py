@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from taxonomy import TAXONOMY_RANKS as ALL_RANKS, UNASSIGNED_LABEL, BELOW_DETECTION_LABEL
+from taxonomy import TAXONOMY_RANKS as ALL_RANKS, UNASSIGNED_LABEL, BELOW_DETECTION_LABEL, natural_key
 
 TAXONOMY_RANKS = ALL_RANKS[1:]  # ranks above species
 
@@ -221,7 +221,9 @@ def main():
 
     # Parse all sample files
     print(f"Reading {len(valid_files)} per-sample abundance files...")
-    sample_data = [parse_sample_file(f) for f in valid_files]
+    # Samples in natural order (S2 before S10), as the run report shows them: Nextflow passes
+    # the files in the order the tasks finished, so columns changed between runs (F72)
+    sample_data = sorted((parse_sample_file(f) for f in valid_files), key=lambda x: natural_key(x[0]))
 
     # Build consolidated tables
     otu_abundance, otu_counts, tax_table, sample_metadata = build_consolidated_tables(

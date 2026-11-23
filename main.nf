@@ -182,10 +182,11 @@ workflow {
                 error "--cell_abundance needs copy_numbers.tsv in the database directory (${params.db}). " +
                     "Build the database with copy numbers: bin/build_gtdb_db.py --gtdb-metadata (GTDB), or " +
                     "--cmd build-database --copy_numbers <table> or --rrndb_pantaxa <file>"
-            // Its tax IDs are those of the database's own taxonomy.tsv
+            // Its tax IDs are those of the database's own taxonomy.tsv: the same path, or the same
+            // bytes (a link or a copy). Not toRealPath(), which a remote file system (S3) may not
+            // support (F74 c)
             def db_tax = file("${params.db}/taxonomy.tsv")
-            def same_tax = tax_file == db_tax ||
-                (db_tax.exists() && (tax_file.toRealPath() == db_tax.toRealPath() || tax_file.bytes == db_tax.bytes))
+            def same_tax = tax_file == db_tax || (db_tax.exists() && tax_file.bytes == db_tax.bytes)
             if (!same_tax)
                 error "--cell_abundance uses ${params.db}/copy_numbers.tsv, which matches the database's own taxonomy.tsv; " +
                     "it cannot be used with another --taxonomy_tsv (${taxonomy_tsv})"
@@ -196,6 +197,10 @@ workflow {
                 "--cell_abundance reads copy_numbers.tsv from --db"
         }
         ['gtdb_ssu', 'gtdb_metadata', 'merge_gtdb_suffixes'].findAll { params[it] }.each {
+            log.warn "--${it} is a build-database option and is ignored by --cmd abundance"
+        }
+        // These have defaults, so only a changed value is warned about (F74 d)
+        changedFromDefault(['gtdb_min_length', 'cross_genus_rule']).each {
             log.warn "--${it} is a build-database option and is ignored by --cmd abundance"
         }
 
@@ -238,6 +243,10 @@ workflow {
         }
         // A file named twice (by a glob and by its name) is read once
         metadata = metadata.unique { it.toAbsolutePath().normalize() }
+        // Two files of one name would be staged on top of each other (F74 b)
+        metadata.groupBy { it.name }.findAll { name, same -> same.size() > 1 }.each { name, same ->
+            error "--gtdb_metadata: ${same.size()} files are named ${name} (${same.join(', ')}); give each a distinct name"
+        }
 
         BUILD_GTDB_DATABASE(
             channel.value(file(params.gtdb_ssu)),
@@ -248,7 +257,9 @@ workflow {
     }
 
     else if (params.cmd == 'build-database') {
-        def gtdb_only = ['gtdb_metadata', 'merge_gtdb_suffixes'].findAll { params[it] }
+        // BUILD_DB does not read --gtdb_min_length, so a changed value is refused too
+        def gtdb_only = ['gtdb_metadata', 'merge_gtdb_suffixes'].findAll { params[it] } +
+            changedFromDefault(['gtdb_min_length'])
         if (gtdb_only)
             error gtdb_only.collect { "--${it}" }.join(' and ') + " needs --gtdb_ssu (a GTDB SSU file)"
         if (!params.sequences || !params.seq2tax)
@@ -378,6 +389,14 @@ def softwareVersionsToYAML(ch_versions) {
         .map { yaml_file -> processVersionsFromYAML(yaml_file) }
         .unique()
         .mix(channel.of(workflowVersionToYAML()))
+}
+
+// The names whose value differs from its default in nextflow_schema.json (the same as
+// nextflow.config's), so that a default is kept in one place
+def changedFromDefault(names) {
+    def props = new groovy.json.JsonSlurper().parse(file("${projectDir}/nextflow_schema.json"))['$defs']
+        .values().collectEntries { it.properties ?: [:] }
+    return names.findAll { params[it] != props[it].default }
 }
 
 // --rank must name a column of the per-sample tables; validateParameters() checks

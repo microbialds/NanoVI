@@ -25,7 +25,8 @@ import sys
 import pandas as pd
 
 from ambiguity_groups import write_groups_table
-from copy_numbers import read_copy_numbers, row_cells, tax_id_copy_numbers, write_cell_table
+from copy_numbers import (read_copy_numbers_and_sources, row_cells, tax_id_copy_numbers,
+                          write_cell_table)
 from taxonomy import IDENTICAL_COLUMN, freq_to_lineage_df, table_row_of_ids
 
 
@@ -109,12 +110,13 @@ def main():
     )
     cells = row_of_id = None
     if args.cell_output:
-        cn_of_id = tax_id_copy_numbers(freq, read_copy_numbers(args.copy_numbers, set(map(str, freq))), taxonomy_df)
+        copy_numbers, sources = read_copy_numbers_and_sources(args.copy_numbers, set(map(str, freq)))
+        cn_of_id = tax_id_copy_numbers(freq, copy_numbers, taxonomy_df)
         # The species table row of every tax ID, as the group table finds it
         row_of_id = table_row_of_ids(freq, species_df, taxonomy_df, args.binomial_names)
         cells = row_cells(freq, row_of_id, cn_of_id)
         out_file = f"{args.cell_output}.tsv"
-        write_cell_table(species_df, cells, out_file, below_detection_count, unassigned_count)
+        write_cell_table(species_df, cells, out_file, below_detection_count, unassigned_count, sources)
         print(f"Cell-level abundances saved as {out_file}")
     if args.groups_output:
         out_file = f"{args.groups_output}.tsv"

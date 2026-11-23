@@ -31,6 +31,9 @@ def section(model, sid):
 def test_samples_in_natural_order(tmp_path):
     run, _, _ = model_of(tmp_path)
     assert run['samples'] == ['S1', 'S2', 'S10']
+    # IDs equal in natural order go by their text, whatever order they come in (as the consolidated tables)
+    for order in (['s1', 'S1', 'S01'], ['S01', 'S1', 's1']):
+        assert rm.order_samples(order, {}) == ['S01', 'S1', 's1']
 
 
 def test_metadata_orders_samples_by_group_then_naturally(tmp_path):
@@ -90,6 +93,12 @@ def test_top_taxa_is_the_union_of_each_samples_top_capped_by_mean():
     assert rm.top_taxa(wide, per_sample=2, cap=2) == ['t4', 't1']
 
 
+def test_part_labels_go_on_past_z():
+    # The templates indexed a 26-letter string, so a figure of more than 26 parts stopped the render (F71)
+    assert [rm.part_label(i) for i in (0, 25, 26, 27, 51, 52, 701, 702)] == ['a', 'z', 'aa', 'ab', 'az', 'ba', 'zz',
+                                                                              'aaa']
+
+
 def test_split_parts_gives_equal_parts_of_at_most_60():
     assert [len(p) for p in rm.split_parts(list(range(117)))] == [59, 58]
     assert [len(p) for p in rm.split_parts(list(range(60)))] == [60]
@@ -137,6 +146,25 @@ def test_cell_section_shows_the_comment_lines_and_the_values(tmp_path):
     s1 = cl[cl['sample'] == 'S1'].set_index('species')
     assert s1['abundance'].sum() == pytest.approx(1.0)
     assert s1.loc['Beta three', 'read_abundance'] == 0.1 and s1.loc['Beta three', 'copy_number'] == 2.0
+
+
+def test_cell_caveat_names_the_copy_number_source_from_the_cell_tables(tmp_path):
+    # It said GTDB ssu_count medians whatever built copy_numbers.tsv (F70)
+    caveat = lambda run: next(c for c in rm.caveats(None, run, None) if c.startswith('Cell-level'))
+    run, _, _ = model_of(tmp_path / 't', cell=True, cell_source='table:copy_number_sources.tsv')
+    assert 'copy_numbers.tsv of the database: the copy-number table copy_number_sources.tsv, filled' in caveat(run)
+    assert 'GTDB' not in caveat(run)
+    run, _, _ = model_of(tmp_path / 'g', cell=True,
+                         cell_source='gtdb_complete_genomes:bac120_metadata.tsv.gz,ar53_metadata.tsv.gz')
+    assert 'database: GTDB ssu_count medians over complete genomes, filled' in caveat(run)
+    run, _, _ = model_of(tmp_path / 'r', cell=True, cell_source='custom:x, rrndb_pantaxa:pantaxa.tsv')
+    assert "database: 'custom:x'; rrnDB pan-taxa medians (pantaxa.tsv), filled" in caveat(run)
+    # A table's name may hold ")" and ", "; the label is still one
+    run, _, _ = model_of(tmp_path / 'p', cell=True, cell_source='table:copies (v2), final.tsv')
+    assert 'database: the copy-number table copies (v2), final.tsv, filled' in caveat(run)
+    # Cell tables that name no source: the caveat names none
+    run, _, _ = model_of(tmp_path / 'n', cell=True)
+    assert '(copy_numbers.tsv of the database, filled' in caveat(run)
 
 
 def test_read_assignment_summary_counts_reads_and_pairs(tmp_path):
@@ -199,6 +227,15 @@ def test_pdf_tables_are_capped_with_a_note():
     t = rm.table_entry(nums, df, 'x', 'caption', tsv='x.tsv')
     assert len(t['rows']) == 100 and len(t['pdf']['rows']) == rm.PDF_MAX_ROWS
     assert 'first 60 of 100 rows' in t['pdf']['note'] and 'x.tsv' in t['pdf']['note']
+    assert t['pdf']['note'].endswith('; every row is in the HTML report.')
+
+
+def test_the_pdf_note_says_when_the_html_shows_only_some_rows():
+    # It said every row was in the HTML even when the HTML stopped at html_rows (F75)
+    t = rm.table_entry(rm.Numbering(), pd.DataFrame({'a': range(700)}), 'x', 'caption', tsv='x.tsv')
+    assert len(t['rows']) == 500 and t['html_note'] == 'First 500 of 700 rows; the full table is x.tsv.'
+    assert t['pdf']['note'] == ('Shown: first 60 of 700 rows; the full table is x.tsv; '
+                                'the HTML report shows the first 500.')
 
 
 def test_a_run_with_no_flagged_species_gives_an_empty_flag_table(tmp_path, monkeypatch):
