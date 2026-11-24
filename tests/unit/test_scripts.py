@@ -22,7 +22,9 @@ SCRIPTS = {
     'write_abundance_table.py': '--read-counts',
     'generate_phyloseq_tables.py': '--output-dir',
     'main.py': 'build-database',
+    'build_gtdb_db.py': '--ssu',
     'identical_16s.py': '--cross-genus',
+    'nanovi_report.py': '--results',
 }
 
 
@@ -298,6 +300,29 @@ def test_write_abundance_table_with_no_scored_read(tmp_path, options):
         assert metadata.loc['S1', 'assigned_counts'] == 0 and metadata.loc['S1', 'unassigned_counts'] == 30
 
 
+# ─── The consolidated tables' sample order (F72) ────────────────────────────
+
+def test_consolidated_tables_list_samples_in_natural_order(tmp_path):
+    # Nextflow passes the files in the order the tasks finished; the tables follow the run report's
+    # order, and IDs that compare equal in it (S01, S1, s1) by their text, whatever order they came in
+    import pandas as pd
+    samples = ['S10', 'S1', 'S2', 'B1', 's1', 'S01']
+    expected = ['B1', 'S01', 'S1', 's1', 'S2', 'S10']
+    for s in samples:
+        (tmp_path / f'{s}_rel-abundance.tsv').write_text(
+            'species\tabundance\tgenus\tfamily\torder\tclass\tphylum\tsuperkingdom\testimated_counts\n'
+            'Alpha one\t1.0\tAlpha\t\t\t\t\t\t10\nUnassigned\t0\t\t\t\t\t\t\t2\n')
+    for order, out in ((samples, 'out'), (samples[::-1], 'rev')):
+        result = subprocess.run(
+            [sys.executable, os.path.join(BIN, 'generate_phyloseq_tables.py'),
+             *[f'{s}_rel-abundance.tsv' for s in order], '--output-dir', out],
+            cwd=tmp_path, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        for name in ('otu_table_abundance.tsv', 'otu_table_counts.tsv'):
+            assert list(pd.read_csv(tmp_path / out / name, sep='\t', index_col=0).columns) == expected
+        assert list(pd.read_csv(tmp_path / out / 'sample_metadata.tsv', sep='\t', index_col=0).index) == expected
+
+
 # ─── shared_read_fraction per reported row (F46) ────────────────────────────
 
 @pytest.mark.parametrize('estimator', ['vb', 'em'])
@@ -332,3 +357,205 @@ def write_table_with(tmp_path, data, option):
         + ([option] if option else []),
         cwd=tmp_path, capture_output=True, text=True,
     )
+
+
+# ─── Per-read assignments (F55, D37) ────────────────────────────────────────
+
+def write_named_npz(path, per_read, unassigned=()):
+    sys.path.insert(0, BIN)
+    from read_scores import read_scores_to_arrays, save_read_scores
+    offsets, tax_ids, scores = read_scores_to_arrays(per_read)
+    save_read_scores(path, offsets, tax_ids, scores, read_names=list(per_read), unassigned_names=list(unassigned))
+    return str(path)
+
+
+def read_assignments(path):
+    import pandas as pd
+    return pd.read_csv(path, sep='\t', keep_default_na=False, dtype={'read_id': str})
+
+
+def estimate_with_assignments(tmp_path, npz, name, *options):
+    out = tmp_path / f'{name}.json'
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'estimate_abundance.py'), '--scores', npz, '--output', str(out),
+         '--read-assignments', f'{name}.tsv.gz', *options],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    return json.loads(out.read_text()), read_assignments(tmp_path / f'{name}.tsv.gz')
+
+
+SPECIES_NAMES = {1: 'Alpha one', 2: 'Alpha two', 3: 'Beta three', 4: 'Beta four'}
+
+
+def write_taxonomy(tmp_path, names=SPECIES_NAMES):
+    (tmp_path / 'taxonomy.tsv').write_text(
+        'tax_id\tspecies\tgenus\n' + ''.join(f'{t}\t{n}\t{n.split()[0]}\n' for t, n in names.items()))
+
+
+@pytest.mark.parametrize('estimator', ['vb', 'em'])
+def test_read_assignments_add_up_to_each_read_and_to_expected_reads(tmp_path, estimator):
+    # With a 2 % floor species 4 (5 of 1,000 reads) is not reported: VB prunes it before
+    # its last fit, so its reads go wholly below detection; EM refits without it, and its
+    # responsibilities (from the fit before) leave part of some reads below detection
+    write_taxonomy(tmp_path)
+    per_read = synthetic_reads({1: 700, 2: 250, 3: 45, 4: 5}, seed=3)
+    npz = write_named_npz(tmp_path / 's.npz', per_read, unassigned=['u1', 'u2'])
+    options = ['--estimator', estimator, '--min-abundance', '0.02', '--taxonomy', 'taxonomy.tsv']
+    data, every = estimate_with_assignments(tmp_path, npz, 'all', *options,
+                                            '--read-assignments-min-probability', '0')
+    _, listed = estimate_with_assignments(tmp_path, npz, 'listed', *options)
+    assert list(every.columns) == ['read_id', 'species', 'probability']
+
+    # Every read, in the npz order, then the unassigned ones
+    assert list(dict.fromkeys(every['read_id'])) == list(per_read) + ['u1', 'u2']
+    assert every.groupby('read_id')['probability'].sum().to_numpy() == pytest.approx(1.0, abs=1e-12)
+    assert set(every.loc[every['read_id'].isin(['u1', 'u2']), 'species']) == {'Unassigned'}
+    # The default lists the rows at or above 0.01: the rest of each read is what it leaves out
+    np.testing.assert_array_equal(listed.to_numpy(), every[every['probability'] >= 0.01].to_numpy())
+    assert (listed['probability'] < 0.01).sum() == 0
+
+    # The file's sum for each species is its expected_reads in the read summary
+    names = {SPECIES_NAMES[int(t)]: v['expected_reads'] for t, v in data['read_summary'].items()}
+    sums = every.groupby('species')['probability'].sum()
+    assert set(sums.index) == set(names) | {'Below detection', 'Unassigned'}
+    for species, expected in names.items():
+        assert sums[species] == pytest.approx(expected, abs=1e-9)
+    # A read with no responsibility on a reported species is wholly Below detection, as in the table
+    below = every[every['species'] == 'Below detection']['probability']
+    assert (below == 1.0).sum() == data['below_detection_count'] > 0
+    if estimator == 'em':
+        assert ((below > 0) & (below < 1)).any()
+    else:
+        # Apart from rounding (1 - Σφ ≈ 1e-16, never listed at the default threshold)
+        assert set(below[below > 1e-12]) == {1.0}
+    assert 'Beta four' not in set(every['species'])
+
+
+@pytest.mark.parametrize('estimator', ['vb', 'em'])
+def test_read_assignments_name_and_merge_rows_as_the_table(tmp_path, estimator):
+    # Strains 1 and 2 split their reads 50/50; with --binomial-names they are one row
+    write_taxonomy(tmp_path, {1: 'Alpha one', 2: 'Alpha one str. B', 3: 'Alpha three'})
+    per_read = {f's{i}': ([1, 2], [-1.0, -1.0]) for i in range(400)}
+    per_read.update({f'c{i}': ([3], [-1.0]) for i in range(400)})
+    npz = write_named_npz(tmp_path / 's.npz', per_read)
+    options = ['--estimator', estimator, '--taxonomy', 'taxonomy.tsv']
+    _, apart = estimate_with_assignments(tmp_path, npz, 'apart', *options)
+    _, merged = estimate_with_assignments(tmp_path, npz, 'merged', *options, '--binomial-names')
+    s0 = apart[apart['read_id'] == 's0']
+    assert sorted(s0['species']) == ['Alpha one', 'Alpha one str. B']
+    assert s0['probability'].to_numpy() == pytest.approx([0.5, 0.5])
+    assert set(merged['species']) == {'Alpha one', 'Alpha three'}
+    assert len(merged) == 800 and merged['probability'].to_numpy() == pytest.approx(1.0)
+
+
+def test_read_assignments_leave_the_abundance_unchanged(tmp_path):
+    write_taxonomy(tmp_path)
+    npz = write_named_npz(tmp_path / 's.npz', synthetic_reads({1: 700, 2: 250, 3: 45, 4: 5}, seed=3))
+    without = estimate(tmp_path, npz, '--taxonomy', 'taxonomy.tsv')
+    with_file, _ = estimate_with_assignments(tmp_path, npz, 'ra', '--taxonomy', 'taxonomy.tsv')
+    assert with_file == without
+    # The gzip header has no name or time: the same assignments give the same bytes
+    first = (tmp_path / 'ra.tsv.gz').read_bytes()
+    estimate_with_assignments(tmp_path, npz, 'ra', '--taxonomy', 'taxonomy.tsv')
+    assert (tmp_path / 'ra.tsv.gz').read_bytes() == first
+
+
+@pytest.mark.parametrize('estimator', ['vb', 'em'])
+def test_read_assignments_with_no_scored_read(tmp_path, estimator):
+    # Every read is unassigned (F45)
+    write_taxonomy(tmp_path)
+    npz = write_named_npz(tmp_path / 's.npz', {}, unassigned=['u1', 'u2', 'u3'])
+    _, table = estimate_with_assignments(tmp_path, npz, 'ra', '--estimator', estimator, '--taxonomy', 'taxonomy.tsv')
+    assert table.values.tolist() == [['u1', 'Unassigned', 1.0], ['u2', 'Unassigned', 1.0], ['u3', 'Unassigned', 1.0]]
+
+
+def test_read_assignments_need_names_and_taxonomy(tmp_path):
+    # An npz written before the names were kept still gives the abundances, but no assignments
+    write_taxonomy(tmp_path)
+    old = write_npz(tmp_path / 'old.npz', {'r1': ([1], [-1.0])})
+    assert estimate(tmp_path, old, '--taxonomy', 'taxonomy.tsv')['abundance'] == {'1': 1.0}
+    argv = [sys.executable, os.path.join(BIN, 'estimate_abundance.py'), '--output', 'a.json',
+            '--read-assignments', 'ra.tsv.gz']
+    result = subprocess.run(argv + ['--scores', old, '--taxonomy', 'taxonomy.tsv'],
+                            cwd=tmp_path, capture_output=True, text=True)
+    assert result.returncode == 1 and 'has no read names' in result.stderr
+    named = write_named_npz(tmp_path / 'new.npz', {'r1': ([1], [-1.0])})
+    result = subprocess.run(argv + ['--scores', named], cwd=tmp_path, capture_output=True, text=True)
+    assert result.returncode == 2 and '--read-assignments needs --taxonomy' in result.stderr
+    result = subprocess.run(argv + ['--scores', named, '--taxonomy', 'taxonomy.tsv',
+                                    '--read-assignments-min-probability', '1.5'],
+                            cwd=tmp_path, capture_output=True, text=True)
+    assert result.returncode == 2 and 'must be between 0 and 1' in result.stderr
+    assert not (tmp_path / 'ra.tsv.gz').exists()
+
+
+def test_below_detection_is_1_only_without_a_reported_share():
+    # A read with a share too small to change 1 - share still has it on a reported
+    # species: it is not one of the table's Below detection reads (review of F55)
+    sys.path.insert(0, BIN)
+    from read_assignments import read_assignment_rows
+    idx = np.array([[0, -1], [-1, -1], [0, 1]])
+    phi = np.array([[1e-20, 1.0], [0.0, 0.0], [0.5, 0.5]])
+    reads, rows, prob = read_assignment_rows(idx, phi, [0, 0], 1, min_probability=0)
+    lines = list(zip(reads.tolist(), rows.tolist(), prob.tolist()))
+    assert lines[:2] == [(0, 0, 1e-20), (0, 1, np.nextafter(1.0, 0.0))]
+    assert (1, 1, 1.0) in lines and (2, 0, 1.0) in lines
+
+
+# ─── main.py build-database with a cross-genus rule (F56) ────────────────────
+
+@pytest.mark.parametrize('rule,kept', [
+    ('keep', ['10:mydb:1', '20:mydb:2', '20:mydb:3', '30:mydb:4']),
+    # seq_a: one Alpha entry from three input copies against one Beta entry from one
+    ('most-copies', ['10:mydb:1', '20:mydb:3', '30:mydb:4']),
+    ('remove', ['20:mydb:3', '30:mydb:4']),
+])
+def test_build_database_applies_the_cross_genus_rule(tmp_path, rule, kept):
+    seq_a, seq_b, seq_c = 'ACGT' * 300, 'TTGCA' * 240, 'GGCAT' * 240
+    (tmp_path / 'seqs.fa').write_text(
+        f'>a1\n{seq_a}\n>a2\n{seq_a}\n>a3\n{seq_a}\n>b1\n{seq_a}\n>b2\n{seq_b}\n>c1\n{seq_c}\n')
+    (tmp_path / 'seq2tax.tsv').write_text('a1\t10\na2\t10\na3\t10\nb1\t20\nb2\t20\nc1\t30\n')
+    (tmp_path / 'lineages.tsv').write_text(
+        'tax_id\tspecies\tgenus\tfamily\torder\tclass\tphylum\tsuperkingdom\n'
+        '10\tAlpha one\tAlpha\tF1\tO\tC\tP\tBacteria\n'
+        '20\tBeta one\tBeta\tF2\tO\tC\tP\tBacteria\n'
+        '30\tGamma one\tGamma\tF3\tO\tC\tP\tBacteria\n')
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'main.py'), 'build-database', 'mydb', '--sequences', 'seqs.fa',
+         '--seq2tax', 'seq2tax.tsv', '--taxonomy-list', 'lineages.tsv', '--cross-genus-rule', rule],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    db = tmp_path / 'mydb'
+    ids = [line[1:].split()[0] for line in (db / 'species_taxid.fasta').read_text().splitlines()
+           if line.startswith('>')]
+    assert ids == kept
+    assert (db / 'cross_genus_removed.tsv').exists() == (rule != 'keep')
+    if rule == 'remove':
+        assert 'Alpha one' in (db / 'cross_genus_emptied.tsv').read_text()
+
+
+# ─── build_gtdb_db.py (F64) ──────────────────────────────────────────────────
+
+def test_build_gtdb_db_takes_the_pipelines_underscore_spellings(tmp_path):
+    lin = 'd__Bacteria;p__P;c__C;o__O;f__F;g__{g};s__{s}'
+    seq_a, seq_b = 'ACGT' * 300, 'TTGCA' * 240
+    (tmp_path / 'ssu.fna').write_text(
+        f'>RS_GCF_1~c1 {lin.format(g="Alpha_A", s="Alpha_A one")} [ssu_len=1200]\n{seq_a}\n'
+        f'>RS_GCF_4~c4 {lin.format(g="Alpha", s="Alpha one")} [ssu_len=1200]\n{seq_b}\n'
+        f'>RS_GCF_6~c6 {lin.format(g="Beta", s="Beta one")} [ssu_len=950]\n{seq_b[:950]}\n')
+    outputs = {}
+    for name, opts in [('dash', ['--db-name', 'mydb', '--output-dir', 'dash', '--min-length', '1000',
+                                 '--merge-gtdb-suffixes', '--cross-genus-rule', 'remove']),
+                       ('underscore', ['--db_name', 'mydb', '--output_dir', 'underscore', '--min_length', '1000',
+                                       '--merge_gtdb_suffixes', '--cross_genus_rule', 'remove'])]:
+        result = subprocess.run([sys.executable, os.path.join(BIN, 'build_gtdb_db.py'), '--ssu', 'ssu.fna'] + opts,
+                                cwd=tmp_path, capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        outputs[name] = {f.name: f.read_text() for f in sorted((tmp_path / name).iterdir())}
+    assert outputs['dash'] == outputs['underscore']
+    # --min_length 1000 drops Beta one's 950 bp sequence; merging the suffix puts both others under Alpha one
+    headers = [line for line in outputs['dash']['species_taxid.fasta'].splitlines() if line.startswith('>')]
+    assert len(headers) == 2 and len({h.split(':')[0] for h in headers}) == 1
+    assert 'Alpha one' in outputs['dash']['merged_species.tsv']

@@ -1,0 +1,12 @@
+tax_id	species	copy_number	level	n_genomes	source
+1	Bacillus subtilis	10	species		table:copy_number_sources.tsv
+2	Enterococcus faecalis	4	species		table:copy_number_sources.tsv
+3	Escherichia coli	7	species		table:copy_number_sources.tsv
+4	Limosilactobacillus fermentum	5	species		table:copy_number_sources.tsv
+5	Listeria monocytogenes	6	species		table:copy_number_sources.tsv
+6	Pseudomonas aeruginosa	4	species		table:copy_number_sources.tsv
+7	Salmonella enterica	7	species		table:copy_number_sources.tsv
+8	Shigella flexneri	7	species		table:copy_number_sources.tsv
+9	Staphylococcus aureus	6	species		table:copy_number_sources.tsv
+10	Streptococcus mitis	4	species		table:copy_number_sources.tsv
+11	Streptococcus pneumoniae	4	species		table:copy_number_sources.tsv

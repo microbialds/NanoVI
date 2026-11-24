@@ -15,7 +15,8 @@ process LIKELIHOOD {
     read_likelihood.py \\
         --alignments "${alignments}" \\
         --scores "${sample_id}_read_scores.npz" \\
-        --counts "${sample_id}_read_counts.json"
+        --counts "${sample_id}_read_counts.json" \\
+        ${params.read_assignments ? '--read-names' : ''}
     python_versions.py "${task.process}" > versions.yml
     """
 

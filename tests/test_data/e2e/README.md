@@ -16,7 +16,10 @@ nextflow run main.nf -profile test,docker          # same data, outputs in test_
 |---|---|
 | `db/species_taxid.fasta` | 11 16S rRNA sequences, one per species, headers `taxid:e2e:n` |
 | `db/taxonomy.tsv` | Lineages in the format `bin/build_gtdb_db.py` writes |
+| `db/copy_numbers.tsv` | 16S copy numbers for `--cell_abundance`, built from `copy_number_sources.tsv` |
+| `copy_number_sources.tsv` | Each species' 16S copy number and where it comes from: the median `ssu_count` of its GTDB r226 complete genomes (NanoVI-paper `docs/benchmarks/copy_number_2026.md`); *Shigella flexneri*, which GTDB places in *E. coli*, from the 106 complete genomes NCBI names *S. flexneri* (all 7) |
 | `sources.tsv` | NCBI accession, species and the lineage used for each sequence |
+| `gtdb_style_ssu.fna` | The 11 sequences with GTDB-style headers (`>ACC~ACC <lineage> [ssu_len=n]`), in `sources.tsv` order: the input the database was built from, so the `e2e` test of `--cmd build-database --gtdb_ssu` checks that it rebuilds `db/` exactly (F62) |
 | `reads/e2e_mock.fastq.gz` | 630 simulated reads: 600 16S reads and 30 non-16S reads |
 | `expected.tsv` | True proportions and read counts per species |
 | `make_reads.py` | The read simulator (fixed seed; the same reads on every Python 3) |
@@ -51,9 +54,13 @@ To rebuild the database:
 ```bash
 ids=$(tail -n +2 sources.tsv | cut -f1 | paste -sd,)
 curl -s "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=${ids}&rettype=fasta&retmode=text" > ncbi_16s.fasta
-# Rewrite each header as ">ACC~ACC <lineage from sources.tsv>", then:
-python3 ../../../bin/build_gtdb_db.py --ssu gtdb_style_ssu.fna --db-name e2e --output-dir db --min-length 1000
+# Rewrite each header as ">ACC~ACC <lineage from sources.tsv>" (gtdb_style_ssu.fna), then:
+python3 ../../../bin/build_gtdb_db.py --ssu gtdb_style_ssu.fna --db-name e2e --output-dir db --min-length 1000 \
+    --copy-numbers copy_number_sources.tsv
 ```
+
+The build also writes `identical_16s.tsv` and `cross_genus_identical.tsv`, which the
+fixture leaves out so that the pipeline's IDENTICAL_16S step is tested; delete them.
 
 ## Reads
 

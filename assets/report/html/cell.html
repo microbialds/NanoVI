@@ -1,0 +1,9 @@
+{% extends "base.html" %}{% import "macros.html" as m %}
+{% set f = s.facts %}
+{% block body %}
+<h1>Cell-level abundance</h1>
+<p>With <code>--cell_abundance</code>, each species' read-level abundance is divided by its 16S copy number and renormalised (D40){% if f.explanation %}: {{ f.explanation }}{% else %}.{% endif %} {{ m.tabref(s, "left_out") }} lists what each sample's table leaves out (its <code>#</code> lines); {{ m.figref(s, "cell_vs_read") }} compares the two abundances.</p>
+{{ m.table(s, "left_out") }}
+{{ m.figure(s, "cell_vs_read", specs) }}
+{{ m.table(s, "cell") }}
+{% endblock %}

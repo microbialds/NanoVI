@@ -9,7 +9,7 @@ process FILTER_READS {
     tuple val(sample_id), path("${sample_id}_filtered.fastq.gz"), emit: filtered
 
     // Additional outputs to publish
-    path "fastplong/*.json.gz"
+    path "fastplong/*.json.gz", emit: qc_json
     path "fastplong/*.html.gz"
     path "versions.yml", emit: versions
 

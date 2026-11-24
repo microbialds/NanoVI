@@ -466,6 +466,7 @@ def bayesian_vi(
     posterior_summary: bool = False,
     species_rows: Optional[Dict[int, object]] = None,
     credible_intervals: bool = False,
+    responsibilities: bool = False,
 ):
     """
     Outer optimization loop with iterative species pruning, on the padded likelihood.
@@ -514,6 +515,11 @@ def bayesian_vi(
         If True, the third value holds each species' 95% interval; by default it
         is None (F51: the pipeline builds its interval columns from the summary's
         alpha in taxonomy.py, so these quantiles were computed and discarded).
+    responsibilities : bool
+        If True, also return a last value, (idx_reported, phi, reported_ids): the
+        responsibilities of the final fit, with idx_reported the entry's column
+        among the reported species (reported_ids) or -1 for padding and for
+        species that are not reported (the per-read assignments, F55).
 
     Returns
     -------
@@ -533,6 +539,7 @@ def bayesian_vi(
     summary : dict, only with posterior_summary=True
         Species ID → {"alpha", "expected_reads", "shared_reads"} for the
         reported species (posterior_read_summary).
+    (idx_reported, phi, reported_ids) : tuple, only with responsibilities=True
 
     Raises
     ------
@@ -697,16 +704,20 @@ def bayesian_vi(
         f"(CAVI iterations: {', '.join(map(str, inner_iterations))})\n"
     )
 
-    if posterior_summary:
+    result = (freq_full, freq_thresholded, intervals, below_detection_count)
+    if posterior_summary or responsibilities:
         idx_reported, _ = remap_columns(idx, logL, reported_cols, len(current_species))
         idx_reported = np.where(is_reported[idx] & np.isfinite(logL), idx_reported, -1)
         reported_ids = [current_species[i] for i in reported_cols]
+    if posterior_summary:
         summary = posterior_read_summary(
             alpha[reported_cols], idx_reported, phi, reported_ids,
             groups=row_groups(reported_ids, species_rows),
         )
-        return freq_full, freq_thresholded, intervals, below_detection_count, summary
-    return freq_full, freq_thresholded, intervals, below_detection_count
+        result += (summary,)
+    if responsibilities:
+        result += ((idx_reported, phi, reported_ids),)
+    return result
 
 
 def row_groups(species_ids: List[int], species_rows: Optional[Dict[int, object]]) -> Optional[List[int]]:

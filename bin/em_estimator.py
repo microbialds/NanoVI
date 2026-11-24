@@ -82,7 +82,7 @@ def count_below_detection(log_p_rgs, reported):
         if not any(reported.get(sid, 0) > 0 for sid in sids)
     )
 
-def read_summary(idx, logL, freq, species_ids, reported_ids, species_rows=None):
+def read_summary(idx, logL, freq, species_ids, reported_ids, species_rows=None, resp=None):
     """Expected and shared reads of each reported species under EM's responsibilities (D27).
 
     idx/logL are the padded likelihood over the species that survived pruning
@@ -92,6 +92,22 @@ def read_summary(idx, logL, freq, species_ids, reported_ids, species_rows=None):
     final fit; expected and shared reads are then counted over the reported species
     (reported_ids) as in posterior_read_summary, without alpha; species_rows
     (species ID → table row) counts as shared only the reads split between rows (F46).
+    resp: (idx_reported, phi) from responsibilities with the same arguments, when
+    the caller has them already.
+    """
+    idx_reported, phi = resp if resp is not None else responsibilities(idx, logL, freq, species_ids, reported_ids)
+    return posterior_read_summary(None, idx_reported, np.where(idx_reported >= 0, phi, 0.0), list(reported_ids),
+                                  groups=row_groups(list(reported_ids), species_rows))
+
+
+def responsibilities(idx, logL, freq, species_ids, reported_ids):
+    """EM's responsibilities, ∝ freq_s × p(read | s), as read_summary uses them.
+
+    Returns (idx_reported, phi): phi over the columns of idx (species_ids, with
+    frequencies freq), each read's row summing to 1 (0 for a read none of whose
+    species survived pruning), and each entry's column among reported_ids, -1
+    for padding and for species that are not reported (the per-read
+    assignments, F55).
     """
     finite = np.isfinite(logL)
     with np.errstate(divide="ignore"):
@@ -104,8 +120,7 @@ def read_summary(idx, logL, freq, species_ids, reported_ids, species_rows=None):
     column = {sid: i for i, sid in enumerate(reported_ids)}
     reported_col = np.array([column.get(sid, -1) for sid in species_ids], dtype=np.int64)
     idx_reported = np.where(np.isfinite(score), reported_col[idx], -1)
-    return posterior_read_summary(None, idx_reported, np.where(idx_reported >= 0, phi, 0.0), list(reported_ids),
-                                  groups=row_groups(list(reported_ids), species_rows))
+    return idx_reported, phi
 
 
 def variational_inference_iterations(log_p_rgs, db_ids, lli_thresh, input_threshold):

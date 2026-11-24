@@ -1,0 +1,7 @@
+{% extends "base.html" %}{% import "macros.html" as m %}
+{% block body %}
+<h1>Per-read assignments</h1>
+<p>With <code>--read_assignments</code>, each sample's file lists every read that passed fastplong with its table rows at probability 0.01 or more (D37). {{ m.tabref(s, "per_sample") }} counts the reads by their highest probability; {{ m.tabref(s, "pairs") }} lists the species pairs that share the most reads.</p>
+{{ m.table(s, "per_sample") }}
+{{ m.table(s, "pairs") }}
+{% endblock %}

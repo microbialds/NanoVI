@@ -178,6 +178,21 @@
           "type": "boolean",
           "default": false,
           "description": "VB only: add ci_lower and ci_upper, 95% sampling intervals of the mean-field posterior. They are not calibrated: they ignore how reads shared by close relatives are split (shared_read_fraction, always written, flags those species)"
+        },
+        "read_assignments": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also write sample_outputs/<sample>_read_assignments.tsv.gz: for every read, the species (rows of the abundance table) with probability >= 0.01 and that probability, 'Below detection' or 'Unassigned'"
+        },
+        "ambiguity_groups": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also write sample_outputs/<sample>_groups.tsv: the rows of the abundance table of one family grouped where two of them share at least 0.25 of either one's reads in the sample (a row with no family in taxonomy.tsv is grouped with none), with their summed abundance and the unreported species that share an identical 16S with a member. The abundance table does not change"
+        },
+        "cell_abundance": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also write sample_outputs/<sample>_cell-abundance.tsv: each species' read-level abundance divided by its 16S copy number (copy_numbers.tsv in --db) and renormalised, the copy number and the level it was filled from (species, genus or family). Below detection, Unassigned and species without a copy number are left out. Needs a database built with copy numbers; the abundance table does not change"
         }
       }
     },
@@ -190,6 +205,27 @@
           "default": "db_custom",
           "description": "Name for the custom database to build",
           "pattern": "^[A-Za-z0-9._-]+$"
+        },
+        "gtdb_ssu": {
+          "type": "string",
+          "description": "GTDB SSU FASTA (ssu_all_r<release>.fna.gz, or ssu_all.fna.gz from GTDB's latest release): build the database from it with bin/build_gtdb_db.py, which reads the lineages from the FASTA headers. Takes the place of sequences, seq2tax, taxonomy_list and ncbi_taxonomy",
+          "format": "file-path",
+          "exists": true
+        },
+        "gtdb_metadata": {
+          "type": "string",
+          "description": "With gtdb_ssu: the release's bac120_metadata and ar53_metadata files, comma-separated or as a glob, such as {bac120,ar53}_metadata_r226.tsv.gz: write copy_numbers.tsv, each species' 16S copy number as the median ssu_count of its complete genomes, filled from the genus or else family median. At most one of gtdb_metadata or copy_numbers"
+        },
+        "merge_gtdb_suffixes": {
+          "type": "boolean",
+          "default": false,
+          "description": "With gtdb_ssu: strip GTDB's clade suffixes (Listeria monocytogenes_B -> Listeria monocytogenes), merging the species and genera GTDB separates with them, and write merged_species.tsv"
+        },
+        "gtdb_min_length": {
+          "type": "integer",
+          "default": 900,
+          "minimum": 1,
+          "description": "With gtdb_ssu: shortest 16S sequence (bp) taken into the database. Not min_length, which filters reads"
         },
         "sequences": {
           "type": "string",
@@ -212,6 +248,29 @@
         "taxonomy_list": {
           "type": "string",
           "description": "Path to taxonomy terms list TSV file. build-database needs exactly one of taxonomy_list or ncbi_taxonomy",
+          "format": "file-path",
+          "exists": true
+        },
+        "cross_genus_rule": {
+          "type": "string",
+          "default": "keep",
+          "enum": [
+            "keep",
+            "remove",
+            "best-genus",
+            "most-copies"
+          ],
+          "description": "Sequences found in species of more than one genus (cross_genus_identical.tsv): keep them; remove every copy; keep each only in the genus with the most species carrying it (best-genus) or whose entries stand for the most input sequences (most-copies). A tie that the rule cannot break removes every copy (most-copies breaks a tie on copies by the genera's database entries). Any rule but keep also writes cross_genus_removed.tsv and cross_genus_emptied.tsv"
+        },
+        "copy_numbers": {
+          "type": "string",
+          "description": "TSV with 'species' and 'copy_number' columns (16S copies per genome): write copy_numbers.tsv into the database, species without a value taking the median of their genus or else family. At most one of copy_numbers, rrndb_pantaxa or gtdb_metadata",
+          "format": "file-path",
+          "exists": true
+        },
+        "rrndb_pantaxa": {
+          "type": "string",
+          "description": "rrnDB pan-taxa statistics for NCBI taxonomy (rrnDB-<version>_pantaxa_stats_NCBI.tsv): write copy_numbers.tsv from the median of each species' NCBI taxid, filled from the genus or else family median. Needs ncbi_taxonomy; at most one of copy_numbers or rrndb_pantaxa",
           "format": "file-path",
           "exists": true
         }
@@ -245,6 +304,24 @@
             "phylum",
             "superkingdom"
           ]
+        }
+      }
+    },
+    "report_options": {
+      "title": "Run report options",
+      "type": "object",
+      "properties": {
+        "report": {
+          "type": "boolean",
+          "default": false,
+          "description": "Also write <output_dir>/report/: an offline HTML site (index.html), nanovi_report.pdf and figures/ (SVG, PDF, 600 dpi PNG and a CSV of the plotted values) with the read fate, composition, flagged species, the group, cell-level and per-read tables when their options ran, and the methods with references. Runs in its own image (nanovi-report); the other outputs do not change"
+        },
+        "report_metadata": {
+          "type": "string",
+          "description": "Sample metadata for the report, TSV or CSV with a sample_id column and optionally group (samples are drawn by group, then in natural order); other columns are listed",
+          "format": "file-path",
+          "exists": true,
+          "pattern": "^\\S+\\.(tsv|csv|txt)$"
         }
       }
     },
@@ -297,6 +374,9 @@
     },
     {
       "$ref": "#/$defs/postprocessing_options"
+    },
+    {
+      "$ref": "#/$defs/report_options"
     },
     {
       "$ref": "#/$defs/resource_options"

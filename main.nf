@@ -39,13 +39,27 @@ params {
     alpha_prior: Float
     vi_elbo_threshold: Float
     credible_intervals: Boolean
+    read_assignments: Boolean
+    ambiguity_groups: Boolean
+    cell_abundance: Boolean
+
+    // Run report (F60, D42)
+    report: Boolean
+    report_metadata: String?
 
     // Build database
     db_name: String
+    gtdb_ssu: String?
+    gtdb_metadata: String?
+    merge_gtdb_suffixes: Boolean
+    gtdb_min_length: Integer
     sequences: String?
     seq2tax: String?
     ncbi_taxonomy: String?
     taxonomy_list: String?
+    cross_genus_rule: String
+    copy_numbers: String?
+    rrndb_pantaxa: String?
 
     // Post-processing
     input_tsv: String?
@@ -61,8 +75,10 @@ params {
 // ─── SUBWORKFLOW INCLUDES ───────────────────────────────────────────────────
 include { ABUNDANCE }          from './subworkflows/local/abundance'
 include { BUILD_DATABASE }     from './subworkflows/local/build_database'
+include { BUILD_GTDB_DATABASE } from './subworkflows/local/build_database'
 include { COLLAPSE_TAXONOMY }  from './subworkflows/local/postprocessing'
 include { COMBINE_OUTPUTS }    from './subworkflows/local/postprocessing'
+include { REPORT }             from './modules/local/report'
 
 // ─── MAIN WORKFLOW ──────────────────────────────────────────────────────────
 workflow {
@@ -158,26 +174,117 @@ workflow {
         def identical_file = file("${params.db}/identical_16s.tsv")
         def identical_16s = identical_file.exists() && tax_file == file("${params.db}/taxonomy.tsv") ? identical_file : null
 
-        ABUNDANCE(input_reads, fasta_file, tax_file, db_index, identical_16s)
+        // The database's 16S copy numbers (F58, D40), only with --cell_abundance
+        def copy_numbers = null
+        if (params.cell_abundance) {
+            copy_numbers = file("${params.db}/copy_numbers.tsv")
+            if (!copy_numbers.exists())
+                error "--cell_abundance needs copy_numbers.tsv in the database directory (${params.db}). " +
+                    "Build the database with copy numbers: bin/build_gtdb_db.py --gtdb-metadata (GTDB), or " +
+                    "--cmd build-database --copy_numbers <table> or --rrndb_pantaxa <file>"
+            // Its tax IDs are those of the database's own taxonomy.tsv: the same path, or the same
+            // bytes (a link or a copy). Not toRealPath(), which a remote file system (S3) may not
+            // support (F74 c)
+            def db_tax = file("${params.db}/taxonomy.tsv")
+            def same_tax = tax_file == db_tax || (db_tax.exists() && tax_file.bytes == db_tax.bytes)
+            if (!same_tax)
+                error "--cell_abundance uses ${params.db}/copy_numbers.tsv, which matches the database's own taxonomy.tsv; " +
+                    "it cannot be used with another --taxonomy_tsv (${taxonomy_tsv})"
+        }
+        // The copy-number sources are build-database options (F58)
+        ['copy_numbers', 'rrndb_pantaxa'].findAll { params[it] }.each {
+            log.warn "--${it} is a build-database option and is ignored by --cmd abundance; " +
+                "--cell_abundance reads copy_numbers.tsv from --db"
+        }
+        ['gtdb_ssu', 'gtdb_metadata', 'merge_gtdb_suffixes'].findAll { params[it] }.each {
+            log.warn "--${it} is a build-database option and is ignored by --cmd abundance"
+        }
+        // These have defaults, so only a changed value is warned about (F74 d)
+        changedFromDefault(['gtdb_min_length', 'cross_genus_rule']).each {
+            log.warn "--${it} is a build-database option and is ignored by --cmd abundance"
+        }
+
+        ABUNDANCE(input_reads, fasta_file, tax_file, db_index, identical_16s, copy_numbers)
         versions = ABUNDANCE.out.versions
+
+        // The run report (F60, D42) reads what the run publishes, collected here and
+        // rendered after software_versions.yml is written
+        if (params.report) {
+            def byName = { a, b -> a.name <=> b.name }
+            report_tables = ABUNDANCE.out.results
+                .mix(ABUNDANCE.out.groups, ABUNDANCE.out.cell, ABUNDANCE.out.read_assignments)
+                .toSortedList(byName)
+            report_consolidated = ABUNDANCE.out.otu_abundance
+                .mix(ABUNDANCE.out.tax_table, ABUNDANCE.out.sample_metadata)
+                .toSortedList(byName)
+            report_qc = ABUNDANCE.out.qc_json.flatten().toSortedList(byName)
+        }
+        else if (params.report_metadata) {
+            log.warn "--report_metadata is used only with --report"
+        }
     }
 
     // ─── SUBCOMMAND: BUILD-DATABASE ─────────────────────────────────────────
+    else if (params.cmd == 'build-database' && params.gtdb_ssu) {
+        // From a GTDB SSU file (F62, D44): the lineages are in its FASTA headers
+        def other = ['sequences', 'seq2tax', 'taxonomy_list', 'ncbi_taxonomy', 'rrndb_pantaxa'].findAll { params[it] }
+        if (other)
+            error "--gtdb_ssu builds the database from a GTDB SSU file; leave out " + other.collect { "--${it}" }.join(', ')
+        if (params.gtdb_metadata && params.copy_numbers)
+            error "For build-database provide at most one of --gtdb_metadata or --copy_numbers"
+        // --gtdb_metadata: comma-separated files or globs; a comma inside {} belongs to the glob
+        def metadata = []
+        params.gtdb_metadata?.split(/,(?![^{]*\})/)*.trim()?.findAll()?.each { entry ->
+            def found = files(entry)
+            if (!found)
+                error "--gtdb_metadata: ${entry} matches no file"
+            found.findAll { !it.exists() }.each { error "--gtdb_metadata: file not found: ${it}" }
+            metadata.addAll(found)
+        }
+        // A file named twice (by a glob and by its name) is read once
+        metadata = metadata.unique { it.toAbsolutePath().normalize() }
+        // Two files of one name would be staged on top of each other (F74 b)
+        metadata.groupBy { it.name }.findAll { name, same -> same.size() > 1 }.each { name, same ->
+            error "--gtdb_metadata: ${same.size()} files are named ${name} (${same.join(', ')}); give each a distinct name"
+        }
+
+        BUILD_GTDB_DATABASE(
+            channel.value(file(params.gtdb_ssu)),
+            channel.value(metadata),
+            params.copy_numbers ? channel.value(file(params.copy_numbers)) : channel.value([])
+        )
+        versions = BUILD_GTDB_DATABASE.out.versions
+    }
+
     else if (params.cmd == 'build-database') {
+        // BUILD_DB does not read --gtdb_min_length, so a changed value is refused too
+        def gtdb_only = ['gtdb_metadata', 'merge_gtdb_suffixes'].findAll { params[it] } +
+            changedFromDefault(['gtdb_min_length'])
+        if (gtdb_only)
+            error gtdb_only.collect { "--${it}" }.join(' and ') + " needs --gtdb_ssu (a GTDB SSU file)"
         if (!params.sequences || !params.seq2tax)
-            error "For build-database you must provide --sequences and --seq2tax"
+            error "For build-database you must provide --sequences and --seq2tax, or --gtdb_ssu (a GTDB SSU file)"
         if (!params.taxonomy_list == !params.ncbi_taxonomy)
             error "For build-database provide exactly one of --taxonomy_list or --ncbi_taxonomy"
+        if (params.copy_numbers && params.rrndb_pantaxa)
+            error "For build-database provide at most one of --copy_numbers or --rrndb_pantaxa"
+        if (params.rrndb_pantaxa && !params.ncbi_taxonomy)
+            error "--rrndb_pantaxa needs --ncbi_taxonomy: rrnDB is looked up by NCBI taxid"
 
         // main.py takes the taxonomy source as --taxonomy-list <file> or --ncbi-taxonomy <dir>
         def taxonomy_flag = params.taxonomy_list ? '--taxonomy-list' : '--ncbi-taxonomy'
         def taxonomy_path = params.taxonomy_list ?: params.ncbi_taxonomy
+        // 16S copy numbers (F58): a table or rrnDB's pan-taxa statistics, or none
+        def copy_flag = params.copy_numbers ? '--copy-numbers' : (params.rrndb_pantaxa ? '--rrndb-pantaxa' : '')
+        def copy_source = params.copy_numbers ?: params.rrndb_pantaxa
 
         BUILD_DATABASE(
             channel.value(file(params.sequences)),
             channel.value(file(params.seq2tax)),
             channel.value(file(taxonomy_path)),
-            taxonomy_flag
+            taxonomy_flag,
+            copy_source ? channel.value(file(copy_source)) : channel.value([]),
+            copy_flag
         )
         versions = BUILD_DATABASE.out.versions
     }
@@ -217,8 +324,35 @@ workflow {
     }
 
     // ─── SOFTWARE VERSIONS ──────────────────────────────────────────────────
-    softwareVersionsToYAML(versions)
+    software_versions = softwareVersionsToYAML(versions)
         .collectFile(storeDir: "${params.output_dir}/pipeline_info", name: 'software_versions.yml', sort: true, newLine: true)
+
+    // ─── RUN REPORT ─────────────────────────────────────────────────────────
+    // After software_versions.yml, which the report reads; its own versions go in
+    // report/versions.yml and its methods, not in that file (D42)
+    if (params.cmd != 'abundance' && (params.report || params.report_metadata)) {
+        log.warn "--report and --report_metadata apply to --cmd abundance only; --cmd ${params.cmd} writes no report"
+    }
+    if (params.cmd == 'abundance' && params.report) {
+        // assets/report goes in with a hash of its files' contents, so an edited template
+        // reruns the report on -resume (a directory is cached by its path, size and mtime)
+        def report_assets = file("${projectDir}/assets/report", checkIfExists: true)
+        def report_assets_hash = files("${report_assets}/**", type: 'file')
+            .collect { f -> "${report_assets.relativize(f)} ${f.bytes.md5()}" }
+            .sort()
+            .join('\n')
+            .md5()
+        REPORT(
+            report_tables,
+            report_consolidated,
+            report_qc,
+            software_versions,
+            params.report_metadata ? file(params.report_metadata, checkIfExists: true) : [],
+            [report_assets, report_assets_hash],
+            reportParamsJson(),
+            workflow.start.withOffsetSameInstant(java.time.ZoneOffset.UTC).toLocalDate().toString()
+        )
+    }
 }
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
@@ -240,11 +374,29 @@ def workflowVersionToYAML() {
     """.stripIndent().trim()
 }
 
+// The run parameters the report's methods list (F60), as one line of JSON
+def reportParamsJson() {
+    def keys = ['input', 'db', 'taxonomy_tsv', 'db_index', 'type', 'kmer_size', 'N', 'K', 'min_length', 'max_length',
+                'min_quality', 'estimator', 'min_abundance', 'vi_tolerance', 'vi_max_iterations', 'alpha_prior',
+                'vi_elbo_threshold', 'binomial_names', 'keep_counts', 'credible_intervals', 'read_assignments',
+                'ambiguity_groups', 'cell_abundance', 'report_metadata']
+    def values = keys.collectEntries { k -> [k, params[k] instanceof Number || params[k] instanceof Boolean || params[k] == null ? params[k] : params[k].toString()] }
+    return groovy.json.JsonOutput.toJson(values)
+}
+
 def softwareVersionsToYAML(ch_versions) {
     return ch_versions
         .map { yaml_file -> processVersionsFromYAML(yaml_file) }
         .unique()
         .mix(channel.of(workflowVersionToYAML()))
+}
+
+// The names whose value differs from its default in nextflow_schema.json (the same as
+// nextflow.config's), so that a default is kept in one place
+def changedFromDefault(names) {
+    def props = new groovy.json.JsonSlurper().parse(file("${projectDir}/nextflow_schema.json"))['$defs']
+        .values().collectEntries { it.properties ?: [:] }
+    return names.findAll { params[it] != props[it].default }
 }
 
 // --rank must name a column of the per-sample tables; validateParameters() checks

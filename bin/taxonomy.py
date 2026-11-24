@@ -17,6 +17,7 @@ taxonomic ranks, and combining per-sample results into matrices.
 # taxonomy.py
 
 import os
+import re
 import sys
 import math
 import numpy as np
@@ -45,6 +46,16 @@ SHARED_COLUMN = "shared_read_fraction"
 INTERVAL_COLUMNS = ["ci_lower", "ci_upper"]
 # Species of the same genus that share an identical 16S with the row's species (D24)
 IDENTICAL_COLUMN = "identical_16s_species"
+
+def natural_key(text):
+    """V2 before V10: digits compare as numbers (the run report's and the consolidated tables' sample order).
+
+    IDs that compare equal so (S1 and S01, s1 and S1) are ordered by the text itself, so the
+    order never depends on the order they came in.
+    """
+    text = str(text)
+    return [(0, int(t), "") if t.isdigit() else (1, 0, t.lower()) for t in re.split(r"(\d+)", text) if t], text
+
 
 def lineage_dict_from_tid(taxid, nodes_dict, names_dict):
     """
@@ -159,7 +170,8 @@ def create_unique_seq_dict(db_fasta_path, seq2tax_dict):
 def create_reduced_fasta(fasta_dict, db_name):
     """
     Flatten fasta_dict into a list of SeqRecords, giving each unique (seq, tid) pair
-    a new ID: e.g. taxid:db_name:count
+    a new ID: e.g. taxid:db_name:count. annotations['copies'] is the number of
+    input sequences the record stands for (the cross-genus rule most-copies, F56).
     """
     from Bio.SeqRecord import SeqRecord
 
@@ -169,7 +181,8 @@ def create_reduced_fasta(fasta_dict, db_name):
         for taxid, descriptions in tid_dict.items():
             rec_id = f"{taxid}:{db_name}:{count}"
             rec_desc = "; ".join(descriptions)
-            records.append(SeqRecord(seq, id=rec_id, description=rec_desc))
+            records.append(SeqRecord(seq, id=rec_id, description=rec_desc,
+                                     annotations={"copies": len(descriptions)}))
             count += 1
     return records
 
@@ -266,6 +279,19 @@ def species_row_keys(tax_ids, taxonomy_df, binomial=False):
     keys = list(df[group_columns].itertuples(index=False, name=None))
     assert len(keys) == len(tax_ids)
     return keys
+
+
+def table_row_of_ids(tax_ids, species_df, taxonomy_df, binomial=False):
+    """tax ID -> the index of its row in species_df, the table freq_to_lineage_df wrote.
+
+    Rows are matched on their species name and lineage (species_row_keys), so tax IDs
+    summed into one row (F46, --binomial_names) map to it. One pass over the taxonomy;
+    the group table (F57) and the cell table (F58) share it.
+    """
+    taxa = species_df[~species_df["species"].isin([BELOW_DETECTION_LABEL, UNASSIGNED_LABEL])]
+    row_of_key = {tuple(r): i for i, r in zip(taxa.index, taxa[TAXONOMY_RANKS].itertuples(index=False, name=None))}
+    ids = [str(t) for t in tax_ids]
+    return dict(zip(ids, (row_of_key[k] for k in species_row_keys(ids, taxonomy_df, binomial))))
 
 
 def unify_species_abundance(df, binomial=False):
@@ -494,18 +520,25 @@ def add_interval_columns(results_df):
     50k reads in the Phase 7a benchmark; M2, D27). The Below detection and
     Unassigned rows are left empty.
     """
-    from scipy.stats import beta as beta_dist
-
     is_taxon = ~results_df["species"].isin([BELOW_DETECTION_LABEL, UNASSIGNED_LABEL])
     alpha = results_df.loc[is_taxon, "alpha"].to_numpy(dtype=float)
-    rest = alpha.sum() - alpha
-    lower, upper = beta_dist.ppf([[0.025], [0.975]], alpha, np.where(rest > 0, rest, 1.0))
-    # A single reported species has all the mass: Beta(α, 0) is a point at 1
-    lower, upper = np.where(rest > 0, lower, 1.0), np.where(rest > 0, upper, 1.0)
+    lower, upper = interval_bounds(alpha, alpha.sum())
     for col in INTERVAL_COLUMNS:
         results_df[col] = np.nan
     results_df.loc[is_taxon, "ci_lower"] = lower
     results_df.loc[is_taxon, "ci_upper"] = upper
+
+
+def interval_bounds(alpha, total):
+    """2.5% and 97.5% quantiles of Beta(α, total − α) for each α (the interval columns).
+
+    A row with all the mass (total − α = 0) is a point at 1.
+    """
+    from scipy.stats import beta as beta_dist
+
+    rest = total - alpha
+    lower, upper = beta_dist.ppf([[0.025], [0.975]], alpha, np.where(rest > 0, rest, 1.0))
+    return np.where(rest > 0, lower, 1.0), np.where(rest > 0, upper, 1.0)
 
 
 def collapse_rank(path, rank):

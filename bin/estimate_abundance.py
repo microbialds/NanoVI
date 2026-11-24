@@ -13,6 +13,13 @@ write_abundance_table.py builds the shared_read_fraction column and, with its
 (and --binomial-names, as given to write_abundance_table.py) a read counts as
 shared only when its responsibility is split between rows of the table, not
 among tax IDs reported in one row (F46).
+
+With --read-assignments (which needs --taxonomy) it also writes the per-read
+assignments, <sample>_read_assignments.tsv.gz (read_assignments.py, F55, D37).
+With --groups (which needs --taxonomy) the JSON also gets "groups": the table rows
+of one family that share most of their reads in this sample (ambiguity_groups.py,
+F57, D39), which write_abundance_table.py --groups-output writes as
+<sample>_groups.tsv.
 """
 import argparse
 import json
@@ -22,6 +29,9 @@ import numpy as np
 import pandas as pd
 
 import em_estimator
+from ambiguity_groups import GROUP_MIN_SHARED, ambiguity_groups, tax_families
+from read_assignments import DEFAULT_MIN_PROBABILITY, write_read_assignments
+from read_scores import load_read_scores
 from taxonomy import species_row_keys
 from variational_inference_bayesian import bayesian_vi, sparse_likelihood_from_csr
 
@@ -46,16 +56,44 @@ def main():
                                            "table's rows (default: between tax IDs)")
     parser.add_argument("--binomial-names", action="store_true",
                         help="with --taxonomy: rows as write_abundance_table.py --binomial-names makes them")
+    parser.add_argument("--read-assignments",
+                        help="also write each read's table rows and probabilities to this file "
+                             "(<sample>_read_assignments.tsv.gz; needs --taxonomy)")
+    parser.add_argument("--read-assignments-min-probability", type=float, default=DEFAULT_MIN_PROBABILITY,
+                        help="with --read-assignments: the lowest probability listed "
+                             f"(default {DEFAULT_MIN_PROBABILITY})")
+    parser.add_argument("--groups", action="store_true",
+                        help="also write the ambiguity groups of the table's rows into the JSON (needs --taxonomy)")
+    parser.add_argument("--group-min-shared", type=float, default=GROUP_MIN_SHARED,
+                        help="with --groups: link two rows when either one's shared-read share reaches this "
+                             f"(default {GROUP_MIN_SHARED})")
     args = parser.parse_args()
+    if args.read_assignments and not args.taxonomy:
+        parser.error("--read-assignments needs --taxonomy: the file names the table's rows")
+    if args.groups and not args.taxonomy:
+        parser.error("--groups needs --taxonomy: groups are made of the table's rows")
+    if not 0 < args.group_min_shared <= 1:
+        parser.error("--group-min-shared must be above 0 and at most 1")
+    if not 0 <= args.read_assignments_min_probability <= 1:
+        parser.error("--read-assignments-min-probability must be between 0 and 1")
 
-    with np.load(args.scores) as data:
-        offsets, tax_ids, scores = data["offsets"], data["tax_ids"], data["scores"]
+    offsets, tax_ids, scores, read_names, unassigned_names = load_read_scores(args.scores,
+                                                                              names=bool(args.read_assignments))
+    if args.read_assignments and (read_names is None or unassigned_names is None):
+        sys.exit(f"ERROR: {args.scores} has no read names; write it with read_likelihood.py --read-names "
+                 "to write the read assignments")
 
     if len(offsets) <= 1:
         # No read was scored (F45): nothing to estimate, and every read is unassigned
         print(f"WARNING: {args.scores} has no scored read; writing an empty abundance", file=sys.stderr)
+        empty = {"abundance": {}, "below_detection_count": 0, "read_summary": {}}
+        if args.groups:
+            empty["groups"] = []
         with open(args.output, "w") as f:
-            json.dump({"abundance": {}, "below_detection_count": 0, "read_summary": {}}, f)
+            json.dump(empty, f)
+        if args.read_assignments:
+            write_read_assignments(args.read_assignments, [], unassigned_names, np.zeros((0, 1), dtype=np.int32),
+                                   np.zeros((0, 1)), [], {}, args.read_assignments_min_probability)
         return
 
     # Species in order of first appearance through a set, as the JSON hand-off did,
@@ -67,6 +105,9 @@ def main():
     if args.taxonomy:
         taxonomy_df = pd.read_csv(args.taxonomy, sep="\t", dtype=str).set_index("tax_id")
         species_rows = dict(zip(db_ids, species_row_keys(db_ids, taxonomy_df, args.binomial_names)))
+        if args.groups and "family" not in taxonomy_df.columns:
+            print("Warning: taxonomy.tsv has no family column, so no rows are linked: every ambiguity "
+                  "group is one row (D39)", file=sys.stderr)
 
     if args.estimator == "em":
         tax_id_lists, score_lists = tax_ids.tolist(), scores.tolist()
@@ -88,21 +129,39 @@ def main():
             inner_tolerance=args.tolerance,
             posterior_summary=True,
             species_rows=species_rows,
+            responsibilities=bool(args.read_assignments or args.groups),
         )
-        freq_full, freq_thresh, _, below_detection_count, read_summary = result
+        freq_full, freq_thresh, _, below_detection_count, read_summary = result[:5]
 
     reported = freq_thresh if freq_thresh else freq_full
     if args.estimator == "em":
         surviving = list(freq_full)
         idx, logL = sparse_likelihood_from_csr(offsets, tax_ids, scores, np.array(surviving, dtype=np.int64))
+        resp = em_estimator.responsibilities(idx, logL, [freq_full[t] for t in surviving], surviving,
+                                             list(reported))
         read_summary = em_estimator.read_summary(idx, logL, [freq_full[t] for t in surviving], surviving,
-                                                 list(reported), species_rows)
+                                                 list(reported), species_rows, resp=resp)
+
+    if args.read_assignments or args.groups:
+        if args.estimator == "em":
+            (idx_reported, phi), reported_ids = resp, list(reported)
+        else:
+            idx_reported, phi, reported_ids = result[-1]
+    if args.read_assignments:
+        write_read_assignments(args.read_assignments, read_names, unassigned_names, idx_reported, phi,
+                               reported_ids, species_rows, args.read_assignments_min_probability)
 
     output = {
         "abundance": reported,
         "below_detection_count": below_detection_count,
         "read_summary": read_summary,
     }
+    if args.groups:
+        # Entries of species that are not reported (idx -1; EM's responsibilities cover every
+        # species that survived pruning) are left out, as for the read summary
+        output["groups"] = ambiguity_groups(idx_reported, phi, reported_ids,
+                                            tax_families(reported_ids, taxonomy_df), species_rows,
+                                            args.group_min_shared)
     with open(args.output, "w") as f:
         json.dump(output, f)
 

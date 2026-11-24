@@ -1,0 +1,22 @@
+# Environment of the run report (REPORT, --report; F60, D42): -profile conda uses this file, and
+# containers/report/Dockerfile and Singularity.def install it into ghcr.io/microbialds/nanovi-report.
+# The same stack as BugBuster's report image (gene2dis/BugBuster docs/benchmarks/report_system_2026.md):
+# Typst for the PDF, Jinja for the HTML site, matplotlib for the static figures, Altair and vl-convert
+# (Vega-Lite, bundled for offline use) for the interactive ones, and Inter's static fonts. typst and
+# font-inter are conda-forge packages only.
+name: nanovi-report
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - pandas=3.1.0
+  - numpy=2.5.4
+  - matplotlib-base=3.11.2
+  - jinja2=3.1.6
+  - altair=6.3.0
+  - vl-convert-python=1.9.0.post1
+  - typst=0.15.1
+  - font-inter=4.1
+  - pyyaml=6.0.3
+  # the ps that Nextflow uses to collect task metrics
+  - procps-ng

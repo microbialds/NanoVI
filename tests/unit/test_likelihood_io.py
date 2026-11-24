@@ -207,6 +207,40 @@ def test_read_scores_to_arrays():
     assert scores.tolist() == [-2.0, -5.0, -1.5]
 
 
+def test_score_reads_lists_the_unassigned_reads(tmp_path):
+    # In file order, and only on request: the three-value form stays (F55)
+    records = MIXED + [('r5', UNMAPPED, None, None, 0)]
+    path = write_sam(tmp_path / 'a.bam', records, 'wb')
+    log_p_rgs, unassigned, assigned, names = score_reads(path, unassigned_names=True)
+    assert names == ['r3', 'r5'] and unassigned == 2
+    assert score_reads(path) == (log_p_rgs, unassigned, assigned)
+    blank = write_sam(tmp_path / 'b.bam', [('u1', UNMAPPED, None, None, 0), ('u2', UNMAPPED, None, None, 0)], 'wb')
+    assert score_reads(blank, unassigned_names=True) == ({}, 2, 0, ['u1', 'u2'])
+
+
+def test_load_read_scores_with_and_without_names(tmp_path):
+    from read_scores import load_read_scores, save_read_scores
+    lp = {'b': ([3, 1], [-2.0, -5.0]), 'a': ([2], [-1.5])}
+    offsets, tax_ids, scores = read_scores_to_arrays(lp)
+    save_read_scores(tmp_path / 'new.npz', offsets, tax_ids, scores, read_names=list(lp), unassigned_names=['u'])
+    # One long name does not widen the others: the names are stored joined, not fixed-width
+    long = 'x' * 300
+    save_read_scores(tmp_path / 'long.npz', offsets, tax_ids, scores, read_names=['b', long], unassigned_names=[])
+    with np.load(tmp_path / 'long.npz') as data:
+        assert data['read_names'].nbytes == 302 and data['unassigned_names'].size == 0
+    assert load_read_scores(tmp_path / 'long.npz')[3:] == (['b', long], [])
+    loaded = load_read_scores(tmp_path / 'new.npz')
+    assert loaded[3:] == (['b', 'a'], ['u'])
+    assert load_read_scores(tmp_path / 'new.npz', names=False)[3:] == (None, None)
+    for got, expected in zip(loaded[:3], (offsets, tax_ids, scores)):
+        np.testing.assert_array_equal(got, expected)
+    # A file written before the names were kept still loads
+    np.savez_compressed(tmp_path / 'old.npz', offsets=offsets, tax_ids=tax_ids, scores=scores)
+    assert load_read_scores(tmp_path / 'old.npz')[3:] == (None, None)
+    with pytest.raises(ValueError, match='1 read names for 2 reads'):
+        save_read_scores(tmp_path / 'bad.npz', offsets, tax_ids, scores, read_names=['b'])
+
+
 def test_read_likelihood_script(tmp_path):
     path = write_sam(tmp_path / 'a.bam', MIXED, 'wb')
     result = subprocess.run(
@@ -224,6 +258,26 @@ def test_read_likelihood_script(tmp_path):
     assert json.loads((tmp_path / 'counts.json').read_text()) == {
         'assigned_count': assigned, 'unassigned_count': unassigned}
     assert (assigned, unassigned) == (3, 1)
+
+
+def test_read_likelihood_script_stores_read_names_on_request(tmp_path):
+    # The name of each CSR row, and the unassigned reads, in file order (F55)
+    from read_scores import load_read_scores
+    path = write_sam(tmp_path / 'a.bam', MIXED, 'wb')
+    result = subprocess.run(
+        [sys.executable, os.path.join(BIN, 'read_likelihood.py'), '--alignments', path,
+         '--scores', 'scores.npz', '--counts', 'counts.json', '--read-names'],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    with np.load(tmp_path / 'scores.npz') as data:
+        assert set(data.files) == {'offsets', 'tax_ids', 'scores', 'read_names', 'unassigned_names'}
+        assert data['read_names'].tobytes() == b'r1\nr2\nr4'
+    log_p_rgs = score_reads(path)[0]
+    loaded = load_read_scores(tmp_path / 'scores.npz')
+    for got, expected in zip(loaded[:3], read_scores_to_arrays(log_p_rgs)):
+        np.testing.assert_array_equal(got, expected)
+    assert loaded[3:] == (list(log_p_rgs), ['r3']) == (['r1', 'r2', 'r4'], ['r3'])
 
 
 def test_read_likelihood_script_without_primary_alignments(tmp_path):

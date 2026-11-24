@@ -1,0 +1,13 @@
+{% extends "base.html" %}{% import "macros.html" as m %}
+{% block body %}
+<h1>Methods</h1>
+{{ m.table(s, "params") }}
+<h2>Software</h2>
+{{ m.table(s, "tools") }}
+<h2>Reading this report</h2>
+<ul class="caveats">{% for c in s.lists.caveats %}<li>{{ c }}</li>{% endfor %}</ul>
+{% if s.lists.references %}
+<h2>References</h2>
+<ol class="refs">{% for r in s.lists.references %}<li id="ref-{{ r.no }}">{{ r.text }}</li>{% endfor %}</ol>
+{% endif %}
+{% endblock %}

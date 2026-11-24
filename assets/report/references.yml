@@ -1,0 +1,158 @@
+# NanoVI run report references (bin/report_model.py). Each entry checked one by one on 2026-11-06 against PubMed
+# (PMID in the comment) or Crossref (DOI lookup); tool_references.tsv names the evidence per tool.
+
+bonfield2021:  # PMID 33594436
+  type: "article"
+  author: "Bonfield, James K and Marshall, John and Danecek, Petr and Li, Heng and Ohan, Valeriu and Whitwham, Andrew and Keane, Thomas and Davies, Robert M"
+  title: "HTSlib: C library for reading/writing high-throughput sequencing data"
+  journal: "GigaScience"
+  year: 2021
+  volume: "10"
+  number: "2"
+  pages: "giab007"
+  doi: "10.1093/gigascience/giab007"
+chen2018:  # PMID 30423086
+  type: "article"
+  author: "Chen, Shifu and Zhou, Yanqing and Chen, Yaru and Gu, Jia"
+  title: "fastp: an ultra-fast all-in-one FASTQ preprocessor"
+  journal: "Bioinformatics"
+  year: 2018
+  volume: "34"
+  number: "17"
+  pages: "i884--i890"
+  doi: "10.1093/bioinformatics/bty560"
+chen2023:  # PMID 38868435
+  type: "article"
+  author: "Chen, Shifu"
+  title: "Ultrafast one-pass FASTQ data preprocessing, quality control, and deduplication using fastp"
+  journal: "iMeta"
+  year: 2023
+  volume: "2"
+  number: "2"
+  pages: "e107"
+  doi: "10.1002/imt2.107"
+cock2009:  # PMID 19304878
+  type: "article"
+  author: "Cock, Peter J A and Antao, Tiago and Chang, Jeffrey T and Chapman, Brad A and Cox, Cymon J and Dalke, Andrew and Friedberg, Iddo and Hamelryck, Thomas and Kauff, Frank and Wilczynski, Bartek and others"
+  title: "Biopython: freely available Python tools for computational molecular biology and bioinformatics"
+  journal: "Bioinformatics"
+  year: 2009
+  volume: "25"
+  number: "11"
+  pages: "1422--1423"
+  doi: "10.1093/bioinformatics/btp163"
+curiqueo2026:  # Crossref (posted content, bioRxiv)
+  type: "article"
+  author: "Curiqueo, Carolina and Fuentes-Santander, Francisco and Ugalde, Juan A."
+  title: "NanoVI: a Bayesian variational inference Nextflow pipeline for species-level taxonomic classification from full-length 16S rRNA Nanopore reads"
+  journal: "bioRxiv"
+  year: 2026
+  doi: "10.64898/2026.03.07.710315"
+curry2022:  # PMID 35773532
+  type: "article"
+  author: "Curry, Kristen D and Wang, Qi and Nute, Michael G and Tyshaieva, Alona and Reeves, Elizabeth and Soriano, Sirena and Wu, Qinglong and Graeber, Enid and Finzer, Patrick and Mendling, Werner and others"
+  title: "Emu: species-level microbial community profiling of full-length 16S rRNA Oxford Nanopore sequencing data"
+  journal: "Nature Methods"
+  year: 2022
+  volume: "19"
+  number: "7"
+  pages: "845--853"
+  doi: "10.1038/s41592-022-01520-4"
+danecek2021:  # PMID 33590861
+  type: "article"
+  author: "Danecek, Petr and Bonfield, James K and Liddle, Jennifer and Marshall, John and Ohan, Valeriu and Pollard, Martin O and Whitwham, Andrew and Keane, Thomas and McCarthy, Shane A and Davies, Robert M and others"
+  title: "Twelve years of SAMtools and BCFtools"
+  journal: "GigaScience"
+  year: 2021
+  volume: "10"
+  number: "2"
+  pages: "giab008"
+  doi: "10.1093/gigascience/giab008"
+ditommaso2017:  # PMID 28398311
+  type: "article"
+  author: "Di Tommaso, Paolo and Chatzou, Maria and Floden, Evan W and Barja, Pablo Prieto and Palumbo, Emilio and Notredame, Cedric"
+  title: "Nextflow enables reproducible computational workflows"
+  journal: "Nature Biotechnology"
+  year: 2017
+  volume: "35"
+  number: "4"
+  pages: "316--319"
+  doi: "10.1038/nbt.3820"
+harris2020:  # PMID 32939066
+  type: "article"
+  author: "Harris, Charles R and Millman, K Jarrod and van der Walt, Stéfan J and Gommers, Ralf and Virtanen, Pauli and Cournapeau, David and Wieser, Eric and Taylor, Julian and Berg, Sebastian and Smith, Nathaniel J and others"
+  title: "Array programming with NumPy"
+  journal: "Nature"
+  year: 2020
+  volume: "585"
+  number: "7825"
+  pages: "357--362"
+  doi: "10.1038/s41586-020-2649-2"
+hunter2007:  # Crossref
+  type: "article"
+  author: "Hunter, John D"
+  title: "Matplotlib: A 2D graphics environment"
+  journal: "Computing in Science & Engineering"
+  year: 2007
+  volume: "9"
+  number: "3"
+  pages: "90--95"
+  doi: "10.1109/MCSE.2007.55"
+li2018:  # PMID 29750242
+  type: "article"
+  author: "Li, Heng"
+  title: "Minimap2: pairwise alignment for nucleotide sequences"
+  journal: "Bioinformatics"
+  year: 2018
+  volume: "34"
+  number: "18"
+  pages: "3094--3100"
+  doi: "10.1093/bioinformatics/bty191"
+li2021:  # PMID 34623391
+  type: "article"
+  author: "Li, Heng"
+  title: "New strategies to improve minimap2 alignment accuracy"
+  journal: "Bioinformatics"
+  year: 2021
+  volume: "37"
+  number: "23"
+  pages: "4572--4574"
+  doi: "10.1093/bioinformatics/btab705"
+mckinney2010:  # Crossref
+  type: "inproceedings"
+  author: "McKinney, Wes"
+  title: "Data structures for statistical computing in Python"
+  booktitle: "Proceedings of the 9th Python in Science Conference"
+  year: 2010
+  pages: "56--61"
+  doi: "10.25080/Majora-92bf1922-00a"
+satyanarayan2017:  # Crossref
+  type: "article"
+  author: "Satyanarayan, Arvind and Moritz, Dominik and Wongsuphasawat, Kanit and Heer, Jeffrey"
+  title: "Vega-Lite: A grammar of interactive graphics"
+  journal: "IEEE Transactions on Visualization and Computer Graphics"
+  year: 2017
+  volume: "23"
+  number: "1"
+  pages: "341--350"
+  doi: "10.1109/TVCG.2016.2599030"
+vanderplas2018:  # Crossref
+  type: "article"
+  author: "VanderPlas, Jacob and Granger, Brian and Heer, Jeffrey and Moritz, Dominik and Wongsuphasawat, Kanit and Satyanarayan, Arvind and Lees, Eitan and Timofeev, Ilia and Welsh, Ben and Sievert, Scott"
+  title: "Altair: Interactive statistical visualizations for Python"
+  journal: "Journal of Open Source Software"
+  year: 2018
+  volume: "3"
+  number: "32"
+  pages: "1057"
+  doi: "10.21105/joss.01057"
+virtanen2020:  # PMID 32015543
+  type: "article"
+  author: "Virtanen, Pauli and Gommers, Ralf and Oliphant, Travis E and Haberland, Matt and Reddy, Tyler and Cournapeau, David and Burovski, Evgeni and Peterson, Pearu and Weckesser, Warren and Bright, Jonathan and others"
+  title: "SciPy 1.0: fundamental algorithms for scientific computing in Python"
+  journal: "Nature Methods"
+  year: 2020
+  volume: "17"
+  number: "3"
+  pages: "261--272"
+  doi: "10.1038/s41592-019-0686-2"

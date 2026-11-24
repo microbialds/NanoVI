@@ -1,0 +1,12 @@
+species	copy_number	note
+Bacillus subtilis	10	GTDB r226: median ssu_count of 453 complete genomes
+Enterococcus faecalis	4	GTDB r226: median of 292 complete genomes
+Escherichia coli	7	GTDB r226: median of 4,006 complete genomes
+Limosilactobacillus fermentum	5	GTDB r226: median of 66 complete genomes
+Listeria monocytogenes	6	GTDB r226: median of 242 complete genomes
+Pseudomonas aeruginosa	4	GTDB r226: median of 920 complete genomes
+Salmonella enterica	7	GTDB r226: median of 1,832 complete genomes
+Shigella flexneri	7	GTDB r226 places it in Escherichia coli: the 106 complete genomes with NCBI name Shigella flexneri all have 7
+Staphylococcus aureus	6	GTDB r226: median of 1,474 complete genomes
+Streptococcus mitis	4	GTDB r226: median of 4 complete genomes
+Streptococcus pneumoniae	4	GTDB r226: median of 239 complete genomes
